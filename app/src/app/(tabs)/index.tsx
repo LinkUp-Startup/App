@@ -9,8 +9,8 @@ export default function PlanScreen() {
     <Screen>
       <ThemedText type="subtitle">Plan your night</ThemedText>
       <ThemedText themeColor="textSecondary">
-        Tell us your budget, group and what you feel like — we&apos;ll put together 2-3 complete plans in
-        Lleida.
+        Tell us your budget, group and what you feel like — we&apos;ll put together 2-3 complete
+        plans in Lleida.
       </ThemedText>
 
       {/* TODO(sprint-1): preference form — budget, group size, activities, time, distance, transport checkboxes */}

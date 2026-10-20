@@ -17,7 +17,10 @@ export default function TabLayout() {
 
       <NativeTabs.Trigger name="saved">
         <NativeTabs.Trigger.Label>Saved</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf={{ default: 'bookmark', selected: 'bookmark.fill' }} md="bookmark" />
+        <NativeTabs.Trigger.Icon
+          sf={{ default: 'bookmark', selected: 'bookmark.fill' }}
+          md="bookmark"
+        />
       </NativeTabs.Trigger>
     </NativeTabs>
   );
