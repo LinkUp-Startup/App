@@ -11,7 +11,12 @@ export default function SavedPlansScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      getSavedPlans().then(setPlans);
+      getSavedPlans()
+        .then(setPlans)
+        .catch((error: unknown) => {
+          console.warn('Could not load saved plans', error);
+          setPlans([]);
+        });
     }, []),
   );
 
