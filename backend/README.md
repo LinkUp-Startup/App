@@ -15,6 +15,32 @@ Listens on `http://0.0.0.0:5000` (what the app's `EXPO_PUBLIC_API_URL` expects; 
 - Health check: `GET /health`
 - Generate plans: `POST /api/plans/generate`
 
+## Local database
+
+PostgreSQL 18 runs in a container defined in `docker-compose.yml` at the repo root. The image is multi-arch (x86-64 and ARM64).
+
+Requirements: Docker Desktop / Docker Engine with Compose, or Podman (`podman compose`).
+
+```bash
+# from the repo root
+docker compose up -d          # start (data persists in the `linkup_db-data` volume)
+docker compose ps             # STATUS should become "healthy"
+docker compose down           # stop, keep data
+docker compose down -v        # stop and wipe the database
+```
+
+| Setting  | Default     |
+| -------- | ----------- |
+| Host     | `localhost` |
+| Port     | `5432`      |
+| Database | `linkup`    |
+| User     | `linkup`    |
+| Password | `linkup`    |
+
+These are local-only development credentials. To change them (e.g. port 5432 is already taken by a local PostgreSQL), copy `.env.example` to `.env` in the repo root and edit it.
+
+Connect manually: `docker compose exec db psql -U linkup -d linkup`.
+
 ## Database tooling
 
 EF Core (with the Npgsql PostgreSQL provider) is the ORM. The `dotnet-ef` CLI is pinned as a local tool in `dotnet-tools.json`; restore it once per clone:
