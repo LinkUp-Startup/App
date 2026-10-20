@@ -51,6 +51,16 @@ dotnet tool restore
 dotnet ef --version
 ```
 
+Migrations live in `src/LinkUp.Api/Data/Migrations`. Run from `backend/`:
+
+```bash
+dotnet ef migrations add <Name> --project src/LinkUp.Api --output-dir Data/Migrations   # after changing entities
+dotnet ef database update --project src/LinkUp.Api                                     # apply to the local database
+dotnet ef migrations remove --project src/LinkUp.Api                                   # undo the last, unapplied migration
+```
+
+To apply to another database (e.g. `project_dev`), set `ConnectionStrings__Default` for that command. Commit the generated migration files together with the entity changes.
+
 ## Structure
 
 ```
