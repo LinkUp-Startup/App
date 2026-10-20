@@ -28,10 +28,21 @@ jobs:
           cache: npm
           cache-dependency-path: app/package-lock.json
 
-      # Installed so the TypeScript analyzer can resolve imported types
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: backend/global.json
+
       - name: Install app dependencies
         working-directory: app
-        run: npm ci
+        run: npm ci --ignore-scripts
+
+      - name: Test app with coverage
+        working-directory: app
+        run: npm run test:coverage
+
+      - name: Restore .NET tools
+        working-directory: backend
+        run: dotnet tool restore
 
       - name: Cache SonarQube packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -40,7 +51,34 @@ jobs:
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
 
-      - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
+      # SonarScanner for .NET analyses the C# build and, through multi-language analysis
+      # (sonar.scanner.scanAll), every other supported file in the repo, including app/ TypeScript.
+      - name: Begin SonarQube analysis
+        working-directory: backend
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: >
+          dotnet sonarscanner begin
+          /k:"LinkUp-Startup_App"
+          /o:"linkup-startup"
+          /d:sonar.host.url="https://sonarcloud.io"
+          /d:sonar.token="$SONAR_TOKEN"
+          /d:sonar.projectBaseDir="$GITHUB_WORKSPACE"
+          /d:sonar.exclusions="**/node_modules/**,**/bin/**,**/obj/**,app/coverage/**,app/.expo/**,app/assets/**,backend/src/LinkUp.Api/Data/Migrations/**"
+          /d:sonar.coverage.exclusions="app/src/app/**,app/src/constants/**,**/__tests__/**,app/*.config.js,app/jest.setup.ts,backend/tests/**"
+          /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.opencover.xml"
+          /d:sonar.javascript.lcov.reportPaths="app/coverage/lcov.info"
+
+      - name: Build backend
+        working-directory: backend
+        run: dotnet build LinkUp.sln --no-incremental
+
+      - name: Test backend with coverage
+        working-directory: backend
+        run: dotnet test LinkUp.sln --no-build --collect:"XPlat Code Coverage;Format=opencover"
+
+      - name: End SonarQube analysis
+        working-directory: backend
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"

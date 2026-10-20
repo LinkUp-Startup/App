@@ -44,3 +44,4 @@ yarn-error.*
 
 # AI agent instructions (local only)
 AGENTS.md
+coverage/

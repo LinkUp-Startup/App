@@ -27,7 +27,8 @@ public sealed class ExceptionHandlingMiddleware(
                     Title = "An unexpected error occurred.",
                 },
                 options: null,
-                contentType: "application/problem+json");
+                contentType: "application/problem+json",
+                cancellationToken: context.RequestAborted);
         }
     }
 }
