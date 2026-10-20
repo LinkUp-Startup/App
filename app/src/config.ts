@@ -5,11 +5,13 @@
 const apiUrl = process.env.EXPO_PUBLIC_API_URL;
 
 if (!apiUrl) {
-  console.warn('EXPO_PUBLIC_API_URL is not set — copy .env.example to .env');
+  throw new Error(
+    'EXPO_PUBLIC_API_URL is not set. Copy app/.env.example to app/.env and restart Metro.',
+  );
 }
 
 export const Config = {
-  apiUrl: (apiUrl ?? 'http://10.0.2.2:5000').replace(/\/$/, ''),
+  apiUrl: apiUrl.replace(/\/$/, ''),
   /** Requests that take longer than this are aborted. */
   apiTimeoutMs: 15_000,
 } as const;
