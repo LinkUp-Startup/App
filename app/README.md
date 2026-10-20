@@ -8,6 +8,8 @@ React Native + TypeScript app built with [Expo](https://expo.dev) (SDK 57) and E
 - Android: Android Studio emulator, or the **Expo Go** app on a phone
 - iOS: Expo Go on an iPhone (no Mac needed for development). Simulator builds need macOS + Xcode.
 
+Step-by-step emulator and device setup: [docs/android-setup.md](../docs/android-setup.md).
+
 ## Getting started
 
 ```bash
