@@ -1,0 +1,24 @@
+# Local development services. Start with: docker compose up -d
+# Credentials below are for local development only — the VPS database uses its own, set in Dokploy.
+name: linkup
+
+services:
+  db:
+    image: postgres:18-alpine # multi-arch: amd64 + arm64
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-linkup}
+      POSTGRES_USER: ${POSTGRES_USER:-linkup}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-linkup}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  db-data:
