@@ -4,7 +4,7 @@ import { Button } from '@/components/button';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 
-export default function PlanScreen() {
+export default function PreferencesScreen() {
   return (
     <Screen>
       <ThemedText type="subtitle">Plan your night</ThemedText>

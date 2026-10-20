@@ -1,11 +1,12 @@
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
+import { Button } from '@/components/button';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { getSavedPlans, type SavedPlan } from '@/storage/saved-plans';
 
-export default function SavedScreen() {
+export default function SavedPlansScreen() {
   const [plans, setPlans] = useState<SavedPlan[]>([]);
 
   useFocusEffect(
@@ -18,7 +19,10 @@ export default function SavedScreen() {
     <Screen>
       <ThemedText type="subtitle">Saved plans</ThemedText>
       {plans.length === 0 ? (
-        <ThemedText themeColor="textSecondary">No saved plans yet.</ThemedText>
+        <>
+          <ThemedText themeColor="textSecondary">No saved plans yet.</ThemedText>
+          <Button title="Plan a night" onPress={() => router.navigate('/')} />
+        </>
       ) : (
         plans.map((plan) => <ThemedText key={plan.id}>{plan.title}</ThemedText>)
       )}
