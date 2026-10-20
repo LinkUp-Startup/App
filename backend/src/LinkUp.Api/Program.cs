@@ -1,9 +1,11 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using LinkUp.Api.Data;
 using LinkUp.Api.Middleware;
 using Microsoft.AspNetCore.HttpLogging;
 using LinkUp.Api.Options;
 using LinkUp.Api.Services;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +25,13 @@ builder.Services.AddHttpLogging(options =>
     options.RequestBodyLogLimit = 4096;
     options.MediaTypeOptions.AddText("application/json");
 });
+// Local: appsettings.Development.json. Server: the ConnectionStrings__Default environment variable.
+var connectionString = builder.Configuration.GetConnectionString("Default")
+    ?? throw new InvalidOperationException(
+        "Connection string 'Default' is not configured. Set ConnectionStrings__Default (see backend/README.md).");
+builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("database");
+
 builder.Services.AddScoped<IPlanService, StubPlanService>();
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
 {
