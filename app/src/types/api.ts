@@ -47,3 +47,8 @@ export type GeneratePlansRequest = {
 export type GeneratePlansResponse = {
   plans: Plan[];
 };
+
+export type HealthResponse = {
+  status: 'healthy';
+  timeUtc: string;
+};
