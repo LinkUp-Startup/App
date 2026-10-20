@@ -15,6 +15,16 @@ Listens on `http://0.0.0.0:5000` (what the app's `EXPO_PUBLIC_API_URL` expects; 
 - Health check: `GET /health`
 - Generate plans: `POST /api/plans/generate`
 
+## Database tooling
+
+EF Core (with the Npgsql PostgreSQL provider) is the ORM. The `dotnet-ef` CLI is pinned as a local tool in `dotnet-tools.json`; restore it once per clone:
+
+```bash
+cd backend
+dotnet tool restore
+dotnet ef --version
+```
+
 ## Structure
 
 ```
