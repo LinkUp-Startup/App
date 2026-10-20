@@ -17,16 +17,39 @@ Listens on `http://0.0.0.0:5000` (what the app's `EXPO_PUBLIC_API_URL` expects; 
 
 ## Local database
 
-PostgreSQL 18 runs in a container defined in `docker-compose.yml` at the repo root. The image is multi-arch (x86-64 and ARM64).
+PostgreSQL 18 runs in a container defined in `docker-compose.yml` at the repo root. The image is multi-arch (x86-64 and ARM64), so it works on every laptop and on the VPS.
 
-Requirements: Docker Desktop / Docker Engine with Compose, or Podman (`podman compose`).
+### Requirements
+
+| OS      | Install                                                                                                  |
+| ------- | -------------------------------------------------------------------------------------------------------- |
+| Windows | [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/) (WSL 2 backend)          |
+| macOS   | [Docker Desktop](https://docs.docker.com/desktop/setup/install/mac-install/)                             |
+| Linux   | Docker Engine + Compose plugin, Docker Desktop, or Podman (use `podman compose` instead of `docker compose`) |
+
+Plus the .NET 10 SDK (any 10.0 feature band, see `global.json`).
+
+### First-time setup
+
+From the repo root:
 
 ```bash
-# from the repo root
+docker compose up -d                          # 1. start PostgreSQL
+docker compose ps                             # 2. wait until STATUS shows "healthy"
+cd backend && dotnet tool restore && cd ..    # 3. install the pinned dotnet-ef CLI
+dotnet run --project backend/src/LinkUp.Api   # 4. start the API
+curl http://localhost:5000/health             # 5. expect "database":"healthy"
+```
+
+No extra configuration needed: `appsettings.Development.json` already points at this database.
+
+### Everyday commands
+
+```bash
 docker compose up -d          # start (data persists in the `linkup_db-data` volume)
-docker compose ps             # STATUS should become "healthy"
 docker compose down           # stop, keep data
 docker compose down -v        # stop and wipe the database
+docker compose exec db psql -U linkup -d linkup   # SQL shell
 ```
 
 | Setting  | Default     |
@@ -37,9 +60,17 @@ docker compose down -v        # stop and wipe the database
 | User     | `linkup`    |
 | Password | `linkup`    |
 
-These are local-only development credentials. To change them (e.g. port 5432 is already taken by a local PostgreSQL), copy `.env.example` to `.env` in the repo root and edit it.
+These are local-only development credentials. To change them, copy `.env.example` to `.env` in the repo root and edit it, then set the matching connection string (see [Configuration](#configuration)).
 
-Connect manually: `docker compose exec db psql -U linkup -d linkup`.
+### Troubleshooting
+
+| Problem                                                                    | Fix                                                                                                         |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `failed to connect to the docker API` / `Cannot connect to the Docker daemon` | Docker isn't running: start Docker Desktop, or `sudo systemctl start docker`. Podman: `systemctl --user start podman.socket` |
+| `port is already allocated` / `address already in use` on 5432             | A local PostgreSQL is running. Stop it, or set `POSTGRES_PORT=5433` in `.env` and use `Port=5433` in the connection string |
+| `/health` returns `503` with `"database":"unhealthy"`                       | Container not running or not healthy yet (`docker compose ps`), or the connection string doesn't match `.env` |
+| `password authentication failed` after changing `.env`                      | The password is only set when the volume is first created. Reset with `docker compose down -v` (wipes data) |
+| `A compatible .NET SDK was not found`                                       | Install a .NET 10 SDK                                                                                         |
 
 ## Database tooling
 
