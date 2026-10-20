@@ -70,4 +70,11 @@ Conventions: constructor injection, one interface per service, controllers never
 - `appsettings.json` holds defaults, `appsettings.Development.json` holds local development overrides.
 - Never commit secrets. Override any setting with an environment variable, using `__` for nesting, e.g. `Cors__AllowedOrigins__0=https://example.com`. Future secrets (DB connection string, AI key) go the same way, e.g. `ConnectionStrings__Default`.
 - `appsettings.*.local.json` and `.env` are git-ignored for machine-specific values.
-- Database: `ConnectionStrings:Default`. Locally it comes from `appsettings.Development.json` and matches the docker-compose database. On the server set `ConnectionStrings__Default`; the API refuses to start without it.
+- Database: `ConnectionStrings:Default`. Accepts the Npgsql format (`Host=...;Port=...;Database=...;Username=...;Password=...`) or a `postgresql://user:password@host:port/database` URL (the format Dokploy shows). The API refuses to start without it.
+  - **Local** (default): `appsettings.Development.json`, matching the docker-compose database.
+  - **Local against another database** (e.g. the dev server): use user-secrets, stored outside the repo:
+    ```bash
+    dotnet user-secrets set "ConnectionStrings:Default" "<connection string>" --project backend/src/LinkUp.Api
+    dotnet user-secrets clear --project backend/src/LinkUp.Api   # back to the local database
+    ```
+  - **Server** (Dokploy): set the environment variable `ConnectionStrings__Default`.
