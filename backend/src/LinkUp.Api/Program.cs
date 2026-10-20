@@ -25,10 +25,12 @@ builder.Services.AddHttpLogging(options =>
     options.RequestBodyLogLimit = 4096;
     options.MediaTypeOptions.AddText("application/json");
 });
-// Local: appsettings.Development.json. Server: the ConnectionStrings__Default environment variable.
-var connectionString = builder.Configuration.GetConnectionString("Default")
+// Local: appsettings.Development.json, or user-secrets to override it. Server: the ConnectionStrings__Default
+// environment variable. Both Npgsql (Host=...;) and postgres:// URL formats are accepted.
+var connectionString = PostgresConnectionString.Normalize(
+    builder.Configuration.GetConnectionString("Default")
     ?? throw new InvalidOperationException(
-        "Connection string 'Default' is not configured. Set ConnectionStrings__Default (see backend/README.md).");
+        "Connection string 'Default' is not configured. Set ConnectionStrings__Default (see backend/README.md)."));
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("database");
 
