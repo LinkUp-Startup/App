@@ -12,7 +12,7 @@ Listens on `http://0.0.0.0:5000` (what the app's `EXPO_PUBLIC_API_URL` expects; 
 
 - Swagger UI (development only): http://localhost:5000/swagger
 - OpenAPI spec: http://localhost:5000/openapi/v1.json
-- Health check: `GET /health`
+- Health check: `GET /health` — `200` when the API and database are reachable, `503` otherwise
 - Generate plans: `POST /api/plans/generate`
 
 ## Local database
@@ -58,6 +58,7 @@ backend/src/LinkUp.Api/
   Controllers/   HTTP endpoints. Thin: bind, call a service, return a DTO.
   Services/      Business logic behind interfaces (IPlanService), registered in Program.cs.
   Dtos/          Request/response records. Mirror app/src/types/api.ts (camelCase JSON, enums as camelCase strings).
+  Data/          EF Core AppDbContext and entity configurations.
   Middleware/    Cross-cutting: global exception handling (ProblemDetails).
   Options/       Strongly typed configuration sections.
 ```
@@ -69,3 +70,4 @@ Conventions: constructor injection, one interface per service, controllers never
 - `appsettings.json` holds defaults, `appsettings.Development.json` holds local development overrides.
 - Never commit secrets. Override any setting with an environment variable, using `__` for nesting, e.g. `Cors__AllowedOrigins__0=https://example.com`. Future secrets (DB connection string, AI key) go the same way, e.g. `ConnectionStrings__Default`.
 - `appsettings.*.local.json` and `.env` are git-ignored for machine-specific values.
+- Database: `ConnectionStrings:Default`. Locally it comes from `appsettings.Development.json` and matches the docker-compose database. On the server set `ConnectionStrings__Default`; the API refuses to start without it.
