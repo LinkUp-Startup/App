@@ -31,16 +31,20 @@ npm start              # then press a (Android) / i (iOS), or scan the QR code w
 
 ## Scripts
 
-| Command                | What it does                        |
-| ---------------------- | ----------------------------------- |
-| `npm start`            | Start Metro dev server              |
-| `npm run android`      | Start and open on Android           |
-| `npm run ios`          | Start and open on iOS               |
-| `npm run lint`         | ESLint (`eslint-config-expo`)       |
-| `npm run format`       | Format all files with Prettier      |
-| `npm run format:check` | Check formatting (no changes)       |
-| `npm run typecheck`    | TypeScript check                    |
-| `npm run doctor`       | Check Expo dependency/config health |
+| Command                 | What it does                          |
+| ----------------------- | ------------------------------------- |
+| `npm start`             | Start Metro dev server                |
+| `npm run android`       | Start and open on Android             |
+| `npm run ios`           | Start and open on iOS                 |
+| `npm run lint`          | ESLint (`eslint-config-expo`)         |
+| `npm run format`        | Format all files with Prettier        |
+| `npm run format:check`  | Check formatting (no changes)         |
+| `npm run typecheck`     | TypeScript check                      |
+| `npm test`              | Run Jest tests                        |
+| `npm run test:coverage` | Tests + coverage report (`coverage/`) |
+| `npm run doctor`        | Check Expo dependency/config health   |
+
+Tests live in `__tests__/` folders next to the code they test (never inside `src/app/`, where every file becomes a route). They use Jest (`jest-expo`) and React Native Testing Library.
 
 Add packages with `npx expo install <pkg>` (not `npm install`) so versions match the Expo SDK.
 

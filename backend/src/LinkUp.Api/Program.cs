@@ -27,10 +27,11 @@ builder.Services.AddHttpLogging(options =>
 });
 // Local: appsettings.Development.json, or user-secrets to override it. Server: the ConnectionStrings__Default
 // environment variable. Both Npgsql (Host=...;) and postgres:// URL formats are accepted.
-var connectionString = PostgresConnectionString.Normalize(
-    builder.Configuration.GetConnectionString("Default")
-    ?? throw new InvalidOperationException(
-        "Connection string 'Default' is not configured. Set ConnectionStrings__Default (see backend/README.md)."));
+var configuredConnectionString = builder.Configuration.GetConnectionString("Default");
+if (string.IsNullOrWhiteSpace(configuredConnectionString))
+    throw new InvalidOperationException(
+        "Connection string 'Default' is not configured. Set ConnectionStrings__Default (see backend/README.md).");
+var connectionString = PostgresConnectionString.Normalize(configuredConnectionString);
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("database");
 

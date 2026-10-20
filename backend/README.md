@@ -92,6 +92,15 @@ dotnet ef migrations remove --project src/LinkUp.Api                            
 
 To apply to another database (e.g. `project_dev`), set `ConnectionStrings__Default` for that command. Commit the generated migration files together with the entity changes.
 
+## Tests
+
+xUnit tests live in `tests/LinkUp.Api.Tests`: unit tests plus HTTP tests that run the real API in memory (`WebApplicationFactory`, see `ApiFactory`). They don't need a database.
+
+```bash
+dotnet test backend/LinkUp.sln
+dotnet test backend/LinkUp.sln --collect:"XPlat Code Coverage;Format=opencover"   # with coverage
+```
+
 ## Structure
 
 ```
