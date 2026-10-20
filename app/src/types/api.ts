@@ -1,13 +1,6 @@
-export type Activity =
-  | "dinner"
-  | "drinks"
-  | "club"
-  | "concert"
-  | "cinema"
-  | "games"
-  | "outdoor";
+export type Activity = 'dinner' | 'drinks' | 'club' | 'concert' | 'cinema' | 'games' | 'outdoor';
 
-export type Transport = "walking" | "bike" | "car" | "publicTransport" | "taxi";
+export type Transport = 'walking' | 'bike' | 'car' | 'publicTransport' | 'taxi';
 
 export type NightPreferences = {
   budgetPerPerson: number;

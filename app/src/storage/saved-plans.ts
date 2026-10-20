@@ -18,7 +18,10 @@ export async function getSavedPlans(): Promise<SavedPlan[]> {
 
 export async function savePlan(plan: Plan) {
   const plans = await getSavedPlans();
-  const next = [{ ...plan, savedAt: new Date().toISOString() }, ...plans.filter((p) => p.id !== plan.id)];
+  const next = [
+    { ...plan, savedAt: new Date().toISOString() },
+    ...plans.filter((p) => p.id !== plan.id),
+  ];
   await AsyncStorage.setItem(KEY, JSON.stringify(next));
 }
 
