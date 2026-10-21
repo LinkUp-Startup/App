@@ -132,7 +132,9 @@ export interface components {
             /** Format: int32 */
             groupSize: number;
             activities: components["schemas"]["Activity"][];
+            /** Format: date-time */
             startTime: string;
+            /** Format: date-time */
             endTime: string;
             /** Format: double */
             maxDistanceKm: number;
@@ -151,7 +153,9 @@ export interface components {
         };
         PlanItemDto: {
             venue: components["schemas"]["VenueDto"];
+            /** Format: date-time */
             startTime: string;
+            /** Format: date-time */
             endTime: string;
             /** Format: double */
             estimatedCostPerPerson: number;

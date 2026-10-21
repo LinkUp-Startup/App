@@ -212,10 +212,12 @@
             }
           },
           "startTime": {
-            "type": "string"
+            "type": "string",
+            "format": "date-time"
           },
           "endTime": {
-            "type": "string"
+            "type": "string",
+            "format": "date-time"
           },
           "maxDistanceKm": {
             "type": "number",
@@ -285,10 +287,12 @@
             "$ref": "#/components/schemas/VenueDto"
           },
           "startTime": {
-            "type": "string"
+            "type": "string",
+            "format": "date-time"
           },
           "endTime": {
-            "type": "string"
+            "type": "string",
+            "format": "date-time"
           },
           "estimatedCostPerPerson": {
             "type": "number",
