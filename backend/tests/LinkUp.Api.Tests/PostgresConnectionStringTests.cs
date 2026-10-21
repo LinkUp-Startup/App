@@ -56,4 +56,29 @@ public sealed class PostgresConnectionStringTests
         Assert.Equal("user", builder.Username);
         Assert.Null(builder.Password);
     }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Resolve_fails_when_nothing_is_configured(string? configured)
+    {
+        var error = Assert.Throws<InvalidOperationException>(() => PostgresConnectionString.Resolve(configured));
+        Assert.Contains("ConnectionStrings__Default", error.Message);
+    }
+
+    [Fact]
+    public void Resolve_returns_a_placeholder_when_missing_is_allowed()
+    {
+        Assert.Equal("Host=localhost", PostgresConnectionString.Resolve(null, allowMissing: true));
+    }
+
+    [Fact]
+    public void Resolve_normalizes_a_configured_url()
+    {
+        var builder = new NpgsqlConnectionStringBuilder(
+            PostgresConnectionString.Resolve("postgresql://user:secret@db:5431/project_dev"));
+
+        Assert.Equal("project_dev", builder.Database);
+    }
 }

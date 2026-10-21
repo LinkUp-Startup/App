@@ -1,54 +1,20 @@
-export type Activity = 'dinner' | 'drinks' | 'club' | 'concert' | 'cinema' | 'games' | 'outdoor';
+/**
+ * API contract with the ASP.NET Core backend.
+ *
+ * Generated, do not edit by hand: the backend writes `shared/openapi.json` on build, and
+ * `npm run generate:api` turns it into `shared/api.ts`. Change the C# DTOs, rebuild the backend,
+ * then regenerate. CI fails if the committed files are out of date.
+ */
+import type { components } from '@shared/api';
 
-export type Transport = 'walking' | 'bike' | 'car' | 'publicTransport' | 'taxi';
+type Schemas = components['schemas'];
 
-export type NightPreferences = {
-  budgetPerPerson: number;
-  groupSize: number;
-  activities: Activity[];
-  startTime: string;
-  endTime: string;
-  maxDistanceKm: number;
-  transport: Transport[];
-  notes?: string;
-};
-
-export type Venue = {
-  id: string;
-  name: string;
-  category: Activity;
-  address: string;
-  latitude: number;
-  longitude: number;
-  priceLevel: 1 | 2 | 3 | 4;
-};
-
-export type PlanItem = {
-  venue: Venue;
-  startTime: string;
-  endTime: string;
-  estimatedCostPerPerson: number;
-  distanceKm: number;
-};
-
-export type Plan = {
-  id: string;
-  title: string;
-  summary: string;
-  items: PlanItem[];
-  estimatedCostPerPerson: number;
-  totalDistanceKm: number;
-};
-
-export type GeneratePlansRequest = {
-  preferences: NightPreferences;
-};
-
-export type GeneratePlansResponse = {
-  plans: Plan[];
-};
-
-export type HealthResponse = {
-  status: 'healthy';
-  timeUtc: string;
-};
+export type Activity = Schemas['Activity'];
+export type Transport = Schemas['Transport'];
+export type NightPreferences = Schemas['NightPreferencesDto'];
+export type Venue = Schemas['VenueDto'];
+export type PlanItem = Schemas['PlanItemDto'];
+export type Plan = Schemas['PlanDto'];
+export type GeneratePlansRequest = Schemas['GeneratePlansRequest'];
+export type GeneratePlansResponse = Schemas['GeneratePlansResponse'];
+export type HealthResponse = Schemas['HealthResponse'];
