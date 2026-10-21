@@ -1,7 +1,7 @@
 import type { Activity, NightPreferences, Transport } from '@/types/api';
 
 /**
- * Limits for the preference form. The API enforces the same limits (backend NightPreferencesValidator),
+ * Limits for the preference form. The API enforces the same limits (backend/src/LinkUp.Api/Dtos/NightPreferencesDto.cs),
  * so keep both in sync.
  */
 export const Limits = {
