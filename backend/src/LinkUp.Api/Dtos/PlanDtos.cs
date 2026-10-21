@@ -14,8 +14,8 @@ public sealed record PlanDto(
 
 public sealed record PlanItemDto(
     VenueDto Venue,
-    string StartTime,
-    string EndTime,
+    DateTimeOffset StartTime,
+    DateTimeOffset EndTime,
     decimal EstimatedCostPerPerson,
     double DistanceKm);
 
