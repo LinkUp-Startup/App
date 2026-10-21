@@ -21,7 +21,7 @@ export default function PreferencesScreen() {
 
   const onSubmit = () =>
     submit((preferences) =>
-      // TODO(#46): send to the API from the results screen.
+      // The results screen sends the request, so it can show loading and errors.
       router.push({ pathname: '/plans', params: { preferences: JSON.stringify(preferences) } }),
     );
 

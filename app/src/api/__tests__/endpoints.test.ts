@@ -27,6 +27,7 @@ describe('endpoints', () => {
       method: 'POST',
       body: { preferences },
       signal: undefined,
+      timeoutMs: 60000,
     });
   });
 });
