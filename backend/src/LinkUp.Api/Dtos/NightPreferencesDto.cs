@@ -10,7 +10,7 @@ public enum Transport { Walking, Bike, Car, PublicTransport, Taxi }
 /// <summary>What the user wants from their night. Sent by the app's preference form.</summary>
 /// <remarks>
 /// Limits mirror the app's form (<c>Limits</c> in app/src/features/preferences/form.ts); keep both in sync.
-/// Numeric fields are [JsonRequired] so a request that leaves them out gets a 400 instead of
+/// Numeric and time fields are [JsonRequired] so a request that leaves them out gets a 400 instead of
 /// silently defaulting to 0 (under-posting). Invalid requests return 400 with a ValidationProblemDetails
 /// body listing the errors per field.
 /// </remarks>
@@ -18,8 +18,8 @@ public sealed record NightPreferencesDto(
     [property: JsonRequired] [Range(0, 500)] decimal BudgetPerPerson,
     [property: JsonRequired] [Range(1, 20)] int GroupSize,
     [MinLength(1, ErrorMessage = "Pick at least one activity.")] IReadOnlyList<Activity> Activities,
-    DateTimeOffset StartTime,
-    DateTimeOffset EndTime,
+    [property: JsonRequired] DateTimeOffset StartTime,
+    [property: JsonRequired] DateTimeOffset EndTime,
     [property: JsonRequired] [Range(0.5, 30)] double MaxDistanceKm,
     [MinLength(1, ErrorMessage = "Pick at least one way to get around.")] IReadOnlyList<Transport> Transport,
     [MaxLength(500)] string? Notes = null) : IValidatableObject

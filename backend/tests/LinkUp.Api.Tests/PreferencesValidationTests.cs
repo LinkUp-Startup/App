@@ -99,6 +99,19 @@ public sealed class PreferencesValidationTests(ApiFactory factory) : IClassFixtu
         Assert.True(errors.TryGetProperty("Preferences.Transport", out _));
     }
 
+    [Theory]
+    [InlineData("startTime")]
+    [InlineData("endTime")]
+    public async Task Missing_time_returns_400(string field)
+    {
+        var preferences = ValidPreferences();
+        preferences.Remove(field);
+
+        using var response = await PostAsync(preferences);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     [Fact]
     public async Task Malformed_time_returns_400()
     {
