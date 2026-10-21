@@ -15,7 +15,9 @@ export function Screen({ children, edges = ['top'] }: ScreenProps) {
 
   return (
     <SafeAreaView edges={edges} style={[styles.root, { backgroundColor: theme.background }]}>
-      <ScrollView contentContainerStyle={styles.content}>{children}</ScrollView>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        {children}
+      </ScrollView>
     </SafeAreaView>
   );
 }
