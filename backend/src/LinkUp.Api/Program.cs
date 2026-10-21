@@ -37,18 +37,11 @@ builder.Services.AddHttpLogging(options =>
 });
 // Local: appsettings.Development.json, or user-secrets to override it. Server: the ConnectionStrings__Default
 // environment variable. Both Npgsql (Host=...;) and postgres:// URL formats are accepted.
-// Build-time OpenAPI generation (shared/openapi.json) runs this file with no configuration and never touches
-// the database, so it gets a placeholder instead of failing.
+// Build-time OpenAPI generation (shared/openapi.json) runs this file without configuration and never touches
+// the database, so it is allowed to start without a connection string.
 var isOpenApiGeneration = Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider";
-var configuredConnectionString = builder.Configuration.GetConnectionString("Default");
-if (string.IsNullOrWhiteSpace(configuredConnectionString))
-{
-    if (!isOpenApiGeneration)
-        throw new InvalidOperationException(
-            "Connection string 'Default' is not configured. Set ConnectionStrings__Default (see backend/README.md).");
-    configuredConnectionString = "Host=localhost";
-}
-var connectionString = PostgresConnectionString.Normalize(configuredConnectionString);
+var connectionString = PostgresConnectionString.Resolve(
+    builder.Configuration.GetConnectionString("Default"), allowMissing: isOpenApiGeneration);
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("database");
 
