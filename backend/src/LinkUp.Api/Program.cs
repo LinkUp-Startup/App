@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using LinkUp.Api.Data;
@@ -12,9 +13,18 @@ var builder = WebApplication.CreateBuilder(args);
 var corsOptions = builder.Configuration.GetSection(CorsOptions.SectionName).Get<CorsOptions>() ?? new CorsOptions();
 
 var enumConverter = new JsonStringEnumConverter(JsonNamingPolicy.CamelCase);
-builder.Services.AddControllers().AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(enumConverter));
+// Strict numbers: reject "30" for a number field, and document numbers as plain numbers in OpenAPI.
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.Converters.Add(enumConverter);
+    options.JsonSerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+});
 // The OpenAPI generator reads the minimal-API options, so register the converter there too to document enums as strings.
-builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(enumConverter));
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(enumConverter);
+    options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+});
 builder.Services.AddOpenApi();
 builder.Services.AddHttpLogging(options =>
 {
@@ -27,10 +37,17 @@ builder.Services.AddHttpLogging(options =>
 });
 // Local: appsettings.Development.json, or user-secrets to override it. Server: the ConnectionStrings__Default
 // environment variable. Both Npgsql (Host=...;) and postgres:// URL formats are accepted.
+// Build-time OpenAPI generation (shared/openapi.json) runs this file with no configuration and never touches
+// the database, so it gets a placeholder instead of failing.
+var isOpenApiGeneration = Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider";
 var configuredConnectionString = builder.Configuration.GetConnectionString("Default");
 if (string.IsNullOrWhiteSpace(configuredConnectionString))
-    throw new InvalidOperationException(
-        "Connection string 'Default' is not configured. Set ConnectionStrings__Default (see backend/README.md).");
+{
+    if (!isOpenApiGeneration)
+        throw new InvalidOperationException(
+            "Connection string 'Default' is not configured. Set ConnectionStrings__Default (see backend/README.md).");
+    configuredConnectionString = "Host=localhost";
+}
 var connectionString = PostgresConnectionString.Normalize(configuredConnectionString);
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("database");

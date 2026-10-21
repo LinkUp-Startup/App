@@ -1,0 +1,405 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "LinkUp.Api | v1",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/plans/generate": {
+      "post": {
+        "tags": [
+          "Plans"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GeneratePlansRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GeneratePlansRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/GeneratePlansRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeneratePlansResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeneratePlansResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeneratePlansResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Activity": {
+        "enum": [
+          "dinner",
+          "drinks",
+          "club",
+          "concert",
+          "cinema",
+          "games",
+          "outdoor"
+        ]
+      },
+      "GeneratePlansRequest": {
+        "required": [
+          "preferences"
+        ],
+        "type": "object",
+        "properties": {
+          "preferences": {
+            "$ref": "#/components/schemas/NightPreferencesDto"
+          }
+        }
+      },
+      "GeneratePlansResponse": {
+        "required": [
+          "plans"
+        ],
+        "type": "object",
+        "properties": {
+          "plans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanDto"
+            }
+          }
+        }
+      },
+      "HealthResponse": {
+        "required": [
+          "status",
+          "timeUtc",
+          "checks"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "timeUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "checks": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "NightPreferencesDto": {
+        "required": [
+          "budgetPerPerson",
+          "groupSize",
+          "activities",
+          "startTime",
+          "endTime",
+          "maxDistanceKm",
+          "transport"
+        ],
+        "type": "object",
+        "properties": {
+          "budgetPerPerson": {
+            "type": "number",
+            "format": "double"
+          },
+          "groupSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "activities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Activity"
+            }
+          },
+          "startTime": {
+            "type": "string"
+          },
+          "endTime": {
+            "type": "string"
+          },
+          "maxDistanceKm": {
+            "type": "number",
+            "format": "double"
+          },
+          "transport": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Transport"
+            }
+          },
+          "notes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PlanDto": {
+        "required": [
+          "id",
+          "title",
+          "summary",
+          "items",
+          "estimatedCostPerPerson",
+          "totalDistanceKm"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanItemDto"
+            }
+          },
+          "estimatedCostPerPerson": {
+            "type": "number",
+            "format": "double"
+          },
+          "totalDistanceKm": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "PlanItemDto": {
+        "required": [
+          "venue",
+          "startTime",
+          "endTime",
+          "estimatedCostPerPerson",
+          "distanceKm"
+        ],
+        "type": "object",
+        "properties": {
+          "venue": {
+            "$ref": "#/components/schemas/VenueDto"
+          },
+          "startTime": {
+            "type": "string"
+          },
+          "endTime": {
+            "type": "string"
+          },
+          "estimatedCostPerPerson": {
+            "type": "number",
+            "format": "double"
+          },
+          "distanceKm": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "Transport": {
+        "enum": [
+          "walking",
+          "bike",
+          "car",
+          "publicTransport",
+          "taxi"
+        ]
+      },
+      "ValidationProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "VenueDto": {
+        "required": [
+          "id",
+          "name",
+          "category",
+          "address",
+          "latitude",
+          "longitude",
+          "priceLevel"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "$ref": "#/components/schemas/Activity"
+          },
+          "address": {
+            "type": "string"
+          },
+          "latitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "longitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "priceLevel": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Health"
+    },
+    {
+      "name": "Plans"
+    }
+  ]
+}

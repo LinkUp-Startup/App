@@ -64,7 +64,7 @@ jobs:
           /d:sonar.host.url="https://sonarcloud.io"
           /d:sonar.token="$SONAR_TOKEN"
           /d:sonar.projectBaseDir="$GITHUB_WORKSPACE"
-          /d:sonar.exclusions="**/node_modules/**,**/bin/**,**/obj/**,app/coverage/**,app/.expo/**,app/assets/**,backend/src/LinkUp.Api/Data/Migrations/**"
+          /d:sonar.exclusions="**/node_modules/**,**/bin/**,**/obj/**,app/coverage/**,app/.expo/**,app/assets/**,backend/src/LinkUp.Api/Data/Migrations/**,shared/**"
           /d:sonar.coverage.exclusions="app/src/app/**,app/src/constants/**,**/__tests__/**,app/*.config.js,app/jest.setup.ts,backend/tests/**"
           /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.opencover.xml"
           /d:sonar.javascript.lcov.reportPaths="app/coverage/lcov.info"
@@ -72,6 +72,17 @@ jobs:
       - name: Build backend
         working-directory: backend
         run: dotnet build LinkUp.sln --no-incremental
+
+      # The build regenerates shared/openapi.json; regenerate shared/api.ts from it and fail if either
+      # differs from what is committed (C# DTOs and app types out of sync).
+      - name: Check API contract is up to date
+        working-directory: app
+        run: |
+          npm run generate:api
+          git diff --exit-code -- ../shared/ || {
+            echo "::error::shared/ is out of date. Build the backend, run 'npm run generate:api' in app/, and commit shared/."
+            exit 1
+          }
 
       - name: Test backend with coverage
         working-directory: backend

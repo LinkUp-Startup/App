@@ -45,6 +45,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
+    "generate:api": "npx --yes openapi-typescript@7.13.0 ../shared/openapi.json -o ../shared/api.ts",
     "test": "jest",
     "test:coverage": "jest --coverage",
     "doctor": "npx expo-doctor"

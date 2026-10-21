@@ -19,4 +19,4 @@ public sealed record NightPreferencesDto(
     string EndTime,
     [property: JsonRequired] double MaxDistanceKm,
     IReadOnlyList<Transport> Transport,
-    string? Notes);
+    string? Notes = null);

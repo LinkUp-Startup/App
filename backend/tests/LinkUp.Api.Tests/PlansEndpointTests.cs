@@ -77,6 +77,28 @@ public sealed class PlansEndpointTests(ApiFactory factory) : IClassFixture<ApiFa
     }
 
     [Fact]
+    public async Task Generate_rejects_numbers_sent_as_strings_with_400()
+    {
+        var request = new
+        {
+            preferences = new
+            {
+                budgetPerPerson = "30",
+                groupSize = 4,
+                activities = new[] { "dinner" },
+                startTime = "2026-10-30T20:00:00Z",
+                endTime = "2026-10-31T02:00:00Z",
+                maxDistanceKm = 3,
+                transport = new[] { "walking" },
+            },
+        };
+
+        using var response = await factory.CreateClient().PostAsJsonAsync("/api/plans/generate", request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Generate_rejects_a_missing_body_with_400()
     {
         using var response = await factory.CreateClient().PostAsync(
