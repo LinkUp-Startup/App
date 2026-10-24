@@ -24,7 +24,7 @@ public sealed class VenueConfiguration : IEntityTypeConfiguration<Venue>
         builder.Property(v => v.Address).HasMaxLength(300);
         builder.Property(v => v.Notes).HasMaxLength(1000);
 
-        // Stored as text ("Restaurant"), so the database is readable and reordering the enum is safe.
+        // Stored as text ("Restaurant"), so the database is readable and reordering the enum is safe
         builder.Property(v => v.Category).HasConversion<string>().HasMaxLength(32);
         builder.Property(v => v.EntranceType).HasConversion<string>().HasMaxLength(32);
 
