@@ -118,9 +118,22 @@ The API applies pending migrations when it starts (`Database:MigrateOnStartup`, 
 | `Database__MigrationMaxAttempts`       | `5`     | Connection attempts before giving up.                                      |
 | `Database__MigrationRetryDelaySeconds` | `3`     | Wait between attempts.                                                     |
 
+## Accounts
+
+| Endpoint | Success | Errors |
+| --- | --- | --- |
+| `POST /api/auth/register` `{ email, password, displayName }` | `201` with `{ id, email, displayName }` | `400` invalid input, `409` email already registered |
+| `POST /api/auth/login` `{ email, password }` | `200` with `{ id, email, displayName }` | `400` missing fields, `401` wrong email or password |
+
+- Passwords are hashed with ASP.NET Core's `PasswordHasher` (PBKDF2); only the hash is stored and it is never returned.
+- Emails are trimmed and lowercased, so they are case-insensitive. Password length is 8-128.
+- Login gives the same `401` for an unknown email and a wrong password, and takes the same time for both.
+- Request bodies on `/api/auth/*` are never logged (the rest of the API logs them). Keep that when adding auth endpoints: put `[HttpLogging(...)]` without `RequestBody` on the controller.
+- Login does not issue a token yet; that is #84.
+
 ## Tests
 
-xUnit tests live in `tests/LinkUp.Api.Tests`: unit tests plus HTTP tests that run the real API in memory (`WebApplicationFactory`, see `ApiFactory`). They don't need a database.
+xUnit tests live in `tests/LinkUp.Api.Tests`: unit tests plus HTTP tests that run the real API in memory (`WebApplicationFactory`, see `ApiFactory`). Most need no database. The account tests (`AuthEndpointsTests`) run against a real PostgreSQL: start it with `docker compose up -d` first. Each test class creates a throwaway database on that server, migrates it with the real migrations and drops it afterwards. To use another server, set `TEST_POSTGRES` to an Npgsql connection string that may create databases.
 
 ```bash
 dotnet test backend/LinkUp.sln
