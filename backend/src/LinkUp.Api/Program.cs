@@ -45,6 +45,7 @@ var connectionString = PostgresConnectionString.Resolve(
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("database");
 
+builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(DatabaseOptions.SectionName));
 builder.Services.AddScoped<IPlanService, StubPlanService>();
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
 {
@@ -66,5 +67,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapControllers();
+
+// Not during build-time OpenAPI generation, which runs this file without a database.
+if (!isOpenApiGeneration)
+    await app.MigrateDatabaseAsync();
 
 await app.RunAsync();
