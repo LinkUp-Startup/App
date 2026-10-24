@@ -17,6 +17,21 @@ jobs:
   sonarqube:
     name: SonarQube
     runs-on: ubuntu-latest
+    # PostgreSQL for the account tests, which run against a real database (same image as docker-compose.yml).
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: linkup
+          POSTGRES_PASSWORD: linkup
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U linkup"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -86,6 +101,8 @@ jobs:
 
       - name: Test backend with coverage
         working-directory: backend
+        env:
+          TEST_POSTGRES: Host=localhost;Port=5432;Username=linkup;Password=linkup;Database=postgres
         run: dotnet test LinkUp.sln --no-build --collect:"XPlat Code Coverage;Format=opencover"
 
       - name: End SonarQube analysis

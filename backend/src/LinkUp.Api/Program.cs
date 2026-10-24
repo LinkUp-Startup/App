@@ -2,8 +2,10 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using LinkUp.Api.Data;
+using LinkUp.Api.Data.Entities;
 using LinkUp.Api.Middleware;
 using Microsoft.AspNetCore.HttpLogging;
+using Microsoft.AspNetCore.Identity;
 using LinkUp.Api.Options;
 using LinkUp.Api.Services;
 using Microsoft.EntityFrameworkCore;
@@ -45,7 +47,10 @@ var connectionString = PostgresConnectionString.Resolve(
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("database");
 
+builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(DatabaseOptions.SectionName));
 builder.Services.AddScoped<IPlanService, StubPlanService>();
+builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
 {
     // Native React Native requests send no Origin header, so this only matters for web/Expo web.
@@ -66,5 +71,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapControllers();
+
+// Not during build-time OpenAPI generation, which runs this file without a database.
+if (!isOpenApiGeneration)
+    await app.MigrateDatabaseAsync();
 
 await app.RunAsync();

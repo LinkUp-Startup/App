@@ -6,7 +6,8 @@ namespace LinkUp.Api.Data;
 public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
     public DbSet<Venue> Venues => Set<Venue>();
-    
+    public DbSet<User> Users => Set<User>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Entity configurations live next to their entities as IEntityTypeConfiguration<T> classes.

@@ -22,9 +22,10 @@ PostgreSQL 18 runs in a container defined in `docker-compose.yml` at the repo ro
 ### Requirements
 
 | OS      | Install                                                                                                  |
-| ------- | -------------------------------------------------------------------------------------------------------- |
-| Windows | [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/) (WSL 2 backend)          |
-| macOS   | [Docker Desktop](https://docs.docker.com/desktop/setup/install/mac-install/)                             |
+| OS      | Install                                                                                                      |
+| ------- | ------------------------------------------------------------------------------------------------------------ |
+| Windows | [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/) (WSL 2 backend)             |
+| macOS   | [Docker Desktop](https://docs.docker.com/desktop/setup/install/mac-install/)                                 |
 | Linux   | Docker Engine + Compose plugin, Docker Desktop, or Podman (use `podman compose` instead of `docker compose`) |
 
 Plus the .NET 10 SDK (any 10.0 feature band, see `global.json`).
@@ -64,13 +65,13 @@ These are local-only development credentials. To change them, copy `.env.example
 
 ### Troubleshooting
 
-| Problem                                                                    | Fix                                                                                                         |
-| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Problem                                                                       | Fix                                                                                                                          |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `failed to connect to the docker API` / `Cannot connect to the Docker daemon` | Docker isn't running: start Docker Desktop, or `sudo systemctl start docker`. Podman: `systemctl --user start podman.socket` |
-| `port is already allocated` / `address already in use` on 5432             | A local PostgreSQL is running. Stop it, or set `POSTGRES_PORT=5433` in `.env` and use `Port=5433` in the connection string |
-| `/health` returns `503` with `"database":"unhealthy"`                       | Container not running or not healthy yet (`docker compose ps`), or the connection string doesn't match `.env` |
-| `password authentication failed` after changing `.env`                      | The password is only set when the volume is first created. Reset with `docker compose down -v` (wipes data) |
-| `A compatible .NET SDK was not found`                                       | Install a .NET 10 SDK                                                                                         |
+| `port is already allocated` / `address already in use` on 5432                | A local PostgreSQL is running. Stop it, or set `POSTGRES_PORT=5433` in `.env` and use `Port=5433` in the connection string   |
+| `/health` returns `503` with `"database":"unhealthy"`                         | Container not running or not healthy yet (`docker compose ps`), or the connection string doesn't match `.env`                |
+| `password authentication failed` after changing `.env`                        | The password is only set when the volume is first created. Reset with `docker compose down -v` (wipes data)                  |
+| `A compatible .NET SDK was not found`                                         | Install a .NET 10 SDK                                                                                                        |
 
 ## Database tooling
 
@@ -107,9 +108,32 @@ curl http://localhost:8080/health
 - All configuration comes from environment variables, e.g. `ConnectionStrings__Default`, `Cors__AllowedOrigins__0`.
 - To build for ARM64 from another machine: `docker buildx build --platform linux/arm64 backend`. The build stage always runs on your own architecture, so no emulation of the .NET SDK is needed.
 
+### Migrations on startup
+
+The API applies pending migrations when it starts (`Database:MigrateOnStartup`, default `true`), so deploying a new migration updates the database. It retries for a few seconds while the database comes up, and refuses to start if migrating still fails (a failed deploy beats running against an outdated schema). EF Core locks the database while migrating, so several instances starting at once is safe.
+
+| Setting (env var)                      | Default |                                                                            |
+| -------------------------------------- | ------- | -------------------------------------------------------------------------- |
+| `Database__MigrateOnStartup`           | `true`  | Set `false` to apply migrations manually with `dotnet ef database update`. |
+| `Database__MigrationMaxAttempts`       | `5`     | Connection attempts before giving up.                                      |
+| `Database__MigrationRetryDelaySeconds` | `3`     | Wait between attempts.                                                     |
+
+## Accounts
+
+| Endpoint | Success | Errors |
+| --- | --- | --- |
+| `POST /api/auth/register` `{ email, password, displayName }` | `201` with `{ id, email, displayName }` | `400` invalid input, `409` email already registered |
+| `POST /api/auth/login` `{ email, password }` | `200` with `{ id, email, displayName }` | `400` missing fields, `401` wrong email or password |
+
+- Passwords are hashed with ASP.NET Core's `PasswordHasher` (PBKDF2); only the hash is stored and it is never returned.
+- Emails are trimmed and lowercased, so they are case-insensitive. Password length is 8-128.
+- Login gives the same `401` for an unknown email and a wrong password, and takes the same time for both.
+- Request bodies on `/api/auth/*` are never logged (the rest of the API logs them). Keep that when adding auth endpoints: put `[HttpLogging(...)]` without `RequestBody` on the controller.
+- Login does not issue a token yet; that is #84.
+
 ## Tests
 
-xUnit tests live in `tests/LinkUp.Api.Tests`: unit tests plus HTTP tests that run the real API in memory (`WebApplicationFactory`, see `ApiFactory`). They don't need a database.
+xUnit tests live in `tests/LinkUp.Api.Tests`: unit tests plus HTTP tests that run the real API in memory (`WebApplicationFactory`, see `ApiFactory`). Most need no database. The account tests (`AuthEndpointsTests`) run against a real PostgreSQL: start it with `docker compose up -d` first. Each test class creates a throwaway database on that server, migrates it with the real migrations and drops it afterwards. To use another server, set `TEST_POSTGRES` to an Npgsql connection string that may create databases.
 
 ```bash
 dotnet test backend/LinkUp.sln
