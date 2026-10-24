@@ -92,6 +92,21 @@ dotnet ef migrations remove --project src/LinkUp.Api                            
 
 To apply to another database (e.g. `project_dev`), set `ConnectionStrings__Default` for that command. Commit the generated migration files together with the entity changes.
 
+## Docker image
+
+`backend/Dockerfile` is a multi-stage build that works on ARM64 (the VPS) and x86-64. Build context is `backend/`:
+
+```bash
+docker build -t linkup-api backend
+docker compose up -d   # the database
+docker run --rm --network linkup_default -p 8080:8080   -e "ConnectionStrings__Default=Host=db;Port=5432;Database=linkup;Username=linkup;Password=linkup" linkup-api
+curl http://localhost:8080/health
+```
+
+- Listens on port **8080** in the container, runs as a non-root user, and uses the `Production` environment (no Swagger).
+- All configuration comes from environment variables, e.g. `ConnectionStrings__Default`, `Cors__AllowedOrigins__0`.
+- To build for ARM64 from another machine: `docker buildx build --platform linux/arm64 backend`. The build stage always runs on your own architecture, so no emulation of the .NET SDK is needed.
+
 ## Tests
 
 xUnit tests live in `tests/LinkUp.Api.Tests`: unit tests plus HTTP tests that run the real API in memory (`WebApplicationFactory`, see `ApiFactory`). They don't need a database.
