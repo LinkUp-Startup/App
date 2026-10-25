@@ -2,6 +2,7 @@ using LinkUp.Api.Ai;
 using LinkUp.Api.Dtos;
 using LinkUp.Api.Services;
 using LinkUp.Api.Options;
+using LinkUp.Api.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -14,6 +15,7 @@ public sealed class PlansController(
     IOptions<PlanGenerationOptions> options) : ControllerBase
 {
     [HttpPost("generate")]
+    [AiGeneration]
     [EndpointSummary("Generate 2-3 night plans")]
     [EndpointDescription(
         "Validates the preferences (400), filters the venue database (422 when too few venues match), lets the AI " +
@@ -22,6 +24,7 @@ public sealed class PlansController(
     [ProducesResponseType<GeneratePlansResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<CandidateAvailabilityProblem>(StatusCodes.Status422UnprocessableEntity, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status502BadGateway, "application/problem+json")]
     public async Task<ActionResult<GeneratePlansResponse>> Generate(
         GeneratePlansRequest request, CancellationToken cancellationToken)

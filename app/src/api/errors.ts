@@ -23,6 +23,9 @@ export function describeApiError(error: unknown): string {
         ? `Some preferences weren't accepted: ${details.join(' ')}`
         : "Some preferences weren't accepted. Check the form and try again.";
     }
+    if (error.status === 429) {
+      return 'Too many requests right now. Wait a minute and try again.';
+    }
     if (error.status >= 500) {
       return 'Something went wrong on our side. Try again in a moment.';
     }

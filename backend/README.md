@@ -206,6 +206,21 @@ AI gpt-6-luna completed in 2140 ms: 3000 input + 800 output tokens (200 reasonin
 
 Failures (error status, timeout, refusal, truncated output) are logged as warnings or errors with the same request id.
 
+## Rate limiting
+
+Keeps scrapers and bots from flooding the API or spending the AI budget, while staying loose enough for a classroom demo where many phones share one Wi-Fi (one public IP). Over a limit the API answers `429` problem details with a `Retry-After` header, and the app shows "Too many requests right now. Wait a minute and try again."
+
+| Setting (env var) | Default | Counted per |
+| --- | --- | --- |
+| `RateLimiting__RequestsPerMinute` | `300` | client IP, every endpoint (only stops floods) |
+| `RateLimiting__GenerationsPerMinute` | `5` | account when logged in, otherwise client IP |
+| `RateLimiting__GenerationsPerHour` | `30` | account when logged in, otherwise client IP |
+| `RateLimiting__GenerationsPerDay` | `1000` | everyone together (≈ $0.70 a day at ~$0.0007 per generation) |
+
+- Logged-in users are limited per account, so demo accounts on one network don't share a limit. For a big demo with guests, raise the values in Dokploy and redeploy.
+- Behind Dokploy's Traefik the client IP comes from `X-Forwarded-For`, trusted only from private addresses (`RateLimiting__TrustedProxyNetworks__0`, …; defaults to the Docker ranges). A client reaching the API directly can't fake its IP with that header.
+- Counters live in memory: a restart resets them, and each instance counts separately.
+
 ## Tests
 
 xUnit tests live in `tests/LinkUp.Api.Tests`: unit tests plus HTTP tests that run the real API in memory (`WebApplicationFactory`, see `ApiFactory`). Most need no database. The account tests (`AuthEndpointsTests`) run against a real PostgreSQL: start it with `docker compose up -d` first. Each test class creates a throwaway database on that server, migrates it with the real migrations and drops it afterwards. To use another server, set `TEST_POSTGRES` to an Npgsql connection string that may create databases.
