@@ -193,8 +193,8 @@ On the server (Dokploy) set the environment variable `Ai__ApiKey`. Without a key
    - stops whose venue is not a candidate, has unreadable times, lies outside the window or at a closed venue are dropped; stops spilling over the window are trimmed to it
    - stops are sorted; overlapping stops, repeat visits and stops beyond 4 are dropped
    - empty plans, plans with the same venues as an earlier one (in any order) and plans beyond 3 are dropped
-   - prices and distances come from the database, never from the AI. Costs come from `IPlanCostService` (#48, [venue-prices.md](../docs/venue-prices.md#plan-cost-estimation-48)): per stop, per person and for the whole group (`estimatedTotalCost`). When a stop's venue has no known price, that stop's and the plan's costs are `null` (unknown), never €0.
-5. **2 or 3 plans** (#71): with fewer than 2 distinct valid plans the AI gets one more try, and the valid plans from both attempts are combined. Still fewer than 2, or the AI is down: `502` problem details, and the app shows "try again". Fewer than 2 matching venues never reach the AI (`422`, see [venue-filtering.md](../docs/venue-filtering.md)).
+   - prices and distances come from the database, never from the AI; #48's cost estimator prices the repaired plan, and #50 rejects incomplete or over-budget group totals before returning any successful plan. See [budget validation](../docs/plan-budget-validation.md).
+5. **2 or 3 plans** (#71): with fewer than 2 distinct valid plans the AI gets one more try, and the valid plans from both attempts are combined. Every alternative is budget-checked. Still fewer than 2, or the AI is down: `502` problem details, with a specific budget explanation when costs prevent a verified result. Fewer than 2 matching venues never reach the AI (`422`, see [venue-filtering.md](../docs/venue-filtering.md)).
 
 ### Usage logs
 

@@ -23,6 +23,9 @@ internal static class PlanTestData
         Latitude = latitude,
         Longitude = longitude,
         PriceLevel = 2,
+        EntranceFee = 0m,
+        MinSpend = 0m,
+        MaxSpend = 0m,
         OpeningHours =
         [
             new VenueOpeningHours

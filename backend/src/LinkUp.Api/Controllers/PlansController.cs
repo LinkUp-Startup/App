@@ -3,6 +3,7 @@ using LinkUp.Api.Dtos;
 using LinkUp.Api.Services;
 using LinkUp.Api.Options;
 using LinkUp.Api.RateLimiting;
+using LinkUp.Api.Planning;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -52,6 +53,13 @@ public sealed class PlansController(
         {
             var plans = await planService.GeneratePlansAsync(request.Preferences, candidates, cancellationToken);
             return Ok(new GeneratePlansResponse(plans));
+        }
+        catch (PlanBudgetException ex)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status502BadGateway,
+                title: "Couldn't generate plans within your budget.",
+                detail: ex.Message);
         }
         catch (AiException)
         {

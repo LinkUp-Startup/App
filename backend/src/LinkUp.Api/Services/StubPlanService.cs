@@ -5,29 +5,36 @@ using LinkUp.Api.Planning;
 namespace LinkUp.Api.Services;
 
 /// <summary>
-/// Used when no AI key is configured (local development, tests): one plan per candidate for the first two
-/// candidates, each spending the whole night there, so the app works end to end without OpenAI.
+/// Used when no AI key is configured: up to two fully priced, affordable single-candidate plans,
+/// each spending the whole night there, so local development works without OpenAI.
 /// </summary>
 public sealed class StubPlanService(IPlanCostService costs) : IPlanService
 {
     public Task<IReadOnlyList<PlanDto>> GeneratePlansAsync(
         NightPreferencesDto preferences, IReadOnlyList<Venue> candidates, CancellationToken cancellationToken)
     {
-        IReadOnlyList<PlanDto> plans = candidates.Take(PlanValidator.MinPlans).Select(venue =>
+        PlanBudgetValidation.ValidatePreferences(preferences);
+        var plans = new List<PlanDto>();
+        foreach (var venue in candidates)
         {
-            var prices = PlanPricing.Price(costs, [venue], preferences.GroupSize);
-            return new PlanDto(
+            if (plans.Count == PlanValidator.MinPlans) break;
+            if (!PlanBudgetValidation.TryEstimate([venue], preferences, costs, out var estimate, out _))
+                continue;
+            var cost = estimate.EstimatedCostPerPerson!.Value;
+            plans.Add(new PlanDto(
                 $"stub-{venue.Id}",
                 $"Night at {venue.Name}",
                 "Sample plan: no AI key is configured on the API.",
-                [new PlanItemDto(
-                    PlanValidator.ToVenueDto(venue, preferences), preferences.StartTime, preferences.EndTime,
-                    prices.PerStop[0], 0)],
-                prices.Plan.EstimatedCostPerPerson,
-                prices.Plan.TotalEstimatedCost,
-                0);
-        }).ToList();
+                [new PlanItemDto(PlanValidator.ToVenueDto(venue, preferences), preferences.StartTime, preferences.EndTime, cost, 0)],
+                cost,
+                estimate.TotalEstimatedCost,
+                0));
+        }
 
-        return Task.FromResult(plans);
+        if (plans.Count == 0)
+            throw new PlanBudgetException(
+                "No fully priced plan could be generated within your budget. Try different activities or a higher budget.");
+
+        return Task.FromResult<IReadOnlyList<PlanDto>>(plans);
     }
 }

@@ -75,8 +75,8 @@ public class PlanningApiFactory : ApiFactory
             NightPreferencesDto preferences, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<Venue>>(
                 [
-                    new Venue { Id = 1, Name = "Eligible venue", Address = "Test address" },
-                    new Venue { Id = 2, Name = "Second venue", Address = "Test address" },
+                    new Venue { Id = 1, Name = "Eligible venue", Address = "Test address", EntranceFee = 0m, MinSpend = 0m, MaxSpend = 0m },
+                    new Venue { Id = 2, Name = "Second venue", Address = "Test address", EntranceFee = 0m, MinSpend = 0m, MaxSpend = 0m },
                 ]);
     }
 }
