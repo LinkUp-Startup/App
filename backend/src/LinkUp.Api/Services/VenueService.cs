@@ -41,7 +41,9 @@ public sealed class VenueService(AppDbContext db) : IVenueService
             .OrderBy(h => WeekdayIndex(h.Day))
             .ThenBy(h => h.Opens)
             .Select(h => new OpeningHoursDto(h.Day, h.Opens, h.Closes))
-            .ToList());
+            .ToList(),
+        venue.EstimatedSpendPerPerson,
+        venue.Currency);
 
     // Monday first as in the dataset (DayOfWeek starts at Sunday)
     private static int WeekdayIndex(DayOfWeek day) => ((int)day + 6) % 7;

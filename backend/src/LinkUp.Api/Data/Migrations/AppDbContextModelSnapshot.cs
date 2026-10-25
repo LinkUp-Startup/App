@@ -106,7 +106,7 @@ namespace LinkUp.Api.Data.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
-                    b.Property<int>("PriceLevel")
+                    b.Property<int?>("PriceLevel")
                         .HasColumnType("integer");
 
                     b.PrimitiveCollection<List<string>>("Tags")
@@ -122,6 +122,10 @@ namespace LinkUp.Api.Data.Migrations
                             t.HasCheckConstraint("CK_Venues_Latitude", "\"Latitude\" BETWEEN -90 AND 90");
 
                             t.HasCheckConstraint("CK_Venues_Longitude", "\"Longitude\" BETWEEN -180 AND 180");
+
+                            t.HasCheckConstraint("CK_Venues_MaxSpend", "\"MaxSpend\" IS NULL OR \"MaxSpend\" >= 0");
+
+                            t.HasCheckConstraint("CK_Venues_MinSpend", "\"MinSpend\" IS NULL OR \"MinSpend\" >= 0");
 
                             t.HasCheckConstraint("CK_Venues_PriceLevel", "\"PriceLevel\" BETWEEN 1 AND 4");
 
