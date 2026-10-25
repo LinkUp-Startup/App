@@ -16,6 +16,6 @@ public sealed class PlanItem
     public DateTimeOffset EndTime { get; set; }
 
     public decimal EstimatedCostPerPerson { get; set; }
-    // Distance from the previous stop; 0 for the first one
+    // Distance from the previous stop, or from the start location for the first one (0 without one)
     public double DistanceKm { get; set; }
 }

@@ -1,4 +1,4 @@
-import type { Activity, NightPreferences, Transport } from '@/types/api';
+import type { Activity, GeoPoint, NightPreferences, Transport } from '@/types/api';
 
 /**
  * Limits for the preference form. The API enforces the same limits (backend/src/LinkUp.Api/Dtos/NightPreferencesDto.cs),
@@ -41,6 +41,8 @@ export type PreferencesForm = {
   maxDistanceKm: number;
   transport: Transport[];
   notes: string;
+  /** Where the group starts, picked on the map. Unset means distance isn't used. */
+  startLocation?: GeoPoint;
 };
 
 export type FormErrors = Partial<Record<keyof PreferencesForm, string>>;
@@ -142,5 +144,6 @@ export function toNightPreferences(form: PreferencesForm): NightPreferences {
     maxDistanceKm: form.maxDistanceKm,
     transport: form.transport,
     ...(notes && { notes }),
+    ...(form.startLocation && { startLocation: form.startLocation }),
   };
 }

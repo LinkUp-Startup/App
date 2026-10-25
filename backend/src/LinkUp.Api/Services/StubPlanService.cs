@@ -1,5 +1,6 @@
 using LinkUp.Api.Data.Entities;
 using LinkUp.Api.Dtos;
+using LinkUp.Api.Geo;
 using LinkUp.Api.Planning;
 
 namespace LinkUp.Api.Services;
@@ -21,14 +22,17 @@ public sealed class StubPlanService(IPlanCostService costs) : IPlanService
             if (!PlanBudgetValidation.TryEstimate([venue], preferences, costs, out var estimate, out _))
                 continue;
             var cost = estimate.EstimatedCostPerPerson!.Value;
+            var distance = preferences.StartLocation is { } start
+                ? Math.Round(GeoDistance.HaversineKm(start.Latitude, start.Longitude, venue.Latitude, venue.Longitude), 2)
+                : 0;
             plans.Add(new PlanDto(
                 $"stub-{venue.Id}",
                 $"Night at {venue.Name}",
                 "Sample plan: no AI key is configured on the API.",
-                [new PlanItemDto(PlanValidator.ToVenueDto(venue, preferences), preferences.StartTime, preferences.EndTime, cost, 0)],
+                [new PlanItemDto(PlanValidator.ToVenueDto(venue, preferences), preferences.StartTime, preferences.EndTime, cost, distance)],
                 cost,
                 estimate.TotalEstimatedCost,
-                0));
+                distance));
         }
 
         if (plans.Count == 0)

@@ -47,6 +47,23 @@ public sealed class PlanValidatorTests
     }
 
     [Fact]
+    public void The_first_leg_starts_at_the_start_location()
+    {
+        // Known prices, so the budget check keeps the plan.
+        foreach (var venue in new[] { _restaurant, _bar })
+            (venue.EntranceFee, venue.MinSpend, venue.MaxSpend) = (0, 5, 5);
+        // Start ~1 km south of the restaurant; the bar is ~1 km north of the restaurant.
+        var preferences = Preferences() with { StartLocation = new(41.6086, 0.6200) };
+
+        var plan = Assert.Single(PlanValidator.Validate(
+            [Plan(Stop(1, At(20), At(22)), Stop(2, At(22), At(23)))], [_restaurant, _bar], preferences, new PlanCostService()).Plans);
+
+        Assert.InRange(plan.Items[0].DistanceKm, 0.9, 1.1);
+        Assert.InRange(plan.Items[1].DistanceKm, 0.9, 1.1);
+        Assert.InRange(plan.TotalDistanceKm, 1.9, 2.1);
+    }
+
+    [Fact]
     public void An_unknown_price_is_rejected_because_the_budget_cannot_be_verified()
     {
         _restaurant.EntranceFee = 0;

@@ -60,6 +60,29 @@ public sealed class PlanPromptTests
     }
 
     [Fact]
+    public void With_a_start_location_each_venue_gets_its_distance_from_it()
+    {
+        var near = PlanTestData.Venue(1);                       // at 41.6176, 0.6200
+        var far = PlanTestData.Venue(2, latitude: 41.6266);     // ~1 km north
+        var preferences = PlanTestData.Preferences() with { StartLocation = new(41.6176, 0.6200) };
+
+        using var input = JsonDocument.Parse(PlanPrompt.BuildInput(preferences, [near, far]));
+        var venues = input.RootElement.GetProperty("venues");
+
+        Assert.Equal(0, venues[0].GetProperty("distanceFromStartKm").GetDouble());
+        Assert.Equal(1.0, venues[1].GetProperty("distanceFromStartKm").GetDouble());
+        Assert.Contains("distanceFromStartKm", PlanPrompt.Instructions);
+    }
+
+    [Fact]
+    public void Without_a_start_location_there_are_no_distances()
+    {
+        using var input = JsonDocument.Parse(PlanPrompt.BuildInput(PlanTestData.Preferences(), [PlanTestData.Venue(1)]));
+
+        Assert.False(input.RootElement.GetProperty("venues")[0].TryGetProperty("distanceFromStartKm", out _));
+    }
+
+    [Fact]
     public void Empty_notes_are_left_out()
     {
         using var input = JsonDocument.Parse(PlanPrompt.BuildInput(PlanTestData.Preferences("   "), [PlanTestData.Venue(1)]));

@@ -55,13 +55,14 @@ materialization, with one database query and no client-side distance filtering o
 Ordinary helper calls compile the same expression once and retain coordinate validation. Tests
 exercise SQLite SQL execution as well as PostgreSQL translation and native-provider CI execution.
 
-**#53 integration is still blocked:** preferences, the app and controllers currently supply no
-starting coordinates and there is no location provider to reuse. The existing two-argument service
-call therefore preserves earlier filtering without a distance restriction. The production HTTP
-flow still uses that call, so changing the app's maximum distance cannot affect its results until
-#53 supplies a validated origin and calls the origin-aware overload. No city centre, `(0, 0)`,
-or venue is substituted as a default. This issue implements the independently testable filtering
-capability; it does not implement GPS/manual location acquisition, new request fields or UI wiring.
+**Start location (#53):** preferences carry an optional `startLocation { latitude, longitude }`
+(validated to -90..90 / -180..180, both required when the object is sent). When it is present,
+`POST /api/plans/generate` calls the origin-aware overload, so `MaxDistanceKm` limits the
+candidates; the 422 suggestion then also mentions a larger distance. Without it the two-argument
+call keeps filtering without a distance restriction. No city centre, `(0, 0)` or venue is ever
+substituted as a default: the app sends the point the user chose on its map (or their device
+location). The start point is also used after filtering: the AI gets each candidate's
+`distanceFromStartKm`, and the first stop's distance (#55) is measured from the start.
 
 ## Group size and unknown capacity
 

@@ -78,11 +78,18 @@ function Stop({ item, number }: { item: PlanItem; number: number }) {
         </ThemedText>
         <ThemedText type="small">
           {price}
-          {number > 1 ? ` · ${formatDistance(item.distanceKm)} from the previous stop` : ''}
+          {legLabel(item, number)}
         </ThemedText>
       </View>
     </View>
   );
+}
+
+/** The walk to this stop: from the previous stop, or from the start point for the first one (#56). */
+function legLabel(item: PlanItem, number: number) {
+  if (number > 1) return ` · ${formatDistance(item.distanceKm)} from the previous stop`;
+  // Without a start point the API sends 0 for the first stop: there is no walk to show.
+  return item.distanceKm > 0 ? ` · ${formatDistance(item.distanceKm)} from your start` : '';
 }
 
 const styles = StyleSheet.create({

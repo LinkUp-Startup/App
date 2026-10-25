@@ -438,6 +438,12 @@ export interface components {
         GeneratePlansResponse: {
             plans: components["schemas"]["PlanDto"][];
         };
+        GeoPointDto: {
+            /** Format: double */
+            latitude: number;
+            /** Format: double */
+            longitude: number;
+        };
         HealthResponse: {
             status: string;
             /** Format: date-time */
@@ -464,6 +470,7 @@ export interface components {
             maxDistanceKm: number;
             transport: components["schemas"]["Transport"][];
             notes?: null | string;
+            startLocation?: null | components["schemas"]["GeoPointDto"];
         };
         OpeningHoursDto: {
             day: components["schemas"]["DayOfWeek"];
