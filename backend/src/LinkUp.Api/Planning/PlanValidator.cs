@@ -9,7 +9,7 @@ namespace LinkUp.Api.Planning;
 /// <summary>
 /// Checks the AI's plans against the candidate venues and the group's window (issue #67). Invalid stops are
 /// dropped rather than failing the whole response, so no invented or closed venue reaches the app.
-/// Prices (<see cref="PlanPricing"/>) and distances come from the database, never from the AI.
+/// Prices (<see cref="IPlanCostService"/>) and distances come from the database, never from the AI.
 /// </summary>
 public static class PlanValidator
 {
@@ -21,16 +21,18 @@ public static class PlanValidator
 
     /// <param name="Plans">Usable plans, at most <see cref="MaxPlans"/>.</param>
     /// <param name="Problems">What was dropped and why, for the logs.</param>
-    public sealed record Result(IReadOnlyList<PlanDto> Plans, IReadOnlyList<string> Problems);
+    public sealed record Result(IReadOnlyList<PlanDto> Plans, IReadOnlyList<string> Problems, bool HasCostFailures);
 
     public static Result Validate(
         IReadOnlyList<AiPlan> aiPlans, IReadOnlyList<Venue> candidates, NightPreferencesDto preferences,
         IPlanCostService costs)
     {
+        PlanBudgetValidation.ValidatePreferences(preferences);
         var venues = candidates.ToDictionary(v => v.Id);
         var problems = new List<string>();
         var plans = new List<PlanDto>();
         var seen = new HashSet<string>();
+        var hasCostFailures = false;
 
         for (var p = 0; p < aiPlans.Count; p++)
         {
@@ -55,10 +57,18 @@ public static class PlanValidator
                 continue;
             }
 
-            plans.Add(ToPlan(aiPlans[p], stops, preferences, costs));
+            if (!PlanBudgetValidation.TryEstimate(stops.Select(s => s.Venue), preferences, costs,
+                out var estimate, out var costProblem))
+            {
+                problems.Add($"{label}: dropped, {costProblem}");
+                hasCostFailures = true;
+                continue;
+            }
+
+            plans.Add(ToPlan(aiPlans[p], stops, preferences, estimate));
         }
 
-        return new Result(plans, problems);
+        return new Result(plans, problems, hasCostFailures);
     }
 
     private sealed record Stop(Venue Venue, DateTimeOffset Start, DateTimeOffset End);
@@ -132,19 +142,19 @@ public static class PlanValidator
         new[] { venue }.AsQueryable().OpenDuring(start, end).Any();
 
     private static PlanDto ToPlan(
-        AiPlan plan, List<Stop> stops, NightPreferencesDto preferences, IPlanCostService costs)
+        AiPlan plan, List<Stop> stops, NightPreferencesDto preferences, PlanCostEstimate estimate)
     {
-        var prices = PlanPricing.Price(costs, stops.Select(s => s.Venue).ToList(), preferences.GroupSize);
         var items = new List<PlanItemDto>();
         // The first leg starts at the group's start point (#55); without one the first stop has no leg.
         var from = preferences.StartLocation is { } start ? (start.Latitude, start.Longitude) : ((double, double)?)null;
-        foreach (var (stop, i) in stops.Select((stop, i) => (stop, i)))
+        foreach (var stop in stops)
         {
             var distance = from is var (latitude, longitude)
                 ? GeoDistance.HaversineKm(latitude, longitude, stop.Venue.Latitude, stop.Venue.Longitude)
                 : 0;
             items.Add(new PlanItemDto(
-                ToVenueDto(stop.Venue, preferences), stop.Start, stop.End, prices.PerStop[i], Math.Round(distance, 2)));
+                ToVenueDto(stop.Venue, preferences), stop.Start, stop.End,
+                estimate.ItemCostsPerPerson[items.Count]!.Value, Math.Round(distance, 2)));
             from = (stop.Venue.Latitude, stop.Venue.Longitude);
         }
 
@@ -153,8 +163,8 @@ public static class PlanValidator
             Truncate(plan.Title, TitleMaxLength, "Night out"),
             Truncate(plan.Summary, SummaryMaxLength, ""),
             items,
-            prices.Plan.EstimatedCostPerPerson,
-            prices.Plan.TotalEstimatedCost,
+            estimate.EstimatedCostPerPerson,
+            estimate.TotalEstimatedCost,
             Math.Round(items.Sum(i => i.DistanceKm), 2));
     }
 

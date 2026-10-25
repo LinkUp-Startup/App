@@ -70,8 +70,9 @@ public sealed class PlanGenerationEndpointTests(PlanningApiFactory factory) : IC
 
         private static readonly Venue[] Venues =
         [
-            new() { Id = 1, Name = "One", Address = "a", Latitude = 41.6176, Longitude = 0.62 },
-            new() { Id = 2, Name = "Two", Address = "b", Latitude = 41.62, Longitude = 0.62 },
+            // Priced, so the budget check (#50) keeps them.
+            new() { Id = 1, Name = "One", Address = "a", Latitude = 41.6176, Longitude = 0.62, EntranceFee = 0, MinSpend = 5, MaxSpend = 5 },
+            new() { Id = 2, Name = "Two", Address = "b", Latitude = 41.62, Longitude = 0.62, EntranceFee = 0, MinSpend = 5, MaxSpend = 5 },
         ];
 
         public Task<IReadOnlyList<Venue>> FilterAsync(NightPreferencesDto preferences, CancellationToken cancellationToken)

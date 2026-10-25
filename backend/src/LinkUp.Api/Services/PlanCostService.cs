@@ -12,6 +12,7 @@ public sealed class PlanCostService : IPlanCostService
 
         decimal perPerson = 0m;
         var unpricedItems = 0;
+        var itemCosts = new List<decimal?>();
         foreach (var item in plan.Items)
         {
             ArgumentNullException.ThrowIfNull(item);
@@ -26,14 +27,19 @@ public sealed class PlanCostService : IPlanCostService
             if (spend is null || admission is null)
             {
                 unpricedItems++;
+                itemCosts.Add(null);
                 continue;
             }
 
-            perPerson += spend.Value + admission.Value;
+            var itemCost = spend.Value + admission.Value;
+            perPerson += itemCost;
+            itemCosts.Add(itemCost);
         }
 
-        return unpricedItems == 0
-            ? new PlanCostEstimate(perPerson, perPerson * groupSize, 0)
-            : new PlanCostEstimate(null, null, unpricedItems);
+        var complete = unpricedItems == 0;
+        return new PlanCostEstimate(complete ? perPerson : null, complete ? perPerson * groupSize : null, unpricedItems)
+        {
+            ItemCostsPerPerson = itemCosts.AsReadOnly(),
+        };
     }
 }

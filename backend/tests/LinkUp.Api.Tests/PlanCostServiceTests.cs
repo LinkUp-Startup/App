@@ -124,6 +124,18 @@ public sealed class PlanCostServiceTests
         AssertIncomplete(result, 1);
     }
 
+    [Fact]
+    public void Already_calculated_item_costs_are_available_in_order_including_unknown_items()
+    {
+        var unknown = new Venue { Name = "Unknown", Address = "Test address" };
+
+        var result = _service.Estimate(Plan(Item(PricedVenue(12.50m)), Item(unknown), Item(PricedVenue(0m))), 4);
+
+        Assert.Equal(new decimal?[] { 12.50m, null, 0m }, result.ItemCostsPerPerson);
+        AssertIncomplete(result, 1);
+        Assert.Throws<NotSupportedException>(() => ((IList<decimal?>)result.ItemCostsPerPerson)[0] = 0m);
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]

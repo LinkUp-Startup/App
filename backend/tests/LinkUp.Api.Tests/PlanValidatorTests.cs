@@ -18,9 +18,7 @@ public sealed class PlanValidatorTests
     private static AiPlan Plan(params AiStop[] stops) => new("Tapas and drinks", "Dinner, then a bar.", stops);
 
     private PlanValidator.Result Validate(params AiPlan[] plans) =>
-        PlanValidator.Validate(plans, [_restaurant, _bar, _pub], Preferences(), Costs);
-
-    private static readonly PlanCostService Costs = new();
+        PlanValidator.Validate(plans, [_restaurant, _bar, _pub], Preferences(), new PlanCostService());
 
     [Fact]
     public void Keeps_a_valid_plan_and_adds_prices_and_distances_from_the_database()
@@ -51,11 +49,14 @@ public sealed class PlanValidatorTests
     [Fact]
     public void The_first_leg_starts_at_the_start_location()
     {
+        // Known prices, so the budget check keeps the plan.
+        foreach (var venue in new[] { _restaurant, _bar })
+            (venue.EntranceFee, venue.MinSpend, venue.MaxSpend) = (0, 5, 5);
         // Start ~1 km south of the restaurant; the bar is ~1 km north of the restaurant.
         var preferences = Preferences() with { StartLocation = new(41.6086, 0.6200) };
 
         var plan = Assert.Single(PlanValidator.Validate(
-            [Plan(Stop(1, At(20), At(22)), Stop(2, At(22), At(23)))], [_restaurant, _bar], preferences, Costs).Plans);
+            [Plan(Stop(1, At(20), At(22)), Stop(2, At(22), At(23)))], [_restaurant, _bar], preferences, new PlanCostService()).Plans);
 
         Assert.InRange(plan.Items[0].DistanceKm, 0.9, 1.1);
         Assert.InRange(plan.Items[1].DistanceKm, 0.9, 1.1);
@@ -63,18 +64,18 @@ public sealed class PlanValidatorTests
     }
 
     [Fact]
-    public void An_unknown_price_is_reported_as_unknown_not_as_free()
+    public void An_unknown_price_is_rejected_because_the_budget_cannot_be_verified()
     {
         _restaurant.EntranceFee = 0;
         _restaurant.MinSpend = 15;
         _restaurant.MaxSpend = 25;
-        // _bar has no known entrance fee.
+        _bar.EntranceFee = null;
 
-        var plan = Assert.Single(Validate(Plan(Stop(1, At(20), At(22)), Stop(2, At(22), At(23)))).Plans);
+        var result = Validate(Plan(Stop(1, At(20), At(22)), Stop(2, At(22), At(23))));
 
-        Assert.Equal([20m, null], plan.Items.Select(i => i.EstimatedCostPerPerson));
-        Assert.Null(plan.EstimatedCostPerPerson);
-        Assert.Null(plan.EstimatedTotalCost);
+        Assert.Empty(result.Plans);
+        Assert.True(result.HasCostFailures);
+        Assert.Contains(result.Problems, problem => problem.Contains("cost is incomplete"));
     }
 
     [Fact]
@@ -117,7 +118,7 @@ public sealed class PlanValidatorTests
         var earlyBar = Venue(4, opens: new(17, 0), closes: new(21, 0));
 
         var result = PlanValidator.Validate(
-            [Plan(Stop(4, At(22), At(23)), Stop(1, At(20), At(21)))], [_restaurant, earlyBar], Preferences(), Costs);
+            [Plan(Stop(4, At(22), At(23)), Stop(1, At(20), At(21)))], [_restaurant, earlyBar], Preferences(), new PlanCostService());
 
         Assert.Equal(["1"], Assert.Single(result.Plans).Items.Select(i => i.Venue.Id));
         Assert.Contains("plan 1 stop 1: venue 4 is closed then", result.Problems);
@@ -143,7 +144,7 @@ public sealed class PlanValidatorTests
         var candidates = Enumerable.Range(1, 5).Select(id => Venue(id)).ToList();
         var stops = candidates.Select((v, i) => Stop(v.Id, At(20 + i), At(21 + i))).ToArray();
 
-        var result = PlanValidator.Validate([Plan(stops)], candidates, Preferences(), Costs);
+        var result = PlanValidator.Validate([Plan(stops)], candidates, Preferences(), new PlanCostService());
 
         Assert.Equal(PlanValidator.MaxStops, Assert.Single(result.Plans).Items.Count);
     }

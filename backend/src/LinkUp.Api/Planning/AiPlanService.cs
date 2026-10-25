@@ -9,8 +9,8 @@ namespace LinkUp.Api.Planning;
 
 /// <summary>Plans combined by the AI from the filtered candidates, then checked against them.</summary>
 public sealed class AiPlanService(
-    IAiClient ai, IPlanCostService costs, IOptions<AiOptions> options, IOptions<PlanGenerationOptions> planOptions,
-    ILogger<AiPlanService> logger)
+    IAiClient ai, IOptions<AiOptions> options, IOptions<PlanGenerationOptions> planOptions,
+    ILogger<AiPlanService> logger, IPlanCostService costs)
     : IPlanService
 {
     /// <summary>Fewer than <see cref="PlanValidator.MinPlans"/> distinct valid plans gets one more try.</summary>
@@ -19,6 +19,7 @@ public sealed class AiPlanService(
     public async Task<IReadOnlyList<PlanDto>> GeneratePlansAsync(
         NightPreferencesDto preferences, IReadOnlyList<Venue> filtered, CancellationToken cancellationToken)
     {
+        PlanBudgetValidation.ValidatePreferences(preferences);
         // The AI only sees, and may only use, this selection.
         var candidates = CandidateSelector.Select(
             filtered, preferences.Activities, planOptions.Value.MaxAiCandidates, Random.Shared);
@@ -31,6 +32,7 @@ public sealed class AiPlanService(
 
         // Valid plans from every attempt count, so two attempts with one plan each still give two plans (#71).
         var plans = new List<PlanDto>();
+        var hasCostFailures = false;
         for (var attempt = 1; attempt <= MaxAttempts; attempt++)
         {
             AiJsonResponse response;
@@ -53,6 +55,7 @@ public sealed class AiPlanService(
             }
 
             var result = PlanValidator.Validate(aiPlans, candidates, preferences, costs);
+            hasCostFailures |= result.HasCostFailures;
             logger.LogInformation(
                 "Plan generation ({PromptVersion}) attempt {Attempt}/{MaxAttempts}: {Sent} of {Filtered} candidates sent, {Returned} plans from the AI, {Kept} kept",
                 PlanPrompt.Version, attempt, MaxAttempts, candidates.Count, filtered.Count, aiPlans.Count, result.Plans.Count);
@@ -73,6 +76,10 @@ public sealed class AiPlanService(
 
         logger.LogWarning("Plan generation ({PromptVersion}) gave up with {Count} distinct plan(s), {Min} needed",
             PlanPrompt.Version, plans.Count, PlanValidator.MinPlans);
+        if (hasCostFailures)
+            throw new PlanBudgetException(
+                $"The generator could not produce enough fully priced plans within your budget after {MaxAttempts} attempts. " +
+                "Try different activities or a higher budget.");
         throw new PlanGenerationException(
             $"The AI returned {plans.Count} usable plan(s) in {MaxAttempts} attempts; at least {PlanValidator.MinPlans} are needed.");
     }

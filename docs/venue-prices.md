@@ -160,11 +160,7 @@ retained as a candidate, but does not establish a complete plan total. Budget va
 app price display (#51) can consume the result and `IsComplete` without repeating the arithmetic;
 neither behavior is implemented here. No schema, request, or response fields are changed.
 
-Generated plans use this service (`Planning/PlanPricing.cs`, for both the AI and the stub plans).
-Policy for incomplete estimates in the response: `PlanItemDto.EstimatedCostPerPerson` is the stop's
-own estimate, null when that venue is unpriced, and `PlanDto.EstimatedCostPerPerson` /
-`EstimatedTotalCost` (the group) are null as soon as any stop is unpriced. A null is never turned
-back into zero. The app shows such a cost as "price unknown"; the price design itself is #51.
+Generated plans use this service once per repaired plan. Its ordered `ItemCostsPerPerson` supplies stop prices, and its totals populate `PlanDto.EstimatedCostPerPerson` and `EstimatedTotalCost`. Budget validation (#50) rejects incomplete or over-budget estimates before returning a successful generated plan. The API retains nullable cost fields for unknown prices; unknown never means free. See [plan-budget-validation.md](plan-budget-validation.md).
 
 Run its unit tests without a database server or AI calls:
 
@@ -175,10 +171,11 @@ dotnet test backend/LinkUp.sln --filter FullyQualifiedName~PlanCostServiceTests 
 ## Future budget work and limitations
 
 The numeric per-person consumption estimate and separate admission amount provide inputs for
-plan cost estimation (#48), future validation (#50), and app display (#51).
-The latter features must choose their policies for consuming complete/incomplete estimates.
-No whole-plan budget validation, currency conversion,
-or new price UI is implemented here. Group discounts, fixed booking charges and verified observed
+plan estimates (#48) and validation (#50), documented in
+[plan-budget-validation.md](plan-budget-validation.md), and future app display (#51).
+The estimator returns null totals for incomplete prices; generated plans with such costs cannot
+be verified within budget. Complete group estimates are checked before successful generation.
+No currency conversion or new price UI is implemented here. Group discounts, fixed booking charges and verified observed
 averages are not represented by the source data.
 
 EF Core cannot translate the ordinary `EstimatedSpendPerPerson` getter in a database predicate.

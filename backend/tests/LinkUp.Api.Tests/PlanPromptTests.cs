@@ -23,6 +23,8 @@ public sealed class PlanPromptTests
         bar.MaxSpend = 20;
         bar.Tags = ["terrace"];
         var restaurant = PlanTestData.Venue(9, VenueCategory.Restaurant);
+        restaurant.EntranceFee = null;
+        restaurant.MinSpend = null;
         restaurant.OpeningHours.Add(new VenueOpeningHours { Day = DayOfWeek.Monday, Opens = new(13, 0), Closes = new(16, 0) });
         restaurant.MaxSpend = 25;
 

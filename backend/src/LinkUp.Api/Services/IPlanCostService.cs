@@ -10,6 +10,8 @@ public sealed record PlanCostEstimate(
 {
     public bool IsComplete => UnpricedItemCount == 0;
     public string Currency => "EUR";
+    /// <summary>Already calculated item amounts, in input order; null for an unpriced item.</summary>
+    public IReadOnlyList<decimal?> ItemCostsPerPerson { get; init; } = [];
 }
 
 public interface IPlanCostService
