@@ -56,6 +56,7 @@ builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(Dat
 builder.Services.AddScoped<IPlanService, StubPlanService>();
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IVenueService, VenueService>();
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
 {
     // Native React Native requests send no Origin header, so this only matters for web/Expo web.
