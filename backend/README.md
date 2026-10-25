@@ -184,16 +184,17 @@ On the server (Dokploy) set the environment variable `Ai__ApiKey`. Without a key
 
 ### Plan generation
 
-`POST /api/plans/generate`: filter venues → `AiPlanService` → validate → plans.
+`POST /api/plans/generate`: filter venues → select candidates → `AiPlanService` → validate → plans.
 
-1. **Prompt** (`Planning/PlanPrompt.cs`): instructions plus compact JSON with the preferences and only the filtered candidates (id, name, category, prices, opening hours, tags), all times in `Europe/Madrid`. `PlanPrompt.Version` (e.g. `plans-v1`) is logged with every generation: bump it whenever the prompt, its input or the schema change.
-2. **Structured output** (`Planning/PlanSchema.cs`): OpenAI strict JSON schema `{ plans: [{ title, summary, stops: [{ venueId, startTime, endTime }] }] }`. Output that doesn't parse gets one more try.
-3. **Validation** (`Planning/PlanValidator.cs`), repairing rather than rejecting:
+1. **Candidates** (`Planning/CandidateSelector.cs`): at most `PlanGeneration__MaxAiCandidates` (default 20) of the filtered venues go to the AI, split evenly across the selected activities and picked at random, so a broad request stays at about 3,500 input tokens (~$0.0007) and repeating it gives other venues. The AI may only use the venues it was sent.
+2. **Prompt** (`Planning/PlanPrompt.cs`): instructions plus compact JSON with the preferences and only the filtered candidates (id, name, category, prices, opening hours, tags), all times in `Europe/Madrid`. `PlanPrompt.Version` (e.g. `plans-v1`) is logged with every generation: bump it whenever the prompt, its input or the schema change.
+3. **Structured output** (`Planning/PlanSchema.cs`): OpenAI strict JSON schema `{ plans: [{ title, summary, stops: [{ venueId, startTime, endTime }] }] }`. Output that doesn't parse gets one more try.
+4. **Validation** (`Planning/PlanValidator.cs`), repairing rather than rejecting:
    - stops whose venue is not a candidate, has unreadable times, lies outside the window or at a closed venue are dropped; stops spilling over the window are trimmed to it
    - stops are sorted; overlapping stops, repeat visits and stops beyond 4 are dropped
    - empty plans, plans with the same venues as an earlier one and plans beyond 3 are dropped
    - prices and distances come from the database, never from the AI (the cost estimate is a placeholder until #48)
-4. If no plan survives two attempts, or the AI is down, the endpoint returns `502` problem details and the app shows "try again".
+5. If no plan survives two attempts, or the AI is down, the endpoint returns `502` problem details and the app shows "try again".
 
 ### Usage logs
 

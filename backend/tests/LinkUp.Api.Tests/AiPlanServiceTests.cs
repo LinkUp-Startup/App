@@ -38,7 +38,8 @@ public sealed class AiPlanServiceTests
         var logs = new AuthApiFactory.CapturedLogs();
         var logger = LoggerFactory.Create(builder => builder.AddProvider(logs)).CreateLogger<AiPlanService>();
         var options = Microsoft.Extensions.Options.Options.Create(new AiOptions { TotalTimeoutSeconds = timeoutSeconds });
-        return (new AiPlanService(ai, options, logger), logs);
+        var planOptions = Microsoft.Extensions.Options.Options.Create(new PlanGenerationOptions { MaxAiCandidates = 3 });
+        return (new AiPlanService(ai, options, planOptions, logger), logs);
     }
 
     [Fact]
@@ -54,7 +55,7 @@ public sealed class AiPlanServiceTests
         Assert.Equal(PlanPrompt.Instructions, request.Instructions);
         Assert.Equal(PlanSchema.Name, request.SchemaName);
         Assert.Contains("\"id\":1", request.Input);
-        Assert.Contains(logs.Messages, m => m.Contains($"({PlanPrompt.Version}) attempt 1/2: 1 candidates, 1 plans from the AI, 1 kept"));
+        Assert.Contains(logs.Messages, m => m.Contains($"({PlanPrompt.Version}) attempt 1/2: 1 of 1 candidates sent, 1 plans from the AI, 1 kept"));
     }
 
     [Theory]
@@ -143,5 +144,40 @@ public sealed class AiPlanServiceTests
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => service.GeneratePlansAsync(Preferences(), [Venue(1)], cancelled.Token));
+    }
+
+    private sealed class EchoAi : IAiClient
+    {
+        public List<int> Sent { get; } = [];
+
+        // Plans the first venue it was sent, then one of the venues it wasn't sent.
+        public Task<AiJsonResponse> CompleteJsonAsync(AiJsonRequest request, CancellationToken cancellationToken)
+        {
+            using var input = System.Text.Json.JsonDocument.Parse(request.Input);
+            Sent.AddRange(input.RootElement.GetProperty("venues").EnumerateArray().Select(v => v.GetProperty("id").GetInt32()));
+            var unsent = Enumerable.Range(1, 10).First(id => !Sent.Contains(id));
+            var json = $$"""
+                {"plans":[{"title":"T","summary":"S","stops":[
+                  {"venueId":{{Sent[0]}},"startTime":"{{At(21)}}","endTime":"{{At(22)}}"},
+                  {"venueId":{{unsent}},"startTime":"{{At(22)}}","endTime":"{{At(23)}}"}]}]}
+                """;
+            return Task.FromResult(new AiJsonResponse(json, Usage));
+        }
+    }
+
+    [Fact]
+    public async Task Sends_at_most_the_configured_number_of_candidates_and_only_accepts_those()
+    {
+        var ai = new EchoAi();
+        var (service, logs) = Create(ai);
+        var filtered = Enumerable.Range(1, 10).Select(id => Venue(id)).ToList();
+
+        var plans = await service.GeneratePlansAsync(Preferences(), filtered, CancellationToken.None);
+
+        Assert.Equal(3, ai.Sent.Count);
+        // A filtered venue the AI wasn't shown is still rejected.
+        Assert.Equal([ai.Sent[0].ToString()], Assert.Single(plans).Items.Select(i => i.Venue.Id));
+        Assert.Contains(logs.Messages, m => m.Contains("3 of 10 candidates sent"));
+        Assert.Contains(logs.Messages, m => m.Contains("is not a candidate"));
     }
 }
