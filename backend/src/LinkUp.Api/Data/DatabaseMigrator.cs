@@ -26,7 +26,7 @@ public static class DatabaseMigrator
                 var pending = (await context.Database.GetPendingMigrationsAsync()).ToList();
                 if (pending.Count == 0)
                     logger.LogInformation("Database schema is up to date.");
-                else
+                else if (logger.IsEnabled(LogLevel.Information))
                     logger.LogInformation("Applying {Count} migration(s): {Migrations}", pending.Count, string.Join(", ", pending));
 
                 // When nothing is pending -> MigrateAsync runs the data seeding so venues added to the dataset reach existing databases too

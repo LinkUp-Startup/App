@@ -56,9 +56,10 @@ public sealed class AiPlanService(
 
             var result = PlanValidator.Validate(aiPlans, candidates, preferences, costs);
             hasCostFailures |= result.HasCostFailures;
-            logger.LogInformation(
-                "Plan generation ({PromptVersion}) attempt {Attempt}/{MaxAttempts}: {Sent} of {Filtered} candidates sent, {Returned} plans from the AI, {Kept} kept",
-                PlanPrompt.Version, attempt, MaxAttempts, candidates.Count, filtered.Count, aiPlans.Count, result.Plans.Count);
+            if (logger.IsEnabled(LogLevel.Information))
+                logger.LogInformation(
+                    "Plan generation ({PromptVersion}) attempt {Attempt}/{MaxAttempts}: {Sent} of {Filtered} candidates sent, {Returned} plans from the AI, {Kept} kept",
+                    PlanPrompt.Version, attempt, MaxAttempts, candidates.Count, filtered.Count, aiPlans.Count, result.Plans.Count);
             if (result.Problems.Count > 0)
                 logger.LogWarning("Plan generation ({PromptVersion}) repaired the AI output: {Problems}",
                     PlanPrompt.Version, string.Join("; ", result.Problems));

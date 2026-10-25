@@ -7,7 +7,7 @@ namespace LinkUp.Api.Data.Seed;
 
 // Reads the curated Lleida dataset and converts it into entities
 // Anything it can't read throws with the venue's id, so a bad edit to the JSON fails loudly instead of seeding wrong data
-public static class VenueSeedData
+public static partial class VenueSeedData
 {
     public const string ResourceName = "LinkUp.Api.Data.Seed.lleida_venues.json";
 
@@ -40,8 +40,9 @@ public static class VenueSeedData
         ["UNVERIFIED"] = EntranceType.Unverified,
     };
 
-    // "€10–20" or "€5"
-    private static readonly Regex SpendPattern = new(@"^€(\d+(?:\.\d+)?)(?:–(\d+(?:\.\d+)?))?$");
+    // "€10–20" or "€5". Generated at compile time; the timeout guards against pathological input.
+    [GeneratedRegex(@"^€(\d+(?:\.\d+)?)(?:–(\d+(?:\.\d+)?))?$", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex SpendPattern();
 
     // Index 0 = Monday
     private static readonly string[] Days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -67,7 +68,7 @@ public static class VenueSeedData
 
     public static (decimal Min, decimal Max) ParseSpend(string text)
     {
-        var match = SpendPattern.Match(text);
+        var match = SpendPattern().Match(text);
         if (!match.Success)
             throw new FormatException($"Can't read average spend \"{text}\".");
 

@@ -374,7 +374,7 @@ export interface paths {
         get?: never;
         /**
          * Save a plan to the account
-         * @description Idempotent: saving the same plan id again replaces it. The venues are looked up in the database (400 for an unknown venue); the body's plan id must match the URL. 404 when the id belongs to another account, 409 when the account is at its limit of saved plans.
+         * @description Idempotent: saving the same plan id again replaces it. Plan ids are per account, so another account saving the same id gets its own copy. The venues are looked up in the database (400 for an unknown venue); the body's plan id must match the URL. 401 when the account no longer exists, 409 when it is at its limit of saved plans.
          */
         put: {
             parameters: {
@@ -417,17 +417,6 @@ export interface paths {
                 };
                 /** @description Unauthorized */
                 401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["ProblemDetails"];
-                        "application/json": components["schemas"]["ProblemDetails"];
-                        "text/json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
                     headers: {
                         [name: string]: unknown;
                     };

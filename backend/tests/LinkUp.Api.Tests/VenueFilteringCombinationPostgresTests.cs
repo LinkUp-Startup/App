@@ -6,7 +6,7 @@ namespace LinkUp.Api.Tests;
 // The same matrix executes against the production provider in CI, with rollback per case.
 public sealed class VenueFilteringCombinationPostgresTests(AuthApiFactory factory) : IClassFixture<AuthApiFactory>
 {
-    public static IEnumerable<object[]> Combinations => VenueFilteringScenarios.Combinations.Select(c => new object[] { c });
+    public static TheoryData<FilteringConstraints> Combinations => new(VenueFilteringScenarios.Combinations);
 
     [Theory]
     [MemberData(nameof(Combinations))]

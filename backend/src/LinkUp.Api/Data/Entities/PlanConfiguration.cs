@@ -17,6 +17,8 @@ public sealed class PlanConfiguration : IEntityTypeConfiguration<Plan>
             table.HasCheckConstraint("CK_Plans_TotalDistanceKm", "\"TotalDistanceKm\" >= 0");
         });
         builder.HasKey(p => p.Id);
+        builder.HasIndex(p => new { p.UserId, p.SourcePlanId }).IsUnique()
+            .HasFilter("\"UserId\" IS NOT NULL AND \"SourcePlanId\" IS NOT NULL");
 
         builder.Property(p => p.Title).HasMaxLength(TitleMaxLength);
         builder.Property(p => p.Summary).HasMaxLength(SummaryMaxLength);

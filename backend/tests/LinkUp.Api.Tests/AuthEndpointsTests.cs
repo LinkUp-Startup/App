@@ -14,6 +14,7 @@ namespace LinkUp.Api.Tests;
 public sealed class AuthEndpointsTests : IClassFixture<AuthApiFactory>
 {
     private const string Password = "correct-horse-battery";
+    private static readonly JsonSerializerOptions WebJson = new(JsonSerializerDefaults.Web);
     private readonly AuthApiFactory _factory;
     private readonly HttpClient _client;
 
@@ -41,7 +42,7 @@ public sealed class AuthEndpointsTests : IClassFixture<AuthApiFactory>
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        var auth = JsonSerializer.Deserialize<AuthResponse>(body, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+        var auth = JsonSerializer.Deserialize<AuthResponse>(body, WebJson)!;
         Assert.Equal(email, auth.User.Email);
         Assert.Equal("Ann", auth.User.DisplayName);
         Assert.NotEqual(Guid.Empty, auth.User.Id);

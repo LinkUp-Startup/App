@@ -176,7 +176,8 @@ public sealed class SavedPlansEndpointTests : IClassFixture<AuthApiFactory>
         var plan = Assert.Single((await ListAsync(account.Client)).EnumerateArray()).GetProperty("plan");
         Assert.Equal("Second", plan.GetProperty("title").GetString());
         Assert.Equal(venues[1].Id.ToString(), plan.GetProperty("items")[0].GetProperty("venue").GetProperty("id").GetString());
-        Assert.Equal(1, await _factory.WithDbAsync(db => db.Set<PlanItem>().CountAsync(i => i.PlanId == id)));
+        Assert.Equal(1, await _factory.WithDbAsync(db =>
+            db.Plans.Where(p => p.SourcePlanId == id).SelectMany(p => p.Items).CountAsync()));
     }
 
     [Fact]
@@ -207,21 +208,38 @@ public sealed class SavedPlansEndpointTests : IClassFixture<AuthApiFactory>
     }
 
     [Fact]
-    public async Task Another_account_cannot_overwrite_or_delete_a_plan()
+    public async Task Another_account_saving_the_same_plan_gets_its_own_copy()
     {
+        // E.g. a plan shared with a friend: both can save it, and neither can touch the other's copy.
         var venue = (await VenuesAsync(1))[0];
         var ann = await NewAccountAsync();
         var bob = await NewAccountAsync();
         var id = Guid.NewGuid();
         (await SaveAsync(ann.Client, id, Plan(id, "Ann's night", Stop(venue.Id, 0)))).EnsureSuccessStatusCode();
 
-        using var overwrite = await SaveAsync(bob.Client, id, Plan(id, "Hijacked", Stop(venue.Id, 0)));
-        using var delete = await bob.Client.DeleteAsync($"/api/saved-plans/{id}");
+        using var bobsSave = await SaveAsync(bob.Client, id, Plan(id, "Bob's night", Stop(venue.Id, 0)));
+        Assert.Equal(HttpStatusCode.OK, bobsSave.StatusCode);
+        var bobsPlan = Assert.Single((await ListAsync(bob.Client)).EnumerateArray()).GetProperty("plan");
+        Assert.Equal(id.ToString(), bobsPlan.GetProperty("id").GetString());
 
-        Assert.Equal(HttpStatusCode.NotFound, overwrite.StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode); // does not reveal whether it exists
-        var plan = Assert.Single((await ListAsync(ann.Client)).EnumerateArray()).GetProperty("plan");
-        Assert.Equal("Ann's night", plan.GetProperty("title").GetString());
+        using var delete = await bob.Client.DeleteAsync($"/api/saved-plans/{id}");
+        Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
+        Assert.Empty((await ListAsync(bob.Client)).EnumerateArray());
+        var annsPlan = Assert.Single((await ListAsync(ann.Client)).EnumerateArray()).GetProperty("plan");
+        Assert.Equal("Ann's night", annsPlan.GetProperty("title").GetString());
+    }
+
+    [Fact]
+    public async Task A_deleted_account_cannot_save_even_with_a_valid_token()
+    {
+        var venue = (await VenuesAsync(1))[0];
+        var account = await NewAccountAsync();
+        await _factory.WithDbAsync(db => db.Users.Where(u => u.Email == account.Email).ExecuteDeleteAsync());
+        var id = Guid.NewGuid();
+
+        using var response = await SaveAsync(account.Client, id, Plan(id, "Too late", Stop(venue.Id, 0)));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [Fact]
@@ -242,7 +260,7 @@ public sealed class SavedPlansEndpointTests : IClassFixture<AuthApiFactory>
     public static TheoryData<string> InvalidPlans => new()
     {
         "id-mismatch", "no-title", "no-stops", "too-many-stops", "unknown-venue", "malformed-venue",
-        "ends-before-start", "overlap", "negative-cost", "unknown-activity",
+        "ends-before-start", "overlap", "negative-cost", "huge-cost", "unknown-activity",
     };
 
     [Theory]
@@ -265,6 +283,7 @@ public sealed class SavedPlansEndpointTests : IClassFixture<AuthApiFactory>
             "ends-before-start" => Plan(id, "Backwards", RawStop(venue.ToString(), Evening, Evening.AddHours(-1))),
             "overlap" => Plan(id, "Overlap", Stop(venue, 0), RawStop(venue.ToString(), Evening.AddMinutes(30), Evening.AddHours(2), "drinks")),
             "negative-cost" => Plan(id, "Refund", Stop(venue, 0, cost: -5m)),
+            "huge-cost" => Plan(id, "Yacht", Stop(venue, 0, cost: 10_000_000m)), // more than the column holds
             _ => Plan(id, "Mystery", Stop(venue, 0, activity: "teleport")),
         };
 
@@ -272,6 +291,26 @@ public sealed class SavedPlansEndpointTests : IClassFixture<AuthApiFactory>
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal(0, (await ListAsync(account.Client)).GetArrayLength());
+    }
+
+    [Fact]
+    public async Task Saving_the_same_plan_many_times_at_once_keeps_one_copy()
+    {
+        // A double tap, or two devices: concurrent first saves and concurrent re-saves.
+        var venue = (await VenuesAsync(1))[0];
+        var account = await NewAccountAsync();
+        var id = Guid.NewGuid();
+
+        for (var round = 0; round < 2; round++)
+        {
+            var responses = await Task.WhenAll(Enumerable.Range(0, 8).Select(i =>
+                SaveAsync(account.Client, id, Plan(id, $"Version {i}", Stop(venue.Id, 0)))));
+
+            Assert.All(responses, response => Assert.Equal(HttpStatusCode.OK, response.StatusCode));
+            Assert.Single((await ListAsync(account.Client)).EnumerateArray());
+            Assert.Equal(1, await _factory.WithDbAsync(db => db.Plans.CountAsync(p => p.SourcePlanId == id)));
+            foreach (var response in responses) response.Dispose();
+        }
     }
 
     [Fact]
@@ -285,6 +324,7 @@ public sealed class SavedPlansEndpointTests : IClassFixture<AuthApiFactory>
             db.Plans.AddRange(Enumerable.Range(0, SavedPlanService.MaxPlansPerAccount).Select(i => new Data.Entities.Plan
             {
                 UserId = userId,
+                SourcePlanId = Guid.NewGuid(),
                 Title = $"Plan {i}",
                 Summary = "",
                 TotalDistanceKm = 0,
@@ -299,7 +339,8 @@ public sealed class SavedPlansEndpointTests : IClassFixture<AuthApiFactory>
         Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
 
         // Replacing a plan it already has is still fine at the limit.
-        var existing = await _factory.WithDbAsync(db => db.Plans.Where(p => p.UserId == userId).Select(p => p.Id).FirstAsync());
+        var existing = await _factory.WithDbAsync(db =>
+            db.Plans.Where(p => p.UserId == userId).Select(p => p.SourcePlanId!.Value).FirstAsync());
         using var replaced = await SaveAsync(account.Client, existing, Plan(existing, "Updated", Stop(venue.Id, 0)));
         Assert.Equal(HttpStatusCode.OK, replaced.StatusCode);
     }

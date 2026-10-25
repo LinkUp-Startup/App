@@ -38,10 +38,11 @@ const MaxTimerMs = 2 ** 31 - 1;
 function loadSessionWithTimeout(): Promise<StoredSession | null> {
   return new Promise((resolve) => {
     const timer = setTimeout(() => resolve(null), RestoreTimeoutMs);
-    loadSession().then((session) => {
-      clearTimeout(timer);
-      resolve(session);
-    });
+    loadSession()
+      .then((session) => resolve(session))
+      // Unreadable storage: start as a guest instead of leaving the splash screen up.
+      .catch(() => resolve(null))
+      .finally(() => clearTimeout(timer));
   });
 }
 

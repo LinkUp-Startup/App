@@ -74,4 +74,30 @@ public sealed class MigrationOnStartupTests
                              && h.Closes == new TimeOnly(5, 0)));
         Assert.Equal(1, slots);
     }
+
+    [Fact]
+    public async Task Plans_saved_before_per_account_ids_keep_their_id()
+    {
+        // Saved with the old schema, where the app's plan id was the row id.
+        using var factory = new AuthApiFactory();
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(factory.TestConnectionString).Options;
+        var userId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        await using (var outdated = new AppDbContext(options))
+        {
+            var migrations = outdated.Database.GetMigrations().ToList();
+            var target = migrations[migrations.FindIndex(m => m.EndsWith("_PerAccountSavedPlanIds")) - 1];
+            await outdated.GetService<IMigrator>().MigrateAsync(target);
+            await outdated.Database.ExecuteSqlAsync($"""
+                INSERT INTO users ("Id", "Email", "PasswordHash", "DisplayName") VALUES ({userId}, 'ann@example.com', 'hash', 'Ann');
+                INSERT INTO "Plans" ("Id", "UserId", "Title", "Summary", "TotalDistanceKm") VALUES ({planId}, {userId}, 'Old', '', 0);
+                """);
+        }
+
+        _ = factory.Services; // the deploy
+
+        var sourceId = await factory.WithDbAsync(db =>
+            db.Plans.Where(p => p.Id == planId).Select(p => p.SourcePlanId).SingleAsync());
+        Assert.Equal(planId, sourceId);
+    }
 }

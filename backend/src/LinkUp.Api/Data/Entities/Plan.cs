@@ -8,6 +8,10 @@ public sealed class Plan
     // Owner of a plan saved to the cloud (#88). Null when the plan is not tied to an account
     public Guid? UserId { get; set; }
 
+    // The plan's id as the app knows it (the generated plan's id). Unique per account, not globally, so two
+    // accounts can save the same plan, e.g. a shared one.
+    public Guid? SourcePlanId { get; set; }
+
     public required string Title { get; set; }
     public required string Summary { get; set; }
 

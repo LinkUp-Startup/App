@@ -174,7 +174,7 @@ public static class PlanValidator
         var activity = preferences.Activities
             .Where(a => VenueFilteringService.CategoriesFor(a).Contains(venue.Category))
             .Select(a => (Activity?)a)
-            .FirstOrDefault() ?? preferences.Activities.FirstOrDefault();
+            .FirstOrDefault() ?? (preferences.Activities is [var first, ..] ? first : default);
         return new VenueDto(
             venue.Id.ToString(CultureInfo.InvariantCulture), venue.Name, activity, venue.Address,
             venue.Latitude, venue.Longitude, venue.PriceLevel);
