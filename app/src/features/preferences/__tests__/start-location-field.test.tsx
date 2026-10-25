@@ -60,6 +60,29 @@ describe('StartLocationField', () => {
     ).toBeOnTheScreen();
   });
 
+  it('sets the start when a place icon on the map is tapped', async () => {
+    await render(<Field />);
+
+    await fireEvent(screen.getByTestId('start-location-map'), 'poiClick', {
+      nativeEvent: { placeId: 'museum', name: 'Museu de Lleida', coordinate: plaza },
+    });
+
+    expect(await screen.findByText(/^Starting at/)).toBeOnTheScreen();
+    expect(screen.getByTestId('map-marker').props.coordinate).toEqual(plaza);
+  });
+
+  it('redraws the circle when the start or the distance changes', async () => {
+    const { rerender } = await render(<Field initial={plaza} radiusKm={3} />);
+    await screen.findByText(/^Starting at/);
+    const first = screen.getByTestId('map-circle');
+
+    await rerender(<StartLocationField value={plaza} onChange={jest.fn()} radiusKm={0.5} />);
+
+    const second = screen.getByTestId('map-circle');
+    expect(second.props.radius).toBe(500);
+    expect(second).not.toBe(first); // a new native circle, not an update of the old one
+  });
+
   it('moves the start when the pin is dragged', async () => {
     await render(<Field initial={plaza} />);
     await screen.findByText(/^Starting at/);
@@ -93,6 +116,20 @@ describe('StartLocationField', () => {
 
     expect(screen.getByText('Location access was not allowed.')).toBeOnTheScreen();
     expect(screen.queryByTestId('map-marker')).toBeNull();
+  });
+
+  it('clears the location message once a point is chosen on the map', async () => {
+    jest.mocked(getDeviceLocation).mockResolvedValue({ error: 'Location access was not allowed.' });
+    const user = userEvent.setup();
+    await render(<Field />);
+    await user.press(screen.getByRole('button', { name: 'Use my location' }));
+
+    await fireEvent.press(screen.getByTestId('start-location-map'), {
+      nativeEvent: { coordinate: plaza },
+    });
+
+    await screen.findByText(/^Starting at/);
+    expect(screen.queryByText('Location access was not allowed.')).toBeNull();
   });
 
   it('warns when the start is far from Lleida', async () => {
