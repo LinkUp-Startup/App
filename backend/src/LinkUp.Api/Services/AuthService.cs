@@ -65,6 +65,12 @@ public sealed class AuthService(AppDbContext db, IPasswordHasher<User> passwordH
         return ToDto(user);
     }
 
+    public async Task<UserDto?> GetUserAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(u => u.Id == id, cancellationToken);
+        return user is null ? null : ToDto(user);
+    }
+
     /// <summary>Emails are stored trimmed and lowercase so "Ann@x.com" and "ann@x.com" are one account.</summary>
     private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
 

@@ -23,3 +23,6 @@ public sealed record LoginRequest(
 
 /// <summary>What the API reveals about an account. Never includes the password hash.</summary>
 public sealed record UserDto(Guid Id, string Email, string DisplayName);
+
+/// <summary>Returned by register and login. Send the token as "Authorization: Bearer &lt;accessToken&gt;".</summary>
+public sealed record AuthResponse(string AccessToken, DateTimeOffset ExpiresAt, UserDto User);

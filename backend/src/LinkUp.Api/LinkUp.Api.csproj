@@ -11,6 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.13" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13">
@@ -24,6 +25,13 @@
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.13" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.3.1" />
+  </ItemGroup>
+
+    <ItemGroup>
+    <!-- The curated venue dataset, read by VenueSeedData. Embedded in the DLL so it is always
+         available: when running locally, in tests and in the Docker image -->
+    <EmbeddedResource Include="Data/Seed/lleida_venues.json" LogicalName="LinkUp.Api.Data.Seed.lleida_venues.json" />
+    <Content Remove="Data/Seed/lleida_venues.json" />
   </ItemGroup>
 
 </Project>

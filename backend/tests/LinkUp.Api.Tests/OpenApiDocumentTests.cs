@@ -17,6 +17,29 @@ public sealed class OpenApiDocumentTests(ApiFactory factory) : IClassFixture<Api
     }
 
     [Fact]
+    public async Task Bearer_scheme_is_documented_as_a_jwt()
+    {
+        var scheme = (await GetDocumentAsync()).GetProperty("components").GetProperty("securitySchemes").GetProperty("Bearer");
+
+        Assert.Equal("http", scheme.GetProperty("type").GetString());
+        Assert.Equal("bearer", scheme.GetProperty("scheme").GetString());
+        Assert.Equal("JWT", scheme.GetProperty("bearerFormat").GetString());
+    }
+
+    [Theory]
+    [InlineData("/api/auth/me", "get", true)]
+    [InlineData("/api/auth/login", "post", false)]
+    [InlineData("/api/auth/register", "post", false)]
+    [InlineData("/api/plans/generate", "post", false)] // guest mode: no account needed
+    [InlineData("/health", "get", false)]
+    public async Task Only_the_protected_endpoints_require_a_token(string path, string method, bool requiresToken)
+    {
+        var operation = (await GetDocumentAsync()).GetProperty("paths").GetProperty(path).GetProperty(method);
+
+        Assert.Equal(requiresToken, operation.TryGetProperty("security", out var security) && security.GetArrayLength() > 0);
+    }
+
+    [Fact]
     public async Task Plans_route_is_lowercase()
     {
         var document = await GetDocumentAsync();
