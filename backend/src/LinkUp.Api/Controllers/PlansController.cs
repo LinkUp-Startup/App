@@ -1,3 +1,4 @@
+using LinkUp.Api.Ai;
 using LinkUp.Api.Dtos;
 using LinkUp.Api.Services;
 using LinkUp.Api.Options;
@@ -16,6 +17,7 @@ public sealed class PlansController(
     [ProducesResponseType<GeneratePlansResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<CandidateAvailabilityProblem>(StatusCodes.Status422UnprocessableEntity, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status502BadGateway, "application/problem+json")]
     public async Task<ActionResult<GeneratePlansResponse>> Generate(
         GeneratePlansRequest request, CancellationToken cancellationToken)
     {
@@ -38,7 +40,18 @@ public sealed class PlansController(
             });
         }
 
-        var plans = await planService.GeneratePlansAsync(request.Preferences, cancellationToken);
-        return Ok(new GeneratePlansResponse(plans));
+        try
+        {
+            var plans = await planService.GeneratePlansAsync(request.Preferences, candidates, cancellationToken);
+            return Ok(new GeneratePlansResponse(plans));
+        }
+        catch (AiException)
+        {
+            // Already logged with the details by the AI client or the plan service.
+            return Problem(
+                statusCode: StatusCodes.Status502BadGateway,
+                title: "Couldn't generate plans right now.",
+                detail: "The plan generator is unavailable or returned no usable plan. Try again in a moment.");
+        }
     }
 }

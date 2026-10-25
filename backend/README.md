@@ -168,7 +168,7 @@ Create a key in the OpenAI dashboard (project **LinkUp**, with a monthly budget 
 dotnet user-secrets set "Ai:ApiKey" "sk-..." --project backend/src/LinkUp.Api   # local
 ```
 
-On the server (Dokploy) set the environment variable `Ai__ApiKey`. Without a key the API still starts, without AI.
+On the server (Dokploy) set the environment variable `Ai__ApiKey`. Without a key the API still starts and logs a warning; `/api/plans/generate` then returns one stub plan with the first candidate, so the app works end to end.
 
 ### Settings
 
@@ -178,9 +178,22 @@ On the server (Dokploy) set the environment variable `Ai__ApiKey`. Without a key
 | `Ai__ReasoningEffort` | `low` | `none` … `max`; higher costs more output tokens and time |
 | `Ai__MaxOutputTokens` | `4000` | Caps one request's cost; reasoning tokens count towards it |
 | `Ai__AttemptTimeoutSeconds` | `25` | One attempt |
-| `Ai__TotalTimeoutSeconds` | `55` | All attempts together; stays under the app's 60 s timeout |
+| `Ai__TotalTimeoutSeconds` | `55` | All AI work for one generation, retries included; stays under the app's 60 s timeout |
 | `Ai__MaxRetries` | `2` | Retried on 429, 5xx and timeouts |
 | `Ai__InputPricePerMillionTokens` / `Ai__OutputPricePerMillionTokens` | `0.10` / `0.50` | USD list prices, only for the cost estimate in the logs |
+
+### Plan generation
+
+`POST /api/plans/generate`: filter venues → `AiPlanService` → validate → plans.
+
+1. **Prompt** (`Planning/PlanPrompt.cs`): instructions plus compact JSON with the preferences and only the filtered candidates (id, name, category, prices, opening hours, tags), all times in `Europe/Madrid`. `PlanPrompt.Version` (e.g. `plans-v1`) is logged with every generation: bump it whenever the prompt, its input or the schema change.
+2. **Structured output** (`Planning/PlanSchema.cs`): OpenAI strict JSON schema `{ plans: [{ title, summary, stops: [{ venueId, startTime, endTime }] }] }`. Output that doesn't parse gets one more try.
+3. **Validation** (`Planning/PlanValidator.cs`), repairing rather than rejecting:
+   - stops whose venue is not a candidate, has unreadable times, lies outside the window or at a closed venue are dropped; stops spilling over the window are trimmed to it
+   - stops are sorted; overlapping stops, repeat visits and stops beyond 4 are dropped
+   - empty plans, plans with the same venues as an earlier one and plans beyond 3 are dropped
+   - prices and distances come from the database, never from the AI (the cost estimate is a placeholder until #48)
+4. If no plan survives two attempts, or the AI is down, the endpoint returns `502` problem details and the app shows "try again".
 
 ### Usage logs
 

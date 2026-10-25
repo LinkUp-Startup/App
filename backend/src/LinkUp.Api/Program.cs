@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Identity;
 using LinkUp.Api.OpenApi;
 using LinkUp.Api.Options;
+using LinkUp.Api.Planning;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -63,8 +64,13 @@ builder.Services.AddOptions<PlanGenerationOptions>()
     .Bind(builder.Configuration.GetSection(PlanGenerationOptions.SectionName))
     .ValidateDataAnnotations()
     .ValidateOnStart();
-builder.Services.AddScoped<IPlanService, StubPlanService>();
 builder.Services.AddAiClient(builder.Configuration);
+// Plans come from the AI when a key is configured. Without one a stub keeps local development and tests working.
+var aiConfigured = builder.Configuration.GetSection(AiOptions.SectionName).Get<AiOptions>()?.IsConfigured == true;
+if (aiConfigured)
+    builder.Services.AddScoped<IPlanService, AiPlanService>();
+else
+    builder.Services.AddScoped<IPlanService, StubPlanService>();
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IVenueService, VenueService>();
@@ -124,6 +130,10 @@ app.MapControllers();
 
 // Not during build-time OpenAPI generation, which runs this file without a database.
 if (!isOpenApiGeneration)
+{
+    if (!aiConfigured)
+        app.Logger.LogWarning("Ai:ApiKey is not set, so /api/plans/generate returns stub plans instead of AI plans.");
     await app.MigrateDatabaseAsync();
+}
 
 await app.RunAsync();
