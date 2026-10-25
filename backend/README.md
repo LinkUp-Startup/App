@@ -192,9 +192,9 @@ On the server (Dokploy) set the environment variable `Ai__ApiKey`. Without a key
 4. **Validation** (`Planning/PlanValidator.cs`), repairing rather than rejecting:
    - stops whose venue is not a candidate, has unreadable times, lies outside the window or at a closed venue are dropped; stops spilling over the window are trimmed to it
    - stops are sorted; overlapping stops, repeat visits and stops beyond 4 are dropped
-   - empty plans, plans with the same venues as an earlier one and plans beyond 3 are dropped
+   - empty plans, plans with the same venues as an earlier one (in any order) and plans beyond 3 are dropped
    - prices and distances come from the database, never from the AI (the cost estimate is a placeholder until #48)
-5. If no plan survives two attempts, or the AI is down, the endpoint returns `502` problem details and the app shows "try again".
+5. **2 or 3 plans** (#71): with fewer than 2 distinct valid plans the AI gets one more try, and the valid plans from both attempts are combined. Still fewer than 2, or the AI is down: `502` problem details, and the app shows "try again". Fewer than 2 matching venues never reach the AI (`422`, see [venue-filtering.md](../docs/venue-filtering.md)).
 
 ### Usage logs
 

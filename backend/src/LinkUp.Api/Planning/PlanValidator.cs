@@ -13,6 +13,7 @@ namespace LinkUp.Api.Planning;
 /// </summary>
 public static class PlanValidator
 {
+    public const int MinPlans = 2;
     public const int MaxPlans = 3;
     public const int MaxStops = 4;
     public const int TitleMaxLength = 60;
@@ -40,8 +41,8 @@ public static class PlanValidator
                 continue;
             }
 
-            // Two plans visiting the same venues in the same order are one plan.
-            if (!seen.Add(string.Join(",", stops.Select(s => s.Venue.Id))))
+            // Two plans visiting the same venues, in any order, are one plan.
+            if (!seen.Add(VenueKey(stops.Select(s => s.Venue.Id))))
             {
                 problems.Add($"{label}: dropped, same venues as an earlier plan");
                 continue;
@@ -116,6 +117,11 @@ public static class PlanValidator
 
         return valid;
     }
+
+    /// <summary>Identifies a plan by its set of venues, so a reordered copy counts as the same plan.</summary>
+    public static string VenueKey(PlanDto plan) => VenueKey(plan.Items.Select(i => int.Parse(i.Venue.Id, CultureInfo.InvariantCulture)));
+
+    private static string VenueKey(IEnumerable<int> venueIds) => string.Join(",", venueIds.Order());
 
     private static bool TryParseTime(string? text, out DateTimeOffset time) =>
         DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out time);

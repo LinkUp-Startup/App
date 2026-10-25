@@ -6,9 +6,10 @@ public sealed class PlanGenerationOptions
 {
     public const string SectionName = "PlanGeneration";
 
-    // The current stub produces a valid single-stop plan. No higher minimum is specified.
+    // Two distinct plans (#71) need at least two venues; with fewer the request gets a clear 422 instead of
+    // an AI call that can't succeed.
     [Range(1, int.MaxValue)]
-    public int MinimumCandidateCount { get; init; } = 1;
+    public int MinimumCandidateCount { get; init; } = 2;
 
     /// <summary>
     /// Most candidates sent to the AI, spread over the selected activities. Every venue costs prompt tokens

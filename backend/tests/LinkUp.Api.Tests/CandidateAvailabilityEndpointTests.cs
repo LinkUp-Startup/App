@@ -79,10 +79,12 @@ public sealed class CandidateAvailabilityEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Single(document.RootElement.EnumerateObject());
-        var plan = Assert.Single(document.RootElement.GetProperty("plans").EnumerateArray());
-        Assert.StartsWith("stub-", plan.GetProperty("id").GetString());
-        var item = Assert.Single(plan.GetProperty("items").EnumerateArray());
-        Assert.Equal("1", item.GetProperty("venue").GetProperty("id").GetString()); // the first candidate
+        // The stub plans a night at each of the first two candidates.
+        var plans = document.RootElement.GetProperty("plans").EnumerateArray().ToList();
+        Assert.Equal(Math.Min(count, 2), plans.Count);
+        Assert.All(plans, plan => Assert.StartsWith("stub-", plan.GetProperty("id").GetString()));
+        var item = Assert.Single(plans[0].GetProperty("items").EnumerateArray());
+        Assert.Equal("1", item.GetProperty("venue").GetProperty("id").GetString());
         Assert.Equal(1, factory.Filter.Calls);
         Assert.Equal(1, factory.Generator.Calls);
     }
