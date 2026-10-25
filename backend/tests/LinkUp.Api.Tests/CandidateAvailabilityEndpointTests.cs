@@ -80,10 +80,9 @@ public sealed class CandidateAvailabilityEndpointTests
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Single(document.RootElement.EnumerateObject());
         var plan = Assert.Single(document.RootElement.GetProperty("plans").EnumerateArray());
-        Assert.Equal("stub-plan-1", plan.GetProperty("id").GetString());
-        Assert.Equal("Sample night", plan.GetProperty("title").GetString());
-        Assert.Equal(15m, plan.GetProperty("estimatedCostPerPerson").GetDecimal());
-        Assert.Equal(1, plan.GetProperty("items").GetArrayLength());
+        Assert.StartsWith("stub-", plan.GetProperty("id").GetString());
+        var item = Assert.Single(plan.GetProperty("items").EnumerateArray());
+        Assert.Equal("1", item.GetProperty("venue").GetProperty("id").GetString()); // the first candidate
         Assert.Equal(1, factory.Filter.Calls);
         Assert.Equal(1, factory.Generator.Calls);
     }
@@ -192,10 +191,11 @@ public sealed class CandidateAvailabilityEndpointTests
     private sealed class RecordingGenerator : IPlanService
     {
         public int Calls { get; private set; }
-        public Task<IReadOnlyList<PlanDto>> GeneratePlansAsync(NightPreferencesDto preferences, CancellationToken cancellationToken)
+        public Task<IReadOnlyList<PlanDto>> GeneratePlansAsync(
+            NightPreferencesDto preferences, IReadOnlyList<Venue> candidates, CancellationToken cancellationToken)
         {
             Calls++;
-            return new StubPlanService().GeneratePlansAsync(preferences, cancellationToken);
+            return new StubPlanService().GeneratePlansAsync(preferences, candidates, cancellationToken);
         }
     }
 }
