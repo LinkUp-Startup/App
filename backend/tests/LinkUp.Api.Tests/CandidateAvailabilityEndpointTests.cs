@@ -181,6 +181,14 @@ public sealed class CandidateAvailabilityEndpointTests
 
     private sealed class CountingFilter(IVenueFilteringService inner) : IVenueFilteringService
     {
+        public Task<IReadOnlyList<Venue>> FilterAsync(
+            NightPreferencesDto preferences, double startLatitude, double startLongitude,
+            CancellationToken cancellationToken)
+        {
+            Calls++;
+            return inner.FilterAsync(preferences, startLatitude, startLongitude, cancellationToken);
+        }
+
         public int Calls { get; private set; }
         public Task<IReadOnlyList<Venue>> FilterAsync(NightPreferencesDto preferences, CancellationToken cancellationToken)
         {

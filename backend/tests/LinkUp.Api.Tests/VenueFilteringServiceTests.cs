@@ -3,6 +3,7 @@ using System.Globalization;
 using LinkUp.Api.Data;
 using LinkUp.Api.Data.Entities;
 using LinkUp.Api.Dtos;
+using LinkUp.Api.Geo;
 using LinkUp.Api.Services;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -204,6 +205,210 @@ public sealed class VenueFilteringServiceTests : IAsyncLifetime
         var venue = Venue(id);
         venue.Category = category;
         venue.OpeningHours.Add(Slot(DayOfWeek.Saturday, "18:00", "23:00"));
+        return venue;
+    }
+
+    [Fact]
+    public async Task Changing_max_distance_changes_candidates_monotonically_from_an_explicit_origin()
+    {
+        await SeedAsync(LocatedVenue(1, 41.6176, 0.62), LocatedVenue(2, 41.6226, 0.62),
+            LocatedVenue(3, 41.6376, 0.62), LocatedVenue(4, 41.6676, 0.62));
+        IVenueFilteringService service = new VenueFilteringService(_db);
+
+        var medium = await service.FilterAsync(Preferences with { MaxDistanceKm = 3 },
+            41.6176, 0.62, CancellationToken.None);
+        var small = await service.FilterAsync(Preferences with { MaxDistanceKm = 1 },
+            41.6176, 0.62, CancellationToken.None);
+        var large = await service.FilterAsync(Preferences with { MaxDistanceKm = 10 },
+            41.6176, 0.62, CancellationToken.None);
+
+        Assert.Equal(new[] { 1, 2, 3 }, medium.Select(v => v.Id));
+        Assert.Equal(new[] { 1, 2 }, small.Select(v => v.Id));
+        Assert.Equal(new[] { 1, 2, 3, 4 }, large.Select(v => v.Id));
+        Assert.Equal(3, _queries.Commands.Count);
+        Assert.Empty(_db.ChangeTracker.Entries());
+    }
+
+    [Fact]
+    public async Task Explicit_origins_change_results_and_missing_origin_preserves_existing_behavior()
+    {
+        await SeedAsync(LocatedVenue(1, 41.6176, 0.62), LocatedVenue(2, 48.8566, 2.3522));
+        var preferences = Preferences with { MaxDistanceKm = 1 };
+        IVenueFilteringService service = new VenueFilteringService(_db);
+
+        var lleida = await service.FilterAsync(preferences, 41.6176, 0.62, CancellationToken.None);
+        var paris = await service.FilterAsync(preferences, 48.8566, 2.3522, CancellationToken.None);
+        var withoutOrigin = await service.FilterAsync(preferences, CancellationToken.None);
+
+        Assert.Equal(new[] { 1 }, lleida.Select(v => v.Id));
+        Assert.Equal(new[] { 2 }, paris.Select(v => v.Id));
+        Assert.Equal(new[] { 1, 2 }, withoutOrigin.Select(v => v.Id));
+        Assert.Equal(3, _queries.Commands.Count);
+    }
+
+    [Theory]
+    [InlineData(-0.000001, false)]
+    [InlineData(0, true)]
+    [InlineData(0.000001, true)]
+    public async Task Distance_boundary_uses_the_existing_Haversine_helper_and_is_inclusive(
+        double adjustment, bool expected)
+    {
+        const double latitude = 41.6261973;
+        const double longitude = 0.6226535;
+        await SeedAsync(LocatedVenue(1, 41.6061111, 0.6225));
+        var distance = GeoDistance.HaversineKm(latitude, longitude, 41.6061111, 0.6225);
+
+        var result = await new VenueFilteringService(_db).FilterAsync(
+            Preferences with { MaxDistanceKm = distance + adjustment }, latitude, longitude, CancellationToken.None);
+
+        Assert.Equal(expected ? new[] { 1 } : Array.Empty<int>(), result.Select(v => v.Id));
+        var sql = Assert.Single(_queries.Commands);
+        Assert.Contains("asin", sql, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData(41.6176, 0.62)]
+    [InlineData(0, 0)]
+    public async Task Zero_radius_includes_a_venue_at_the_start_and_zero_coordinates_are_valid(
+        double latitude, double longitude)
+    {
+        await SeedAsync(LocatedVenue(1, latitude, longitude), LocatedVenue(2, latitude + 0.01, longitude));
+
+        var result = await new VenueFilteringService(_db).FilterAsync(
+            Preferences with { MaxDistanceKm = 0 }, latitude, longitude, CancellationToken.None);
+
+        Assert.Equal(new[] { 1 }, result.Select(v => v.Id));
+        Assert.Single(_queries.Commands);
+    }
+
+    [Theory]
+    [InlineData(91, 0)]
+    [InlineData(-91, 0)]
+    [InlineData(double.NaN, 0)]
+    [InlineData(double.PositiveInfinity, 0)]
+    [InlineData(double.NegativeInfinity, 0)]
+    [InlineData(0, 181)]
+    [InlineData(0, -181)]
+    [InlineData(0, double.NaN)]
+    [InlineData(0, double.PositiveInfinity)]
+    [InlineData(0, double.NegativeInfinity)]
+    public async Task Invalid_start_coordinates_are_rejected_before_querying(double latitude, double longitude)
+    {
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => new VenueFilteringService(_db)
+            .FilterAsync(Preferences, latitude, longitude, CancellationToken.None));
+
+        Assert.Empty(_queries.Commands);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public async Task Invalid_max_distance_is_rejected_before_querying(double distance)
+    {
+        var error = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => new VenueFilteringService(_db)
+            .FilterAsync(Preferences with { MaxDistanceKm = distance }, 41.6176, 0.62, CancellationToken.None));
+
+        Assert.Equal("maxDistanceKm", error.ParamName);
+        Assert.Empty(_queries.Commands);
+    }
+
+    [Theory]
+    [InlineData(true, 1)]
+    [InlineData(true, 0.1)]
+    [InlineData(false, 1)]
+    public async Task Distance_composes_with_budget_hours_category_active_status_and_transport(
+        bool transport, double radius)
+    {
+        var match = LocatedVenue(1, 41.6226, 0.62);
+        match.MinSpend = match.MaxSpend = 5m;
+        match.EntranceFee = 0m;
+        var expensive = LocatedVenue(2, 41.6226, 0.62);
+        expensive.MinSpend = expensive.MaxSpend = 20m;
+        var wrongCategory = LocatedVenue(3, 41.6226, 0.62);
+        wrongCategory.Category = VenueCategory.Bar;
+        var closed = LocatedVenue(4, 41.6226, 0.62);
+        closed.OpeningHours.Clear();
+        var inactive = LocatedVenue(5, 41.6226, 0.62);
+        inactive.IsActive = false;
+        var far = LocatedVenue(6, 41.7176, 0.62);
+        await SeedAsync(match, expensive, wrongCategory, closed, inactive, far);
+
+        var result = await new VenueFilteringService(_db).FilterAsync(Preferences with
+        {
+            BudgetPerPerson = 10m, GroupSize = 20, MaxDistanceKm = radius,
+            Transport = transport ? [Transport.Car, Transport.Walking] : [],
+        }, 41.6176, 0.62, CancellationToken.None);
+
+        Assert.Equal(transport && radius == 1 ? new[] { 1 } : Array.Empty<int>(), result.Select(v => v.Id));
+        Assert.Single(_queries.Commands);
+    }
+
+    [Fact]
+    public async Task Date_line_crossing_uses_great_circle_distance_instead_of_longitude_difference()
+    {
+        await SeedAsync(LocatedVenue(1, 0, -179.9), LocatedVenue(2, 0, -170));
+
+        var result = await new VenueFilteringService(_db).FilterAsync(
+            Preferences with { MaxDistanceKm = 30 }, 0, 179.9, CancellationToken.None);
+
+        Assert.Equal(new[] { 1 }, result.Select(v => v.Id));
+    }
+
+    [Fact]
+    public void Distance_query_excludes_invalid_venue_coordinates_without_treating_them_as_the_origin()
+    {
+        var venues = new[]
+        {
+            LocatedVenue(1, 0, 0), LocatedVenue(2, 91, 0), LocatedVenue(3, 0, 181),
+            LocatedVenue(4, double.NaN, 0), LocatedVenue(5, 0, double.NaN),
+            LocatedVenue(6, double.PositiveInfinity, 0),
+        };
+
+        var result = venues.AsQueryable().WithinDistance(0, 0, 1).ToList();
+
+        Assert.Equal(new[] { 1 }, result.Select(v => v.Id));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Missing_venue_coordinates_cannot_be_persisted(bool latitude)
+    {
+        await SeedAsync(LocatedVenue(1, 41.6176, 0.62));
+        var sql = latitude
+            ? "UPDATE \"Venues\" SET \"Latitude\" = NULL WHERE \"Id\" = 1"
+            : "UPDATE \"Venues\" SET \"Longitude\" = NULL WHERE \"Id\" = 1";
+
+        var error = await Assert.ThrowsAsync<SqliteException>(() => _db.Database.ExecuteSqlRawAsync(sql));
+
+        Assert.Equal(19, error.SqliteErrorCode);
+        Assert.Contains("NOT NULL", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Distance_predicate_translates_with_the_production_PostgreSQL_provider()
+    {
+        using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
+            .UseNpgsql("Host=localhost;Database=unused").Options);
+
+        var sql = db.Venues.OpenDuring(Preferences.StartTime, Preferences.EndTime)
+            .WithinBudget(30).WithinDistance(41.6176, 0.62, 5).ToQueryString();
+
+        Assert.Contains("asin", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("cos", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("sin", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("EXISTS", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("COALESCE", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("HaversineKm", sql, StringComparison.Ordinal);
+    }
+
+    private static Venue LocatedVenue(int id, double latitude, double longitude)
+    {
+        var venue = OpenVenue(id, VenueCategory.Restaurant);
+        venue.Latitude = latitude;
+        venue.Longitude = longitude;
         return venue;
     }
 

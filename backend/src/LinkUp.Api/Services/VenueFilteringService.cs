@@ -7,8 +7,18 @@ namespace LinkUp.Api.Services;
 
 public sealed class VenueFilteringService(AppDbContext db) : IVenueFilteringService
 {
-    public async Task<IReadOnlyList<Venue>> FilterAsync(
-        NightPreferencesDto preferences, CancellationToken cancellationToken)
+    public Task<IReadOnlyList<Venue>> FilterAsync(
+        NightPreferencesDto preferences, CancellationToken cancellationToken) =>
+        FilterCoreAsync(preferences, null, cancellationToken);
+
+    public Task<IReadOnlyList<Venue>> FilterAsync(
+        NightPreferencesDto preferences, double startLatitude, double startLongitude,
+        CancellationToken cancellationToken) =>
+        FilterCoreAsync(preferences, (startLatitude, startLongitude), cancellationToken);
+
+    private async Task<IReadOnlyList<Venue>> FilterCoreAsync(
+        NightPreferencesDto preferences, (double Latitude, double Longitude)? startPoint,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(preferences);
 
@@ -28,8 +38,11 @@ public sealed class VenueFilteringService(AppDbContext db) : IVenueFilteringServ
             .Where(v => categories.Contains(v.Category))
             .WithinBudget(preferences.BudgetPerPerson);
 
-        // No origin, venue capacity or transport-access data exists for further constraints.
-        // See docs/venue-filtering.md before adding distance or group-size exclusions.
+        if (startPoint is { } origin)
+            query = query.WithinDistance(origin.Latitude, origin.Longitude, preferences.MaxDistanceKm);
+
+        // Existing callers have no origin until #53 supplies one; never substitute a default.
+        // See docs/venue-filtering.md for location and capacity limitations.
         return await query
             .Include(v => v.OpeningHours)
             .OrderBy(v => v.Id)
