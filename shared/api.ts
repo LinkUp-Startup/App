@@ -551,7 +551,7 @@ export interface components {
             /** Format: double */
             longitude: number;
             /** Format: int32 */
-            priceLevel: number;
+            priceLevel: null | number;
         };
     };
     responses: never;

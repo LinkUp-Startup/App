@@ -1068,7 +1068,10 @@
             "format": "double"
           },
           "priceLevel": {
-            "type": "integer",
+            "type": [
+              "null",
+              "integer"
+            ],
             "format": "int32"
           }
         }
