@@ -31,7 +31,7 @@ public sealed class SavedPlanService(AppDbContext db, TimeProvider clock) : ISav
         var venues = await db.Venues.AsNoTracking()
             .Where(v => venueIds.Contains(v.Id))
             .ToDictionaryAsync(v => v.Id, cancellationToken);
-        for (var i = 0; i < plan.Items.Count; i++)
+        for (var i = 0; i < StopCount(plan); i++)
         {
             if (!venues.ContainsKey(VenueId(plan.Items[i].Venue.Id)))
                 errors[$"Items[{i}].Venue"] = ["This venue does not exist."];
@@ -85,6 +85,10 @@ public sealed class SavedPlanService(AppDbContext db, TimeProvider clock) : ISav
     private static IQueryable<Plan> WithItems(IQueryable<Plan> plans) =>
         plans.Include(p => p.Items).ThenInclude(i => i.Venue);
 
+    // The number of stops comes from the request. Validate rejects more than MaxItems; this keeps every loop
+    // over the stops bounded by that limit on its own, whatever the caller sent.
+    private static int StopCount(PlanDto plan) => Math.Min(plan.Items.Count, MaxItems);
+
     // -1 never matches a venue, so a malformed id is reported as an unknown venue.
     private static int VenueId(string id) =>
         int.TryParse(id, NumberStyles.None, CultureInfo.InvariantCulture, out var venueId) ? venueId : -1;
@@ -107,7 +111,7 @@ public sealed class SavedPlanService(AppDbContext db, TimeProvider clock) : ISav
             return errors;
         }
 
-        for (var i = 0; i < plan.Items.Count; i++)
+        for (var i = 0; i < StopCount(plan); i++)
         {
             var item = plan.Items[i];
             if (item?.Venue is null)
