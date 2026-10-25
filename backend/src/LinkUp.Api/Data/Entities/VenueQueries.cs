@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using LinkUp.Api.Geo;
 
 namespace LinkUp.Api.Data.Entities;
 
@@ -6,6 +7,33 @@ public static class VenueQueries
 {
     // Opening hours in Spanish local time
     public static readonly TimeZoneInfo VenueTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Madrid");
+
+    /// <summary>Venues at most maxDistanceKm great-circle kilometres from the supplied origin.</summary>
+    public static IQueryable<Venue> WithinDistance(
+        this IQueryable<Venue> venues, double startLatitude, double startLongitude, double maxDistanceKm)
+    {
+        GeoDistance.ValidateCoordinates(startLatitude, startLongitude);
+        if (!double.IsFinite(maxDistanceKm) || maxDistanceKm < 0)
+            throw new ArgumentOutOfRangeException(nameof(maxDistanceKm), "Distance must be finite and nonnegative.");
+
+        var venue = Expression.Parameter(typeof(Venue), "v");
+        // Capture request values so EF parameterizes them instead of creating a SQL/query-cache
+        // entry for every distinct start coordinate.
+        Expression<Func<double>> latitudeParameter = () => startLatitude;
+        Expression<Func<double>> longitudeParameter = () => startLongitude;
+        Expression<Func<double>> radiusParameter = () => maxDistanceKm;
+        var distance = Expression.Invoke(GeoDistance.HaversineKmExpression,
+            latitudeParameter.Body, longitudeParameter.Body,
+            Expression.Property(venue, nameof(Venue.Latitude)),
+            Expression.Property(venue, nameof(Venue.Longitude)));
+        var inRange = Expression.Lambda<Func<Venue, bool>>(
+            Expression.LessThanOrEqual(distance, radiusParameter.Body), venue);
+
+        // Zero coordinates are legitimate. Invalid/out-of-range data must not imply proximity.
+        return venues.Where(v => v.Latitude >= -90 && v.Latitude <= 90
+                && v.Longitude >= -180 && v.Longitude <= 180)
+            .Where(inRange);
+    }
 
     /// <summary>
     /// Excludes venues whose known per-person admission/consumption amounts exceed the available EUR.

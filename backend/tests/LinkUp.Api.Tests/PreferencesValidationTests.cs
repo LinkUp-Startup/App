@@ -48,6 +48,22 @@ public sealed class PreferencesValidationTests(PlanningApiFactory factory) : ICl
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Missing_or_null_max_distance_is_not_an_unlimited_or_zero_radius(bool missing)
+    {
+        var preferences = ValidPreferences();
+        if (missing)
+            preferences.Remove("maxDistanceKm");
+        else
+            preferences["maxDistanceKm"] = null;
+
+        var errors = await AssertValidationProblemAsync(await PostAsync(preferences));
+
+        Assert.NotEmpty(errors.EnumerateObject());
+    }
+
+    [Theory]
     [InlineData("budgetPerPerson", -1, "Preferences.BudgetPerPerson")]
     [InlineData("budgetPerPerson", 501, "Preferences.BudgetPerPerson")]
     [InlineData("groupSize", 0, "Preferences.GroupSize")]

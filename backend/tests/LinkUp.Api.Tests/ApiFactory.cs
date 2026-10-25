@@ -64,6 +64,10 @@ public class PlanningApiFactory : ApiFactory
     private sealed class EligibleVenueFilter : IVenueFilteringService
     {
         public Task<IReadOnlyList<Venue>> FilterAsync(
+            NightPreferencesDto preferences, double startLatitude, double startLongitude,
+            CancellationToken cancellationToken) => FilterAsync(preferences, cancellationToken);
+
+        public Task<IReadOnlyList<Venue>> FilterAsync(
             NightPreferencesDto preferences, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<Venue>>(
                 [new Venue { Id = 1, Name = "Eligible venue", Address = "Test address" }]);
