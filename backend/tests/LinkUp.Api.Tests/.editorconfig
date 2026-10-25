@@ -1,0 +1,8 @@
+# Analyzer settings for the test project only.
+[*.cs]
+
+# Performance hints that don't matter in tests, where readable inline data beats micro-optimisation:
+# CA1861 "prefer static readonly fields over constant array arguments" and
+# CA1859 "use concrete types instead of interfaces for performance" (tests deliberately use the interfaces).
+dotnet_diagnostic.CA1861.severity = none
+dotnet_diagnostic.CA1859.severity = none

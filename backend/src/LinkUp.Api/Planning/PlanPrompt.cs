@@ -14,7 +14,7 @@ namespace LinkUp.Api.Planning;
 /// </summary>
 public static class PlanPrompt
 {
-    public const string Version = "plans-v2";
+    public const string Version = "plans-v3";
 
     public const string Instructions = """
         You plan nights out in Lleida, Spain. Combine venues from the input into 2 or 3 complete plans for one group.

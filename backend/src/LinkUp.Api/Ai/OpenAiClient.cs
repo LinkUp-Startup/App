@@ -78,10 +78,11 @@ public sealed class OpenAiClient(HttpClient http, IOptions<AiOptions> options, I
                 latency);
             var cost = (usage.InputTokens * settings.InputPricePerMillionTokens
                         + usage.OutputTokens * settings.OutputPricePerMillionTokens) / 1_000_000m;
-            logger.LogInformation(
-                "AI {Model} {Status} in {ElapsedMs:F0} ms: {InputTokens} input + {OutputTokens} output tokens ({ReasoningTokens} reasoning), ~${Cost:F5} (request {RequestId})",
-                result?.Model ?? settings.Model, result?.Status, latency.TotalMilliseconds,
-                usage.InputTokens, usage.OutputTokens, usage.ReasoningTokens, cost, requestId);
+            if (logger.IsEnabled(LogLevel.Information))
+                logger.LogInformation(
+                    "AI {Model} {Status} in {ElapsedMs:F0} ms: {InputTokens} input + {OutputTokens} output tokens ({ReasoningTokens} reasoning), ~${Cost:F5} (request {RequestId})",
+                    result?.Model ?? settings.Model, result?.Status, latency.TotalMilliseconds,
+                    usage.InputTokens, usage.OutputTokens, usage.ReasoningTokens, cost, requestId);
 
             if (result?.Status == "incomplete")
             {

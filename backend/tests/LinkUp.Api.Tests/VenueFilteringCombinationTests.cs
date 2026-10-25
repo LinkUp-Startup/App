@@ -16,7 +16,7 @@ public sealed class VenueFilteringCombinationTests : IAsyncLifetime
     private readonly QueryCounter _queries = new();
     private AppDbContext _db = null!;
 
-    public static IEnumerable<object[]> Combinations => VenueFilteringScenarios.Combinations.Select(c => new object[] { c });
+    public static TheoryData<FilteringConstraints> Combinations => new(VenueFilteringScenarios.Combinations);
 
     public async Task InitializeAsync()
     {

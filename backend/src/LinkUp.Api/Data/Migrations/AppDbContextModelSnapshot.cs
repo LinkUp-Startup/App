@@ -42,6 +42,9 @@ namespace LinkUp.Api.Data.Migrations
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)");
 
+                    b.Property<Guid?>("SourcePlanId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Summary")
                         .IsRequired()
                         .HasMaxLength(1000)
@@ -60,7 +63,9 @@ namespace LinkUp.Api.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId", "SourcePlanId")
+                        .IsUnique()
+                        .HasFilter("\"UserId\" IS NOT NULL AND \"SourcePlanId\" IS NOT NULL");
 
                     b.ToTable("Plans", null, t =>
                         {

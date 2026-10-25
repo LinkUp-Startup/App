@@ -163,13 +163,14 @@ Plans saved to an account, so they show up on every device (#88). Guests keep th
 | Endpoint (all need a token) | Success | Errors |
 | --- | --- | --- |
 | `GET /api/saved-plans` | `200` with `{ plans: [{ plan, savedAt }] }`, most recently saved first | `401` |
-| `PUT /api/saved-plans/{id}` with a plan as returned by `/api/plans/generate` | `200` with `{ plan, savedAt }` | `400` invalid plan, `401`, `404` the id belongs to another account, `409` the account is at its limit of 200 plans |
+| `PUT /api/saved-plans/{id}` with a plan as returned by `/api/plans/generate` | `200` with `{ plan, savedAt }` | `400` invalid plan, `401` (also when the account was deleted), `409` the account is at its limit of 200 plans |
 | `DELETE /api/saved-plans/{id}` | `204`, also when it wasn't saved | `401` |
 
 - `PUT` is idempotent: saving the same id again replaces the plan and counts as saved now. The id must be a GUID (what the generator returns) and match the plan's `id`.
 - The venues are read from the database: only each stop's venue id, times, costs and activity are taken from the request, so a request can't change a venue's name or address.
 - A plan has 1 to 10 stops in order without overlap, each ending after it starts, and no negative costs. A price that was unknown stays unknown (`null`).
-- Plans belong to the account (`Plans.UserId`) and are deleted with it. One account can't see, replace or delete another's plans; `DELETE` answers `204` either way so it doesn't reveal whether a plan exists.
+- Plans belong to the account (`Plans.UserId`) and are deleted with it. Plan ids are per account (`Plans.SourcePlanId`, unique per account): another account saving the same id, e.g. a shared plan, gets its own copy. One account can't see, replace or delete another's plans; `DELETE` answers `204` either way so it doesn't reveal whether a plan exists.
+- Two saves of the same plan at the same moment (a double tap) both succeed with the same saved copy.
 
 ## AI
 

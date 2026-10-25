@@ -25,13 +25,13 @@ public sealed class SavedPlansController(ISavedPlanService savedPlans) : Control
     [HttpPut("{id:guid}")]
     [EndpointSummary("Save a plan to the account")]
     [EndpointDescription(
-        "Idempotent: saving the same plan id again replaces it. The venues are looked up in the database " +
-        "(400 for an unknown venue); the body's plan id must match the URL. 404 when the id belongs to another " +
-        "account, 409 when the account is at its limit of saved plans.")]
+        "Idempotent: saving the same plan id again replaces it. Plan ids are per account, so another account " +
+        "saving the same id gets its own copy. The venues are looked up in the database (400 for an unknown " +
+        "venue); the body's plan id must match the URL. 401 when the account no longer exists, 409 when it is at " +
+        "its limit of saved plans.")]
     [ProducesResponseType<SavedPlanDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<SavedPlanDto>> Save(Guid id, PlanDto plan, CancellationToken cancellationToken)
     {
@@ -45,7 +45,7 @@ public sealed class SavedPlansController(ISavedPlanService savedPlans) : Control
             SavePlanResult.LimitReached limit => Problem(
                 statusCode: StatusCodes.Status409Conflict,
                 title: $"You can save up to {limit.Limit} plans. Delete one to save another."),
-            _ => Problem(statusCode: StatusCodes.Status404NotFound, title: "Plan not found."),
+            _ => Unauthorized(), // the account behind the token has been deleted
         };
     }
 

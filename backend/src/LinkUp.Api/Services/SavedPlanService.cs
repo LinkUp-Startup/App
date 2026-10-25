@@ -3,6 +3,7 @@ using LinkUp.Api.Data;
 using LinkUp.Api.Data.Entities;
 using LinkUp.Api.Dtos;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace LinkUp.Api.Services;
 
@@ -38,8 +39,12 @@ public sealed class SavedPlanService(AppDbContext db, TimeProvider clock) : ISav
         }
         if (errors.Count > 0) return new SavePlanResult.Invalid(errors);
 
-        var existing = await WithItems(db.Plans).SingleOrDefaultAsync(p => p.Id == planId, cancellationToken);
-        if (existing is not null && existing.UserId != userId) return new SavePlanResult.NotFound();
+        // A token can outlive its account; saving would then break the foreign key.
+        if (!await db.Users.AnyAsync(u => u.Id == userId, cancellationToken))
+            return new SavePlanResult.UnknownUser();
+
+        var existing = await WithItems(db.Plans)
+            .SingleOrDefaultAsync(p => p.UserId == userId && p.SourcePlanId == planId, cancellationToken);
         if (existing is null && await db.Plans.CountAsync(p => p.UserId == userId, cancellationToken) >= MaxPlansPerAccount)
             return new SavePlanResult.LimitReached(MaxPlansPerAccount);
 
@@ -54,8 +59,8 @@ public sealed class SavedPlanService(AppDbContext db, TimeProvider clock) : ISav
 
         var saved = new Plan
         {
-            Id = planId,
             UserId = userId,
+            SourcePlanId = planId,
             Title = plan.Title.Trim(),
             Summary = plan.Summary.Trim(),
             EstimatedCostPerPerson = plan.EstimatedCostPerPerson,
@@ -74,13 +79,25 @@ public sealed class SavedPlanService(AppDbContext db, TimeProvider clock) : ISav
             }).ToList(),
         };
         db.Plans.Add(saved);
-        await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            // The same plan was saved twice at the same moment (a double tap): the other save won, return it.
+            await transaction.RollbackAsync(cancellationToken);
+            db.ChangeTracker.Clear();
+            var winner = await WithItems(db.Plans.AsNoTracking())
+                .SingleAsync(p => p.UserId == userId && p.SourcePlanId == planId, cancellationToken);
+            return new SavePlanResult.Saved(ToDto(winner, item => item.Venue));
+        }
         return new SavePlanResult.Saved(ToDto(saved, item => venues[item.VenueId]));
     }
 
     public async Task DeleteAsync(Guid userId, Guid planId, CancellationToken cancellationToken) =>
-        await db.Plans.Where(p => p.Id == planId && p.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+        await db.Plans.Where(p => p.UserId == userId && p.SourcePlanId == planId).ExecuteDeleteAsync(cancellationToken);
 
     private static IQueryable<Plan> WithItems(IQueryable<Plan> plans) =>
         plans.Include(p => p.Items).ThenInclude(i => i.Venue);
@@ -134,7 +151,7 @@ public sealed class SavedPlanService(AppDbContext db, TimeProvider clock) : ISav
 
     private static SavedPlanDto ToDto(Plan plan, Func<PlanItem, Venue> venueOf) => new(
         new PlanDto(
-            plan.Id.ToString(),
+            (plan.SourcePlanId ?? plan.Id).ToString(),
             plan.Title,
             plan.Summary,
             plan.Items.OrderBy(i => i.Position).Select(i => ToDto(i, venueOf(i))).ToList(),
