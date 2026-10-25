@@ -86,7 +86,7 @@ jobs:
           /d:sonar.token="$SONAR_TOKEN"
           /d:sonar.projectBaseDir="$GITHUB_WORKSPACE"
           /d:sonar.exclusions="**/node_modules/**,**/bin/**,**/obj/**,app/coverage/**,app/.expo/**,app/assets/**,backend/src/LinkUp.Api/Data/Migrations/**,shared/**"
-          /d:sonar.coverage.exclusions="app/src/app/**,app/src/constants/**,**/__tests__/**,app/*.config.js,app/jest.setup.ts,backend/tests/**"
+          /d:sonar.coverage.exclusions="app/src/app/**,app/src/constants/**,**/__tests__/**,app/*.config.js,app/jest.*.ts,backend/tests/**"
           /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.opencover.xml"
           /d:sonar.javascript.lcov.reportPaths="app/coverage/lcov.info"
 
