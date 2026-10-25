@@ -1,19 +1,32 @@
-import { render, screen, userEvent } from '@testing-library/react-native';
+import { act, render, screen, userEvent } from '@testing-library/react-native';
 import { router } from 'expo-router';
 
 import { listSavedPlans } from '@/api/saved-plans';
 import SavedPlansScreen from '@/app/(tabs)/saved';
-import { getSavedPlans, savePlan } from '@/storage/saved-plans';
+import { getSavedPlans, removePlan, savePlan } from '@/storage/saved-plans';
 
 import { tapasPlan } from './fixtures/plans';
 
+// useFocusEffect runs on mount, and again when a test calls `refocus()` (the tab being shown again).
 jest.mock('expo-router', () => {
   const { useEffect } = jest.requireActual<typeof import('react')>('react');
+  type MockEffect = () => void | (() => void);
+  const focused = new Set<MockEffect>();
   return {
     router: { navigate: jest.fn(), push: jest.fn() },
-    useFocusEffect: (effect: () => void) => useEffect(effect, [effect]),
+    useFocusEffect: (effect: MockEffect) =>
+      useEffect(() => {
+        focused.add(effect);
+        const cleanup = effect();
+        return () => {
+          focused.delete(effect);
+          if (typeof cleanup === 'function') cleanup();
+        };
+      }, [effect]),
+    __refocus: () => focused.forEach((effect) => effect()),
   };
 });
+const refocus = () => jest.requireMock<{ __refocus: () => void }>('expo-router').__refocus();
 
 jest.mock('@/api/saved-plans');
 // Guest by default; the signed-in tests set a token.
@@ -91,5 +104,16 @@ describe('SavedPlansScreen', () => {
       expect(await screen.findByText(/Couldn't reach your account/)).toBeOnTheScreen();
       expect(screen.getByRole('button', { name: 'Open Tapas and drinks' })).toBeOnTheScreen();
     });
+  });
+
+  it('shows the current plans every time the tab is shown again', async () => {
+    await savePlan(tapasPlan);
+    await render(<SavedPlansScreen />);
+    expect(await screen.findByRole('button', { name: 'Open Tapas and drinks' })).toBeOnTheScreen();
+
+    await removePlan(tapasPlan.id); // deleted on the detail screen
+    await act(async () => refocus());
+
+    expect(await screen.findByText(/No saved plans yet/)).toBeOnTheScreen();
   });
 });

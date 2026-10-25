@@ -165,4 +165,54 @@ public sealed class PlanGenerationEndpointTests(PlanningApiFactory factory) : IC
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
+
+    private sealed class FixedFilter(params Venue[] venues) : IVenueFilteringService
+    {
+        public Task<IReadOnlyList<Venue>> FilterAsync(NightPreferencesDto preferences, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<Venue>>(venues);
+
+        public Task<IReadOnlyList<Venue>> FilterAsync(
+            NightPreferencesDto preferences, double startLatitude, double startLongitude, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<Venue>>(venues);
+    }
+
+    private sealed class CapturingAi : IAiClient
+    {
+        public List<string> Inputs { get; } = [];
+
+        public Task<AiJsonResponse> CompleteJsonAsync(AiJsonRequest request, CancellationToken cancellationToken)
+        {
+            Inputs.Add(request.Input);
+            throw new AiException("not needed for this test");
+        }
+    }
+
+    [Fact]
+    public async Task Venues_without_a_known_price_never_reach_the_ai()
+    {
+        static Venue Priced(int id) => new()
+        {
+            Id = id, Name = $"Venue {id}", Address = "a", Latitude = 41.6176, Longitude = 0.62,
+            EntranceFee = 0, MinSpend = 5, MaxSpend = 5,
+        };
+        var unpriced = new Venue { Id = 3, Name = "Club without prices", Address = "c", Latitude = 41.6176, Longitude = 0.62 };
+        var ai = new CapturingAi();
+        using var api = new ApiFactory().WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Ai:ApiKey", "sk-test");
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IVenueFilteringService>();
+                services.AddSingleton<IVenueFilteringService>(new FixedFilter(Priced(1), Priced(2), unpriced));
+                services.RemoveAll<IAiClient>();
+                services.AddSingleton<IAiClient>(ai);
+            });
+        });
+
+        await api.CreateClient().PostAsJsonAsync("/api/plans/generate", ValidRequest);
+
+        var input = Assert.Single(ai.Inputs);
+        using var json = JsonDocument.Parse(input);
+        Assert.Equal([1, 2], json.RootElement.GetProperty("venues").EnumerateArray().Select(v => v.GetProperty("id").GetInt32()));
+    }
 }

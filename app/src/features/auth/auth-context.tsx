@@ -13,7 +13,7 @@ import { AppState } from 'react-native';
 import { getMe } from '@/api/auth';
 import { ApiError } from '@/api/client';
 import { isExpired, msUntilExpiry } from '@/features/auth/expiry';
-import { clearSavedPlans } from '@/storage/saved-plans';
+import { clearSyncedPlans } from '@/storage/saved-plans';
 import { clearSession, loadSession, saveSession, type StoredSession } from '@/storage/session';
 import type { AuthResponse, User } from '@/types/api';
 
@@ -75,9 +75,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setStatus('ready');
     void clearSession();
-    // The account's plans stay in the cloud; clearing them here keeps them from showing to a guest or being
-    // uploaded to whoever signs in next on this device.
-    clearSavedPlans().catch((error: unknown) => console.warn('Could not clear saved plans', error));
+    // The account's plans stay in the cloud; removing them here keeps them from showing to a guest or being
+    // uploaded to whoever signs in next on this device. Plans that never reached the account (saved offline)
+    // stay, so an expired session doesn't lose them.
+    clearSyncedPlans().catch((error: unknown) =>
+      console.warn('Could not clear saved plans', error),
+    );
   }, []);
 
   // Restore the saved session on launch.

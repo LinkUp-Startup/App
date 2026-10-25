@@ -24,7 +24,10 @@ plan validator still rejects generated plans with no valid stops.
 
 The estimator's aggregate/unknown policy is preserved. If any item lacks either price component
 or its loaded venue, the estimate is incomplete (`IsComplete = false`, null amounts, and an
-unpriced-item count). Such a generated plan is rejected, even at a zero budget; missing amounts
+unpriced-item count). Such a generated plan is rejected, even at a zero budget. Because of that,
+`POST /api/plans/generate` leaves unpriced venues out of the candidates before the AI sees them (a
+request that only matches unpriced venues gets `422 no_candidates`), so no AI tokens go to plans that
+could never be returned; missing amounts
 are never replaced with free prices or guessed from price level. A fully known free plan is
 valid at zero. Missing/null/negative request budgets still return validation errors (400).
 Direct generation calls also reject negative budgets and nonpositive groups before calling AI.
