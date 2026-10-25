@@ -19,13 +19,37 @@ public sealed class VenueSeedDataTests
         Assert.All(Venues, v => Assert.NotEmpty(v.OpeningHours));
 
     [Fact]
-    public void Every_venue_has_a_valid_price_level_and_spend_range() =>
-        Assert.All(Venues, v =>
+    public void Every_known_spend_range_is_valid_and_has_a_price_level() =>
+        Assert.All(Venues.Where(v => v.MinSpend is not null || v.MaxSpend is not null), v =>
         {
             Assert.NotNull(v.PriceLevel);
             Assert.InRange(v.PriceLevel.Value, 1, 4);
             Assert.True(v.MinSpend <= v.MaxSpend);
         });
+
+    [Fact]
+    public void An_unknown_spend_stays_unknown()
+    {
+        var venue = Venues.Single(v => v.Name == "Maracas"); // no source states a typical spend
+
+        Assert.Null(venue.MinSpend);
+        Assert.Null(venue.MaxSpend);
+        Assert.Null(venue.PriceLevel);
+        Assert.Null(venue.EstimatedSpendPerPerson);
+    }
+
+    [Fact]
+    public void Maracas_is_open_on_thursday_friday_and_saturday_nights()
+    {
+        var venue = Venues.Single(v => v.Name == "Maracas");
+
+        // "Thursday 00:00–02:30" in the venue's listing is the night from Thursday into Friday.
+        Assert.Equal(
+            [(DayOfWeek.Friday, "00:00", "02:30"), (DayOfWeek.Saturday, "00:00", "03:00"), (DayOfWeek.Sunday, "00:00", "03:00")],
+            venue.OpeningHours.Select(h => (h.Day, h.Opens.ToString("HH:mm"), h.Closes.ToString("HH:mm"))));
+        Assert.Equal(VenueCategory.Nightclub, venue.Category);
+        Assert.Equal(EntranceType.Unverified, venue.EntranceType);
+    }
 
     [Fact]
     public void Fields_are_mapped()

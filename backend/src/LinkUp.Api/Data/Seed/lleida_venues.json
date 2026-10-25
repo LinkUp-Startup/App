@@ -1048,5 +1048,20 @@
     "notes": "Free entry; pay for food/drinks.",
     "city": "Lleida",
     "country": "Spain"
+  },
+  {
+    "id": 71,
+    "name": "Maracas",
+    "category": "nightclub",
+    "entrance_fee_eur": null,
+    "entrance": "UNVERIFIED",
+    "average_spend_if_consuming": null,
+    "address": "Carrer Bonaire, 20, 25004 Lleida",
+    "latitude": 41.6187295,
+    "longitude": 0.6210472,
+    "opening_hours": "Fri 00:00–02:30; Sat–Sun 00:00–03:00",
+    "notes": "Music bar/club (capacity 182): commercial, dance, hip-hop, house, pop, rock and rumba. Open Thursday to Saturday nights from midnight; entry and drink prices could not be confirmed online, so check before going. Source: Q de Festa.",
+    "city": "Lleida",
+    "country": "Spain"
   }
 ]
