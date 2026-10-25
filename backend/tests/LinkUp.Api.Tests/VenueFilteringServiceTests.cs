@@ -83,6 +83,130 @@ public sealed class VenueFilteringServiceTests : IAsyncLifetime
     }
 
     [Theory]
+    [InlineData(Activity.Dinner, new[] { VenueCategory.Restaurant, VenueCategory.BarRestaurant })]
+    [InlineData(Activity.Drinks, new[]
+    {
+        VenueCategory.Bar, VenueCategory.Pub, VenueCategory.BarRestaurant,
+        VenueCategory.Cafe, VenueCategory.BakeryCafe,
+    })]
+    [InlineData(Activity.Club, new[] { VenueCategory.Nightclub })]
+    [InlineData(Activity.Concert, new VenueCategory[] { })]
+    [InlineData(Activity.Cinema, new VenueCategory[] { })]
+    [InlineData(Activity.Games, new VenueCategory[] { })]
+    [InlineData(Activity.Outdoor, new VenueCategory[] { })]
+    [InlineData((Activity)999, new VenueCategory[] { })]
+    public async Task Matches_only_categories_supporting_the_selected_activity(
+        Activity activity, VenueCategory[] expected)
+    {
+        var venues = Enum.GetValues<VenueCategory>()
+            .Select(category => OpenVenue((int)category + 1, category)).ToArray();
+        await SeedAsync(venues);
+
+        var result = await new VenueFilteringService(_db).FilterAsync(
+            Preferences with { Activities = [activity] }, CancellationToken.None);
+
+        Assert.Equal(expected.OrderBy(c => c), result.Select(v => v.Category));
+        Assert.Single(_queries.Commands);
+        Assert.Empty(_db.ChangeTracker.Entries());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Combines_activities_with_OR_and_returns_compound_categories_once(bool duplicates)
+    {
+        await SeedAsync(
+            OpenVenue(1, VenueCategory.Restaurant), OpenVenue(2, VenueCategory.BarRestaurant),
+            OpenVenue(3, VenueCategory.Pub), OpenVenue(4, VenueCategory.Nightclub));
+        Activity[] activities = duplicates
+            ? [Activity.Dinner, Activity.Drinks, Activity.Dinner, Activity.Drinks]
+            : [Activity.Dinner, Activity.Drinks];
+
+        var result = await new VenueFilteringService(_db).FilterAsync(
+            Preferences with { Activities = activities }, CancellationToken.None);
+
+        Assert.Equal(new[] { 1, 2, 3 }, result.Select(v => v.Id));
+        Assert.Single(result, v => v.Category == VenueCategory.BarRestaurant);
+        Assert.Single(_queries.Commands);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Empty_or_missing_activities_return_no_candidates(bool missing)
+    {
+        await SeedAsync(OpenVenue(1, VenueCategory.Restaurant));
+
+        var result = await new VenueFilteringService(_db).FilterAsync(
+            Preferences with { Activities = missing ? null! : [] }, CancellationToken.None);
+
+        Assert.Empty(result);
+    }
+
+    [Theory]
+    [InlineData(Activity.Dinner, VenueCategory.Bar)]
+    [InlineData(Activity.Club, VenueCategory.Restaurant)]
+    public async Task Returns_no_candidates_when_open_venues_do_not_match_activity(
+        Activity activity, VenueCategory category)
+    {
+        await SeedAsync(OpenVenue(1, category));
+
+        var result = await new VenueFilteringService(_db).FilterAsync(
+            Preferences with { Activities = [activity] }, CancellationToken.None);
+
+        Assert.Empty(result);
+        Assert.Single(_queries.Commands);
+    }
+
+    [Theory]
+    [InlineData("999")]
+    [InlineData("Unrecognized category")]
+    [InlineData("")]
+    public async Task Unrecognized_stored_categories_are_filtered_out_before_materialization(string category)
+    {
+        await SeedAsync(OpenVenue(1, VenueCategory.Restaurant), OpenVenue(2, VenueCategory.Restaurant));
+        // Exercise malformed stored text as well as undefined numeric enum values.
+        await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE \"Venues\" SET \"Category\" = {category} WHERE \"Id\" = 2");
+
+        var result = await new VenueFilteringService(_db).FilterAsync(Preferences, CancellationToken.None);
+
+        Assert.Equal(new[] { 1 }, result.Select(v => v.Id));
+        Assert.Single(_queries.Commands);
+    }
+
+    [Fact]
+    public async Task Category_matching_combines_with_opening_hours_and_active_status()
+    {
+        var closed = OpenVenue(3, VenueCategory.Restaurant);
+        closed.OpeningHours.Clear();
+        closed.OpeningHours.Add(Slot(DayOfWeek.Saturday, "08:00", "10:00"));
+        var inactive = OpenVenue(4, VenueCategory.Restaurant);
+        inactive.IsActive = false;
+        var missingHours = Venue(6);
+        await SeedAsync(
+            OpenVenue(1, VenueCategory.Restaurant), OpenVenue(2, VenueCategory.Nightclub),
+            closed, inactive, OpenVenue(5, VenueCategory.Bar), missingHours,
+            OpenVenue(7, VenueCategory.Restaurant));
+
+        var result = await new VenueFilteringService(_db).FilterAsync(
+            Preferences with { Activities = [Activity.Dinner, Activity.Club, Activity.Concert] },
+            CancellationToken.None);
+
+        Assert.Equal(new[] { 1, 2, 7 }, result.Select(v => v.Id));
+        Assert.Single(_queries.Commands);
+        Assert.Empty(_db.ChangeTracker.Entries());
+    }
+
+    private static Venue OpenVenue(int id, VenueCategory category)
+    {
+        var venue = Venue(id);
+        venue.Category = category;
+        venue.OpeningHours.Add(Slot(DayOfWeek.Saturday, "18:00", "23:00"));
+        return venue;
+    }
+
+    [Theory]
     // Monday daytime: full coverage, closed, opens/closes within availability, exact boundaries.
     [InlineData("2026-10-26T18:00:00+01:00", "2026-10-26T22:00:00+01:00", DayOfWeek.Monday, "17:00", "23:00", true)]
     [InlineData("2026-10-26T18:00:00+01:00", "2026-10-26T22:00:00+01:00", DayOfWeek.Monday, "10:00", "16:00", false)]
@@ -251,6 +375,7 @@ public sealed class VenueFilteringServiceTests : IAsyncLifetime
     {
         Id = id,
         Name = $"Venue {id}",
+        Category = VenueCategory.Restaurant,
         Address = $"Address {id}",
         PriceLevel = 1,
         IsActive = active,

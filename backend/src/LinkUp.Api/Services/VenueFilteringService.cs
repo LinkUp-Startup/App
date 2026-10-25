@@ -12,15 +12,38 @@ public sealed class VenueFilteringService(AppDbContext db) : IVenueFilteringServ
     {
         ArgumentNullException.ThrowIfNull(preferences);
 
+        // OR across selections. Empty/missing selections cannot match a category.
+        // Only the small preference-derived category set is materialized, never venue data.
+        var categories = preferences.Activities?
+            .SelectMany(CategoriesFor)
+            .Distinct()
+            .ToArray() ?? [];
+
         var query = db.Venues.AsNoTracking()
             .Where(v => v.IsActive)
-            .OpenDuring(preferences.StartTime, preferences.EndTime);
+            .OpenDuring(preferences.StartTime, preferences.EndTime)
+            .Where(v => categories.Contains(v.Category));
 
-        // Compose further preference conditions here before materializing (#59–#60).
+        // Compose further preference conditions here before materializing (#60).
         return await query
             .Include(v => v.OpeningHours)
             .OrderBy(v => v.Id)
             .AsSingleQuery()
             .ToListAsync(cancellationToken);
     }
+
+    // Map only capabilities established by the category, without inferring events from tags/notes.
+    // Compound categories can support more than one activity; unknown values never add matches.
+    private static VenueCategory[] CategoriesFor(Activity activity) => activity switch
+    {
+        Activity.Dinner => [VenueCategory.Restaurant, VenueCategory.BarRestaurant],
+        Activity.Drinks =>
+        [
+            VenueCategory.Bar, VenueCategory.Pub, VenueCategory.BarRestaurant,
+            VenueCategory.Cafe, VenueCategory.BakeryCafe,
+        ],
+        Activity.Club => [VenueCategory.Nightclub],
+        // There is no category establishing support for Concert, Cinema, Games or Outdoor yet.
+        _ => [],
+    };
 }
