@@ -1,6 +1,7 @@
 using LinkUp.Api.Data.Entities;
 using LinkUp.Api.Dtos;
 using LinkUp.Api.Planning;
+using LinkUp.Api.Services;
 using static LinkUp.Api.Tests.PlanTestData;
 
 namespace LinkUp.Api.Tests;
@@ -17,14 +18,19 @@ public sealed class PlanValidatorTests
     private static AiPlan Plan(params AiStop[] stops) => new("Tapas and drinks", "Dinner, then a bar.", stops);
 
     private PlanValidator.Result Validate(params AiPlan[] plans) =>
-        PlanValidator.Validate(plans, [_restaurant, _bar, _pub], Preferences());
+        PlanValidator.Validate(plans, [_restaurant, _bar, _pub], Preferences(), Costs);
+
+    private static readonly PlanCostService Costs = new();
 
     [Fact]
     public void Keeps_a_valid_plan_and_adds_prices_and_distances_from_the_database()
     {
+        _restaurant.EntranceFee = 0;
         _restaurant.MinSpend = 15;
         _restaurant.MaxSpend = 25;
         _bar.EntranceFee = 5;
+        _bar.MinSpend = 4;
+        _bar.MaxSpend = 4;
 
         var result = Validate(Plan(Stop(1, At(20), At(22)), Stop(2, At(22, 15), At(24))));
 
@@ -33,12 +39,28 @@ public sealed class PlanValidatorTests
         Assert.Equal("Tapas and drinks", plan.Title);
         Assert.Equal(["1", "2"], plan.Items.Select(i => i.Venue.Id));
         Assert.Equal([Activity.Dinner, Activity.Drinks], plan.Items.Select(i => i.Venue.Category));
-        Assert.Equal([20m, 5m], plan.Items.Select(i => i.EstimatedCostPerPerson));
-        Assert.Equal(25m, plan.EstimatedCostPerPerson);
+        Assert.Equal([20m, 9m], plan.Items.Select(i => i.EstimatedCostPerPerson));
+        Assert.Equal(29m, plan.EstimatedCostPerPerson);
+        Assert.Equal(116m, plan.EstimatedTotalCost); // a group of 4
         Assert.Equal(0, plan.Items[0].DistanceKm);
         Assert.InRange(plan.Items[1].DistanceKm, 0.9, 1.1);
         Assert.Equal(plan.Items[1].DistanceKm, plan.TotalDistanceKm);
         Assert.Equal(Start.AddHours(2).AddMinutes(15), plan.Items[1].StartTime);
+    }
+
+    [Fact]
+    public void An_unknown_price_is_reported_as_unknown_not_as_free()
+    {
+        _restaurant.EntranceFee = 0;
+        _restaurant.MinSpend = 15;
+        _restaurant.MaxSpend = 25;
+        // _bar has no known entrance fee.
+
+        var plan = Assert.Single(Validate(Plan(Stop(1, At(20), At(22)), Stop(2, At(22), At(23)))).Plans);
+
+        Assert.Equal([20m, null], plan.Items.Select(i => i.EstimatedCostPerPerson));
+        Assert.Null(plan.EstimatedCostPerPerson);
+        Assert.Null(plan.EstimatedTotalCost);
     }
 
     [Fact]
@@ -81,7 +103,7 @@ public sealed class PlanValidatorTests
         var earlyBar = Venue(4, opens: new(17, 0), closes: new(21, 0));
 
         var result = PlanValidator.Validate(
-            [Plan(Stop(4, At(22), At(23)), Stop(1, At(20), At(21)))], [_restaurant, earlyBar], Preferences());
+            [Plan(Stop(4, At(22), At(23)), Stop(1, At(20), At(21)))], [_restaurant, earlyBar], Preferences(), Costs);
 
         Assert.Equal(["1"], Assert.Single(result.Plans).Items.Select(i => i.Venue.Id));
         Assert.Contains("plan 1 stop 1: venue 4 is closed then", result.Problems);
@@ -107,7 +129,7 @@ public sealed class PlanValidatorTests
         var candidates = Enumerable.Range(1, 5).Select(id => Venue(id)).ToList();
         var stops = candidates.Select((v, i) => Stop(v.Id, At(20 + i), At(21 + i))).ToArray();
 
-        var result = PlanValidator.Validate([Plan(stops)], candidates, Preferences());
+        var result = PlanValidator.Validate([Plan(stops)], candidates, Preferences(), Costs);
 
         Assert.Equal(PlanValidator.MaxStops, Assert.Single(result.Plans).Items.Count);
     }

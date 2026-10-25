@@ -68,7 +68,9 @@ function Stop({ item, number }: { item: PlanItem; number: number }) {
           {item.venue.address}
         </ThemedText>
         <ThemedText type="small">
-          {formatEuros(item.estimatedCostPerPerson)} per person
+          {item.estimatedCostPerPerson === null
+            ? 'Price unknown'
+            : `${formatEuros(item.estimatedCostPerPerson)} per person`}
           {number > 1 ? ` · ${formatDistance(item.distanceKm)} from the previous stop` : ''}
         </ThemedText>
       </View>

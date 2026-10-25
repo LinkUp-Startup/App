@@ -478,7 +478,9 @@ export interface components {
             summary: string;
             items: components["schemas"]["PlanItemDto"][];
             /** Format: double */
-            estimatedCostPerPerson: number;
+            estimatedCostPerPerson: null | number;
+            /** Format: double */
+            estimatedTotalCost: null | number;
             /** Format: double */
             totalDistanceKm: number;
         };
@@ -489,7 +491,7 @@ export interface components {
             /** Format: date-time */
             endTime: string;
             /** Format: double */
-            estimatedCostPerPerson: number;
+            estimatedCostPerPerson: null | number;
             /** Format: double */
             distanceKm: number;
         };

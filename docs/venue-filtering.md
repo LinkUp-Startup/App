@@ -131,9 +131,9 @@ suggestion in its existing results error panel. The existing **Change preference
 returns to the form; the app does not automatically retry, alter preferences, or treat a 422 as
 an unexpected server failure. Unknown or malformed responses retain the existing generic message.
 
-The generator is still the existing placeholder: this issue adds the pre-generation candidate
-guard, not candidate-aware AI generation. The success payload and stub implementation are
-unchanged. Capacity and distance limitations documented above still apply.
+This guard runs before generation: only when enough candidates remain are they passed to the AI
+plan generator (or to the stub plans when no AI key is configured; see `backend/README.md`).
+Capacity and distance limitations documented above still apply.
 
 ### Test commands
 

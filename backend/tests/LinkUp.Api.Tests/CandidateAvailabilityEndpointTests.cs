@@ -205,7 +205,7 @@ public sealed class CandidateAvailabilityEndpointTests
             NightPreferencesDto preferences, IReadOnlyList<Venue> candidates, CancellationToken cancellationToken)
         {
             Calls++;
-            return new StubPlanService().GeneratePlansAsync(preferences, candidates, cancellationToken);
+            return new StubPlanService(new PlanCostService()).GeneratePlansAsync(preferences, candidates, cancellationToken);
         }
     }
 }
