@@ -3,7 +3,6 @@ using LinkUp.Api.Data;
 using LinkUp.Api.Data.Entities;
 using LinkUp.Api.Dtos;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 
 namespace LinkUp.Api.Services;
 
@@ -11,6 +10,16 @@ public sealed class SavedPlanService(AppDbContext db, TimeProvider clock) : ISav
 {
     public const int MaxPlansPerAccount = 200;
     public const int MaxItems = 10;
+
+    // What the columns can hold (numeric(8,2) and numeric(10,2)); larger values would fail in the database.
+    private const decimal MaxCostPerPerson = 999_999.99m;
+    private const decimal MaxTotalCost = 99_999_999.99m;
+    private const double MaxDistanceKm = 1000;
+    private const string CostsMessage = "Costs and distances can't be negative or unrealistically large.";
+
+    private static bool IsAmount(decimal? amount, decimal max) => amount is null || (amount >= 0 && amount <= max);
+
+    private static bool IsDistance(double km) => double.IsFinite(km) && km is >= 0 and <= MaxDistanceKm;
 
     public async Task<IReadOnlyList<SavedPlanDto>> ListAsync(Guid userId, CancellationToken cancellationToken)
     {
@@ -43,14 +52,19 @@ public sealed class SavedPlanService(AppDbContext db, TimeProvider clock) : ISav
         if (!await db.Users.AnyAsync(u => u.Id == userId, cancellationToken))
             return new SavePlanResult.UnknownUser();
 
+        // Saving again replaces the plan: same id, same account, new content, and it counts as saved now.
+        // One transaction, so a failed save never leaves the account without its old copy. The per-account lock
+        // makes concurrent saves (a double tap, two devices) run one after the other, so the replace and the
+        // limit check never race.
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await db.Database.ExecuteSqlAsync(
+            $"SELECT pg_advisory_xact_lock(hashtextextended({userId.ToString()}, 0))", cancellationToken);
+
         var existing = await WithItems(db.Plans)
             .SingleOrDefaultAsync(p => p.UserId == userId && p.SourcePlanId == planId, cancellationToken);
         if (existing is null && await db.Plans.CountAsync(p => p.UserId == userId, cancellationToken) >= MaxPlansPerAccount)
             return new SavePlanResult.LimitReached(MaxPlansPerAccount);
 
-        // Saving again replaces the plan: same id, same account, new content, and it counts as saved now.
-        // One transaction, so a failed save never leaves the account without its old copy.
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         if (existing is not null)
         {
             db.Plans.Remove(existing);
@@ -79,20 +93,8 @@ public sealed class SavedPlanService(AppDbContext db, TimeProvider clock) : ISav
             }).ToList(),
         };
         db.Plans.Add(saved);
-        try
-        {
-            await db.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
-        }
-        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
-        {
-            // The same plan was saved twice at the same moment (a double tap): the other save won, return it.
-            await transaction.RollbackAsync(cancellationToken);
-            db.ChangeTracker.Clear();
-            var winner = await WithItems(db.Plans.AsNoTracking())
-                .SingleAsync(p => p.UserId == userId && p.SourcePlanId == planId, cancellationToken);
-            return new SavePlanResult.Saved(ToDto(winner, item => item.Venue));
-        }
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return new SavePlanResult.Saved(ToDto(saved, item => venues[item.VenueId]));
     }
 
@@ -119,8 +121,9 @@ public sealed class SavedPlanService(AppDbContext db, TimeProvider clock) : ISav
             errors[nameof(PlanDto.Title)] = [$"The title is required and at most {PlanConfiguration.TitleMaxLength} characters."];
         if (plan.Summary is null || plan.Summary.Trim().Length > PlanConfiguration.SummaryMaxLength)
             errors[nameof(PlanDto.Summary)] = [$"The summary is at most {PlanConfiguration.SummaryMaxLength} characters."];
-        if (plan.EstimatedCostPerPerson is < 0 || plan.EstimatedTotalCost is < 0 || !(plan.TotalDistanceKm >= 0))
-            errors["Costs"] = ["Costs and distance cannot be negative."];
+        if (!IsAmount(plan.EstimatedCostPerPerson, MaxCostPerPerson) || !IsAmount(plan.EstimatedTotalCost, MaxTotalCost)
+            || !IsDistance(plan.TotalDistanceKm))
+            errors["Costs"] = [CostsMessage];
 
         if (plan.Items is null || plan.Items.Count is 0 or > MaxItems)
         {
@@ -140,8 +143,8 @@ public sealed class SavedPlanService(AppDbContext db, TimeProvider clock) : ISav
                 errors[$"Items[{i}].EndTime"] = ["A stop must end after it starts."];
             if (i > 0 && plan.Items[i - 1] is { } previous && item.StartTime < previous.EndTime)
                 errors[$"Items[{i}].StartTime"] = ["Stops must be in order and not overlap."];
-            if (item.EstimatedCostPerPerson is < 0 || !(item.DistanceKm >= 0))
-                errors[$"Items[{i}].Costs"] = ["Costs and distance cannot be negative."];
+            if (!IsAmount(item.EstimatedCostPerPerson, MaxCostPerPerson) || !IsDistance(item.DistanceKm))
+                errors[$"Items[{i}].Costs"] = [CostsMessage];
             if (!Enum.IsDefined(item.Venue.Category))
                 errors[$"Items[{i}].Venue.Category"] = ["Unknown activity."];
         }

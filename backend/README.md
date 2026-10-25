@@ -168,9 +168,9 @@ Plans saved to an account, so they show up on every device (#88). Guests keep th
 
 - `PUT` is idempotent: saving the same id again replaces the plan and counts as saved now. The id must be a GUID (what the generator returns) and match the plan's `id`.
 - The venues are read from the database: only each stop's venue id, times, costs and activity are taken from the request, so a request can't change a venue's name or address.
-- A plan has 1 to 10 stops in order without overlap, each ending after it starts, and no negative costs. A price that was unknown stays unknown (`null`).
+- A plan has 1 to 10 stops in order without overlap, each ending after it starts; costs and distances must be non-negative and fit their columns (at most €999,999.99 per person, 1000 km). A price that was unknown stays unknown (`null`).
 - Plans belong to the account (`Plans.UserId`) and are deleted with it. Plan ids are per account (`Plans.SourcePlanId`, unique per account): another account saving the same id, e.g. a shared plan, gets its own copy. One account can't see, replace or delete another's plans; `DELETE` answers `204` either way so it doesn't reveal whether a plan exists.
-- Two saves of the same plan at the same moment (a double tap) both succeed with the same saved copy.
+- Saves for one account run one after the other (a PostgreSQL advisory lock per account), so a double tap or two devices saving at once can't create duplicates, fail, or overshoot the limit.
 
 ## AI
 
@@ -203,7 +203,7 @@ On the server (Dokploy) set the environment variable `Ai__ApiKey`. Without a key
 `POST /api/plans/generate`: filter venues → select candidates → `AiPlanService` → validate → plans.
 
 1. **Candidates** (`Planning/CandidateSelector.cs`): at most `PlanGeneration__MaxAiCandidates` (default 20) of the filtered venues go to the AI, split evenly across the selected activities and picked at random, so a broad request stays at about 3,500 input tokens (~$0.0007) and repeating it gives other venues. The AI may only use the venues it was sent.
-2. **Prompt** (`Planning/PlanPrompt.cs`): instructions plus compact JSON with the preferences and only the filtered candidates (id, name, category, prices, opening hours, tags, and `distanceFromStartKm` when the request has a `startLocation`), all times in `Europe/Madrid`. `PlanPrompt.Version` (e.g. `plans-v1`) is logged with every generation: bump it whenever the prompt, its input or the schema change.
+2. **Prompt** (`Planning/PlanPrompt.cs`): instructions plus compact JSON with the preferences and only the filtered candidates (id, name, category, prices, opening hours, tags, and `distanceFromStartKm` when the request has a `startLocation`), all times in `Europe/Madrid`. `PlanPrompt.Version` (e.g. `plans-v3`) is logged with every generation: bump it whenever the prompt, its input or the schema change.
 3. **Structured output** (`Planning/PlanSchema.cs`): OpenAI strict JSON schema `{ plans: [{ title, summary, stops: [{ venueId, startTime, endTime }] }] }`. Output that doesn't parse gets one more try.
 4. **Validation** (`Planning/PlanValidator.cs`), repairing rather than rejecting:
    - stops whose venue is not a candidate, has unreadable times, lies outside the window or at a closed venue are dropped; stops spilling over the window are trimmed to it

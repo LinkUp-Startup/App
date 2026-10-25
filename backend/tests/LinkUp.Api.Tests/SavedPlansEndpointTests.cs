@@ -260,7 +260,7 @@ public sealed class SavedPlansEndpointTests : IClassFixture<AuthApiFactory>
     public static TheoryData<string> InvalidPlans => new()
     {
         "id-mismatch", "no-title", "no-stops", "too-many-stops", "unknown-venue", "malformed-venue",
-        "ends-before-start", "overlap", "negative-cost", "unknown-activity",
+        "ends-before-start", "overlap", "negative-cost", "huge-cost", "unknown-activity",
     };
 
     [Theory]
@@ -283,6 +283,7 @@ public sealed class SavedPlansEndpointTests : IClassFixture<AuthApiFactory>
             "ends-before-start" => Plan(id, "Backwards", RawStop(venue.ToString(), Evening, Evening.AddHours(-1))),
             "overlap" => Plan(id, "Overlap", Stop(venue, 0), RawStop(venue.ToString(), Evening.AddMinutes(30), Evening.AddHours(2), "drinks")),
             "negative-cost" => Plan(id, "Refund", Stop(venue, 0, cost: -5m)),
+            "huge-cost" => Plan(id, "Yacht", Stop(venue, 0, cost: 10_000_000m)), // more than the column holds
             _ => Plan(id, "Mystery", Stop(venue, 0, activity: "teleport")),
         };
 
@@ -290,6 +291,26 @@ public sealed class SavedPlansEndpointTests : IClassFixture<AuthApiFactory>
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal(0, (await ListAsync(account.Client)).GetArrayLength());
+    }
+
+    [Fact]
+    public async Task Saving_the_same_plan_many_times_at_once_keeps_one_copy()
+    {
+        // A double tap, or two devices: concurrent first saves and concurrent re-saves.
+        var venue = (await VenuesAsync(1))[0];
+        var account = await NewAccountAsync();
+        var id = Guid.NewGuid();
+
+        for (var round = 0; round < 2; round++)
+        {
+            var responses = await Task.WhenAll(Enumerable.Range(0, 8).Select(i =>
+                SaveAsync(account.Client, id, Plan(id, $"Version {i}", Stop(venue.Id, 0)))));
+
+            Assert.All(responses, response => Assert.Equal(HttpStatusCode.OK, response.StatusCode));
+            Assert.Single((await ListAsync(account.Client)).EnumerateArray());
+            Assert.Equal(1, await _factory.WithDbAsync(db => db.Plans.CountAsync(p => p.SourcePlanId == id)));
+            foreach (var response in responses) response.Dispose();
+        }
     }
 
     [Fact]
