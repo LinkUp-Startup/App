@@ -108,12 +108,76 @@ inside the midpoint comparison tests a known-cost lower bound; it does not chang
 Lowering only the budget can only keep or remove candidates, never add them. All other eligibility
 conditions remain ANDed with this price condition; no filters are relaxed and no fallback is added.
 
+## Plan cost estimation (#48)
+
+`IPlanCostService.Estimate(Plan plan, int groupSize)` is a synchronous, stateless service registered
+in dependency injection. It accepts the existing plan entity with its item/venue relationships
+already loaded and returns a `PlanCostEstimate` in EUR. It performs no database queries and never
+changes the plan, its items, or the venue prices. Callers loading a persisted plan should include
+`Items` and then each item's `Venue`; an unloaded/missing venue cannot be priced from its id alone.
+An unpopulated item collection cannot be distinguished from a genuinely empty plan by this pure
+service; loading the collection is the caller's responsibility.
+
+For every item, the per-person visit estimate is the venue's existing `EstimatedSpendPerPerson`
+plus its separate `EntranceFee`. The service sums these item amounts and multiplies the sum by
+the supplied group size **once**:
+
+```text
+EstimatedCostPerPerson = Sum(venue.EstimatedSpendPerPerson + venue.EntranceFee)
+TotalEstimatedCost = EstimatedCostPerPerson × groupSize
+```
+
+All monetary calculations use `decimal`. Consumption midpoint rounding remains exactly #47's
+cent rounding on the venue getter. The estimator adds no further rounding to the item sum or group
+multiplication. For example, three fully priced items at EUR 12.50, 20.00 and 9.50 per person give
+EUR 42.00 per person and EUR 168.00 for four participants. Known zero amounts contribute zero.
+
+`GroupSize` comes from preferences when used in a request; the current request range is 1–20.
+The reusable arithmetic service requires a positive integer, without inventing another upper
+capacity limit. Zero/negative group sizes throw `ArgumentOutOfRangeException`. Null plans, null
+item lists and null item entries are invalid arguments. Negative prices and inverted spend ranges
+on in-memory venues are rejected instead of producing misleading totals, matching the model's
+existing persistence rules. Ordinary decimal overflow is not suppressed or replaced with a total.
+
+### Complete and incomplete results
+
+- All items have a loaded venue, both spend bounds and a known admission fee: return numeric
+  `EstimatedCostPerPerson` and `TotalEstimatedCost`, `IsComplete = true`, and `UnpricedItemCount = 0`.
+- Any item lacks a venue reference or either price component: return **null for both amounts**,
+  `IsComplete = false`, and the number of unpriced items. A partial range is not a consumption
+  estimate. Neither `EntranceType.Free` nor `PriceLevel` substitutes for missing numeric prices.
+- An empty plan or a plan with only fully known free items has a **complete zero** estimate. This
+  is different from unknown pricing. Estimating an empty plan does not make it a valid itinerary.
+
+No partial subtotal is presented as a complete cost. An item with several missing components counts
+as one unpriced item. Every supplied plan-item occurrence is counted; repeat visits to the same
+venue are not deduplicated. Itinerary structure/eligibility remains the responsibility of existing
+planning validation. Cached `Plan.EstimatedCostPerPerson` and `PlanItem.EstimatedCostPerPerson` are
+not trusted as source prices and are not overwritten.
+
+This policy intentionally differs from #49's permissive candidate filter: an unknown cost may be
+retained as a candidate, but does not establish a complete plan total. Budget validation (#50) and
+app price display (#51) can consume the result and `IsComplete` without repeating the arithmetic;
+neither behavior is implemented here. No schema, request, or response fields are changed.
+
+The existing AI/stub response mapper (`PlanValidator.EstimateCost`) is a legacy placeholder with
+different partial-price assumptions. It is not reused by this estimator and is not changed here:
+its current DTO amounts are non-nullable. Wiring incomplete estimates into those existing responses
+requires an explicit consumer/API policy, rather than silently turning a null result back into zero.
+This service supplies the canonical venue-based estimate for that future integration.
+
+Run its unit tests without a database server or AI calls:
+
+```sh
+dotnet test backend/LinkUp.sln --filter FullyQualifiedName~PlanCostServiceTests --collect:"XPlat Code Coverage;Format=opencover"
+```
+
 ## Future budget work and limitations
 
 The numeric per-person consumption estimate and separate admission amount provide inputs for
-future plan estimates (#48), validation (#50), and app display (#51).
-Those features must choose their policies for complete plans, unknown components, and group
-size. No group-total calculation, whole-plan budget validation, currency conversion,
+plan cost estimation (#48), future validation (#50), and app display (#51).
+The latter features must choose their policies for consuming complete/incomplete estimates.
+No whole-plan budget validation, currency conversion,
 or new price UI is implemented here. Group discounts, fixed booking charges and verified observed
 averages are not represented by the source data.
 
