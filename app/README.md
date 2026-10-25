@@ -85,6 +85,25 @@ On the **web** there is no secure storage, so a production web build keeps the s
 
 To try it against a local API, run the backend and set `EXPO_PUBLIC_API_URL` to it (see `.env.example`); `npx expo start --web` also works for a quick look in a browser. Tests use an in-memory stand-in for the secure storage (`jest.setup.ts`), emptied before every test.
 
+## Estimated prices (#51)
+
+Every generated plan card shows each stop's **estimated EUR price per person**, the
+estimated per-person plan cost, and an **estimated total for the group**. Amounts
+include cents, including known free prices (€0.00). The group total comes directly
+from the API's `estimatedTotalCost`; the app does not sum venue prices or multiply
+by group size again. For example, €42.00 per person for four participants displays
+a backend total of €168.00.
+
+Unknown stop prices display “Price unknown”. Null or missing group totals display
+“Estimated total for the group: price unavailable”; known stop prices remain visible.
+This also supports older saved plans without totals. Current generated plans are
+required by backend budget validation to have complete prices. The shared card is
+used in results and saved-plan details, with prices included in accessible stop labels.
+
+Run `npm test` in `app/` for the UI tests, or `npm run test:coverage` for the LCOV
+report consumed by the existing SonarQube workflow. `npm run typecheck` checks the
+API types, and `npx expo export --platform web` builds the web app.
+
 ## Native builds
 
 `android/` and `ios/` are generated (Continuous Native Generation) and git-ignored — configure native settings in `app.json`. Build installable binaries with EAS (`npx eas-cli@latest build:configure` once, then `npx eas-cli@latest build -p android`).

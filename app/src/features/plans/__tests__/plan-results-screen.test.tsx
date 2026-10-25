@@ -71,7 +71,33 @@ describe('PlanResultsScreen', () => {
     await render(<PlanResultsScreen />);
 
     expect(await screen.findAllByText('Tapas and drinks')).toHaveLength(2);
-    expect(screen.getAllByText('0 stops · ~€27 per person · 1.3 km')).toHaveLength(2);
+    expect(screen.getAllByText('0 stops · estimated €27.40 per person · 1.3 km')).toHaveLength(2);
+    expect(screen.getAllByText('Estimated total for the group: €109.60')).toHaveLength(2);
+  });
+
+  it('shows each generated plan with its own venue prices and backend total', async () => {
+    withParams({ preferences: JSON.stringify(preferences) });
+    generatePlansMock.mockResolvedValue({
+      plans: [
+        tapasPlan,
+        {
+          ...tapasPlan,
+          id: 'different',
+          title: 'A free night',
+          estimatedCostPerPerson: 0,
+          estimatedTotalCost: 0,
+          items: [{ ...tapasPlan.items[0], estimatedCostPerPerson: 0 }],
+        },
+      ],
+    });
+    await render(<PlanResultsScreen />);
+    expect(await screen.findByText('Estimated total for the group: €102.00')).toBeOnTheScreen();
+    expect(screen.getByText('Estimated total for the group: €0.00')).toBeOnTheScreen();
+    expect(screen.getByText('Estimated €20.00 per person')).toBeOnTheScreen();
+    expect(
+      screen.getByText('Estimated €5.50 per person · 910 m from the previous stop'),
+    ).toBeOnTheScreen();
+    expect(screen.getByText('Estimated €0.00 per person')).toBeOnTheScreen();
   });
 
   it('explains when no plans match', async () => {
