@@ -39,6 +39,17 @@ public sealed class VenueSeedDataTests
     }
 
     [Fact]
+    public void Manolita_is_also_open_on_thursday_night()
+    {
+        var venue = Venues.Single(v => v.Name == "Manolita");
+
+        // Q de Festa: "Dij 00:00–05:00", the night from Thursday into Friday.
+        Assert.Contains(venue.OpeningHours, h =>
+            h.Day == DayOfWeek.Friday && h.Opens == new TimeOnly(0, 0) && h.Closes == new TimeOnly(5, 0));
+        Assert.Equal(4, venue.OpeningHours.Count);
+    }
+
+    [Fact]
     public void Maracas_is_open_on_thursday_friday_and_saturday_nights()
     {
         var venue = Venues.Single(v => v.Name == "Maracas");
