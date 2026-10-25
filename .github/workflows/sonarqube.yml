@@ -45,7 +45,13 @@ jobs:
 
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          global-json-file: backend/global.json
+          # An exact version, on purpose. With global-json-file (or a range like 10.0.x) the installer asks
+          # for "latest 10.0" through an aka.ms link, which currently redirects to a Microsoft download host
+          # that answers 409, and the installer then tries no other host. An exact version is downloaded from
+          # builds.dotnet.microsoft.com instead. Keep it inside backend/global.json's range (10.0.100,
+          # latestFeature) and bump it when the SDK is updated. It can go back to
+          # `global-json-file: backend/global.json` once the aka.ms redirect works again.
+          dotnet-version: '10.0.403'
 
       - name: Install app dependencies
         working-directory: app
