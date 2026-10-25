@@ -168,7 +168,7 @@ Create a key in the OpenAI dashboard (project **LinkUp**, with a monthly budget 
 dotnet user-secrets set "Ai:ApiKey" "sk-..." --project backend/src/LinkUp.Api   # local
 ```
 
-On the server (Dokploy) set the environment variable `Ai__ApiKey`. Without a key the API still starts and logs a warning; `/api/plans/generate` then returns one stub plan with the first candidate, so the app works end to end.
+On the server (Dokploy) set the environment variable `Ai__ApiKey`. Without a key the API still starts and logs a warning; `/api/plans/generate` then returns stub plans, a night at each of the first two candidates, so the app works end to end.
 
 ### Settings
 
