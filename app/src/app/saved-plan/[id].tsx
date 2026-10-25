@@ -5,15 +5,19 @@ import { Alert } from 'react-native';
 import { Button } from '@/components/button';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
+import { useAuth } from '@/features/auth/auth-context';
 import { formatNightDate } from '@/features/plans/format';
 import { PlanCard } from '@/features/plans/plan-card';
-import { getSavedPlan, removePlan, type SavedPlan } from '@/storage/saved-plans';
+import { removePlanFor } from '@/features/plans/saved-plans-sync';
+import { getSavedPlan, type SavedPlan } from '@/storage/saved-plans';
 
-/** One saved plan, opened from the Saved tab. Works offline. */
+/** One saved plan, opened from the Saved tab. Opens offline; deleting it also needs the account when signed in. */
 export default function SavedPlanScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   // undefined while loading, null when the plan isn't saved (anymore).
   const [plan, setPlan] = useState<SavedPlan | null>();
+  const { accessToken } = useAuth();
+  const [deleteFailed, setDeleteFailed] = useState(false);
 
   useEffect(() => {
     getSavedPlan(id)
@@ -25,15 +29,20 @@ export default function SavedPlanScreen() {
   }, [id]);
 
   function confirmDelete(saved: SavedPlan) {
-    Alert.alert('Delete this plan?', `"${saved.title}" will be removed from this device.`, [
+    const where = accessToken ? 'your account and this device' : 'this device';
+    Alert.alert('Delete this plan?', `"${saved.title}" will be removed from ${where}.`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
         onPress: () => {
-          removePlan(saved.id)
+          setDeleteFailed(false);
+          removePlanFor(saved.id, accessToken)
             .then(() => router.back())
-            .catch((error: unknown) => console.warn('Could not delete saved plan', error));
+            .catch((error: unknown) => {
+              console.warn('Could not delete saved plan', error);
+              setDeleteFailed(true);
+            });
         },
       },
     ]);
@@ -58,7 +67,14 @@ export default function SavedPlanScreen() {
       <PlanCard
         plan={plan}
         footer={
-          <Button title="Delete plan" variant="secondary" onPress={() => confirmDelete(plan)} />
+          <>
+            <Button title="Delete plan" variant="secondary" onPress={() => confirmDelete(plan)} />
+            {deleteFailed && (
+              <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">
+                Couldn&apos;t delete this plan. Check your connection and try again.
+              </ThemedText>
+            )}
+          </>
         }
       />
     </Screen>

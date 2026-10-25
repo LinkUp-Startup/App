@@ -30,7 +30,7 @@ export default function PreferencesScreen() {
     <Screen>
       <ThemedText type="subtitle">Plan your night</ThemedText>
       <ThemedText themeColor="textSecondary">
-        Tell us your budget, group and what you feel like — we&apos;ll put together 2-3 complete
+        Tell us your budget, group and what you feel like. We&apos;ll put together 2-3 complete
         plans in Lleida.
       </ThemedText>
 
@@ -126,7 +126,7 @@ export default function PreferencesScreen() {
 
       <FormField
         label="Anything else?"
-        hint={`Optional — dietary needs, accessibility, vibe… (max ${Limits.notesMaxLength} characters)`}
+        hint={`Optional: dietary needs, accessibility, vibe… (max ${Limits.notesMaxLength} characters)`}
         error={errors.notes}>
         <TextField
           accessibilityLabel="Additional preferences"

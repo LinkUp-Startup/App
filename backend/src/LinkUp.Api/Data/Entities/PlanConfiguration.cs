@@ -13,6 +13,7 @@ public sealed class PlanConfiguration : IEntityTypeConfiguration<Plan>
         builder.ToTable("Plans", table =>
         {
             table.HasCheckConstraint("CK_Plans_EstimatedCostPerPerson", "\"EstimatedCostPerPerson\" >= 0");
+            table.HasCheckConstraint("CK_Plans_EstimatedTotalCost", "\"EstimatedTotalCost\" >= 0");
             table.HasCheckConstraint("CK_Plans_TotalDistanceKm", "\"TotalDistanceKm\" >= 0");
         });
         builder.HasKey(p => p.Id);
@@ -20,6 +21,7 @@ public sealed class PlanConfiguration : IEntityTypeConfiguration<Plan>
         builder.Property(p => p.Title).HasMaxLength(TitleMaxLength);
         builder.Property(p => p.Summary).HasMaxLength(SummaryMaxLength);
         builder.Property(p => p.EstimatedCostPerPerson).HasPrecision(8, 2);
+        builder.Property(p => p.EstimatedTotalCost).HasPrecision(10, 2);
 
         // Filled by PostgreSQL if the app doesn't set it.
         builder.Property(p => p.CreatedAt).HasDefaultValueSql("now()");

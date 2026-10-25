@@ -11,7 +11,10 @@ public sealed class Plan
     public required string Title { get; set; }
     public required string Summary { get; set; }
 
-    public decimal EstimatedCostPerPerson { get; set; }
+    // Null when the price of any stop is unknown
+    public decimal? EstimatedCostPerPerson { get; set; }
+    // For the whole group, null like the cost per person
+    public decimal? EstimatedTotalCost { get; set; }
     public double TotalDistanceKm { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }

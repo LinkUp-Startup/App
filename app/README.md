@@ -21,11 +21,11 @@ npm start              # then press a (Android) / i (iOS), or scan the QR code w
 
 `EXPO_PUBLIC_API_URL`:
 
-| Running on       | Value                             |
-| ---------------- | --------------------------------- |
-| Android emulator | `http://10.0.2.2:<port>`          |
-| Physical device  | `http://<your-LAN-IP>:<port>`     |
-| Deployed dev API | the Dokploy URL for `project_dev` |
+| Running on       | Value                          |
+| ---------------- | ------------------------------ |
+| Android emulator | `http://10.0.2.2:<port>`       |
+| Physical device  | `http://<your-LAN-IP>:<port>`  |
+| Deployed API     | `https://linkup-api.th7bo.dev` |
 
 `EXPO_PUBLIC_*` values are bundled into the app — never put secrets (e.g. AI API keys) there. AI calls stay on the backend.
 

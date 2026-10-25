@@ -21,7 +21,9 @@ public sealed class StubPlanBudgetTests
 
         var plans = await service.GeneratePlansAsync(Preferences(), [unknown, expensive, exact, below, Venue(5)], CancellationToken.None);
 
-        Assert.Equal(["stub-3", "stub-4"], plans.Select(p => p.Id));
+        // Ids are GUIDs, like the real generator's, so a stub plan can be saved to an account.
+        Assert.All(plans, p => Assert.True(Guid.TryParse(p.Id, out _)));
+        Assert.Equal(["3", "4"], plans.Select(p => p.Items[0].Venue.Id));
         Assert.Equal([30m, 15m], plans.Select(p => p.EstimatedCostPerPerson));
         Assert.All(plans, p => Assert.True(p.EstimatedCostPerPerson * 4 <= 30m * 4));
     }

@@ -85,12 +85,12 @@ The first run installs Expo Go on the emulator automatically. After that, only t
 
 The app reads the API address from `EXPO_PUBLIC_API_URL` in `app/.env` (copy `.env.example`). Restart `npm start` after changing it.
 
-| Running on       | `EXPO_PUBLIC_API_URL`                                                           |
-| ---------------- | ------------------------------------------------------------------------------- |
-| Emulator         | `http://10.0.2.2:<port>` (`10.0.2.2` is the emulator's alias for your computer) |
-| Phone on Wi-Fi   | `http://<your-computer-LAN-IP>:<port>`                                          |
-| Phone over USB   | `http://localhost:<port>` after `adb reverse tcp:<port> tcp:<port>`             |
-| Deployed dev API | the Dokploy URL                                                                 |
+| Running on     | `EXPO_PUBLIC_API_URL`                                                           |
+| -------------- | ------------------------------------------------------------------------------- |
+| Emulator       | `http://10.0.2.2:<port>` (`10.0.2.2` is the emulator's alias for your computer) |
+| Phone on Wi-Fi | `http://<your-computer-LAN-IP>:<port>`                                          |
+| Phone over USB | `http://localhost:<port>` after `adb reverse tcp:<port> tcp:<port>`             |
+| Deployed API   | `https://linkup-api.th7bo.dev`                                                  |
 
 ## Troubleshooting
 

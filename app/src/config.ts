@@ -1,6 +1,6 @@
 /**
  * Per-environment settings, read from `.env` files at bundle time (see `.env.example`).
- * Expo loads `.env`, then `.env.local` overrides it — use `.env.local` for your machine's IP.
+ * Expo loads `.env`, then `.env.local` overrides it (use `.env.local` for your machine's IP).
  */
 const apiUrl = process.env.EXPO_PUBLIC_API_URL;
 

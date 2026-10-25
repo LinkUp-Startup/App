@@ -26,7 +26,7 @@ public sealed class StubPlanService(IPlanCostService costs) : IPlanService
                 ? Math.Round(GeoDistance.HaversineKm(start.Latitude, start.Longitude, venue.Latitude, venue.Longitude), 2)
                 : 0;
             plans.Add(new PlanDto(
-                $"stub-{venue.Id}",
+                Guid.NewGuid().ToString(),
                 $"Night at {venue.Name}",
                 "Sample plan: no AI key is configured on the API.",
                 [new PlanItemDto(PlanValidator.ToVenueDto(venue, preferences), preferences.StartTime, preferences.EndTime, cost, distance)],

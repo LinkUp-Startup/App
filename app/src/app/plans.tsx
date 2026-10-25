@@ -6,10 +6,12 @@ import { Button } from '@/components/button';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { useAuth } from '@/features/auth/auth-context';
 import { PlanCard } from '@/features/plans/plan-card';
+import { savePlanFor } from '@/features/plans/saved-plans-sync';
 import { useGeneratePlans } from '@/features/plans/use-generate-plans';
 import { useTheme } from '@/hooks/use-theme';
-import { getSavedPlans, savePlan } from '@/storage/saved-plans';
+import { getSavedPlans } from '@/storage/saved-plans';
 import type { NightPreferences, Plan } from '@/types/api';
 
 export default function PlanResultsScreen() {
@@ -73,9 +75,15 @@ function Results({ preferences }: { preferences: NightPreferences }) {
   }
 }
 
-/** The plans, each with a button to keep it on this device (guest saving, #73). */
+/**
+ * The plans, each with a button to keep it: on this device for a guest (#73), and in the account too when
+ * signed in (#88).
+ */
 function SaveablePlans({ plans }: { plans: Plan[] }) {
+  const { accessToken } = useAuth();
   const [saved, setSaved] = useState<ReadonlySet<string>>(new Set());
+  // Saved while signed in, but the account couldn't be reached: only on this device until the next sync.
+  const [deviceOnly, setDeviceOnly] = useState<ReadonlySet<string>>(new Set());
   const [failed, setFailed] = useState<string>();
 
   useEffect(() => {
@@ -86,8 +94,9 @@ function SaveablePlans({ plans }: { plans: Plan[] }) {
 
   async function save(plan: Plan) {
     try {
-      await savePlan(plan);
+      const outcome = await savePlanFor(plan, accessToken);
       setSaved((ids) => new Set(ids).add(plan.id));
+      if (accessToken && outcome === 'device') setDeviceOnly((ids) => new Set(ids).add(plan.id));
       setFailed(undefined);
     } catch (error) {
       console.warn('Could not save plan', error);
@@ -111,6 +120,11 @@ function SaveablePlans({ plans }: { plans: Plan[] }) {
               disabled={isSaved}
               onPress={() => save(plan)}
             />
+            {deviceOnly.has(plan.id) && (
+              <ThemedText type="small" themeColor="textSecondary" accessibilityLiveRegion="polite">
+                Saved on this device. It will be added to your account when we can reach it.
+              </ThemedText>
+            )}
             {failed === plan.id && (
               <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">
                 Couldn&apos;t save this plan. Try again.

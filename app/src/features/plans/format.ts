@@ -15,9 +15,9 @@ export function activityName(activity: Activity) {
   return ActivityNames[activity];
 }
 
-/** "20:30–22:00" in the device's time zone. */
+/** "20:30-22:00" in the device's time zone. */
 export function formatTimeRange(start: string, end: string) {
-  return `${formatTime(new Date(start))}–${formatTime(new Date(end))}`;
+  return `${formatTime(new Date(start))}-${formatTime(new Date(end))}`;
 }
 
 /** EUR with cents; missing amounts are unknown, never free. */

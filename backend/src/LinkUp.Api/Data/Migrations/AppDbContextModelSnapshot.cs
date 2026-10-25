@@ -34,9 +34,13 @@ namespace LinkUp.Api.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("now()");
 
-                    b.Property<decimal>("EstimatedCostPerPerson")
+                    b.Property<decimal?>("EstimatedCostPerPerson")
                         .HasPrecision(8, 2)
                         .HasColumnType("numeric(8,2)");
+
+                    b.Property<decimal?>("EstimatedTotalCost")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)");
 
                     b.Property<string>("Summary")
                         .IsRequired()
@@ -62,6 +66,8 @@ namespace LinkUp.Api.Data.Migrations
                         {
                             t.HasCheckConstraint("CK_Plans_EstimatedCostPerPerson", "\"EstimatedCostPerPerson\" >= 0");
 
+                            t.HasCheckConstraint("CK_Plans_EstimatedTotalCost", "\"EstimatedTotalCost\" >= 0");
+
                             t.HasCheckConstraint("CK_Plans_TotalDistanceKm", "\"TotalDistanceKm\" >= 0");
                         });
                 });
@@ -74,13 +80,18 @@ namespace LinkUp.Api.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Activity")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
                     b.Property<double>("DistanceKm")
                         .HasColumnType("double precision");
 
                     b.Property<DateTimeOffset>("EndTime")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<decimal>("EstimatedCostPerPerson")
+                    b.Property<decimal?>("EstimatedCostPerPerson")
                         .HasPrecision(8, 2)
                         .HasColumnType("numeric(8,2)");
 

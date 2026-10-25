@@ -30,7 +30,7 @@ describe('ApiStatus', () => {
     const user = userEvent.setup();
     await render(<ApiStatus />);
 
-    await user.press(await screen.findByText('API unreachable — tap to retry'));
+    await user.press(await screen.findByText('API unreachable. Tap to retry'));
 
     expect(await screen.findByText('API online')).toBeOnTheScreen();
     expect(getHealthMock).toHaveBeenCalledTimes(2);

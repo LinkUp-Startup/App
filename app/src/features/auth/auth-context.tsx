@@ -13,6 +13,7 @@ import { AppState } from 'react-native';
 import { getMe } from '@/api/auth';
 import { ApiError } from '@/api/client';
 import { isExpired, msUntilExpiry } from '@/features/auth/expiry';
+import { clearSavedPlans } from '@/storage/saved-plans';
 import { clearSession, loadSession, saveSession, type StoredSession } from '@/storage/session';
 import type { AuthResponse, User } from '@/types/api';
 
@@ -50,7 +51,7 @@ function loadSessionWithTimeout(): Promise<StoredSession | null> {
  *  - on launch it is restored, unless it has expired or is damaged, and then confirmed with the server in
  *    the background. A 401 ends it; being offline doesn't, since we can't tell.
  *  - when the token expires the user is signed out, including after the app was in the background.
- *  - signing out removes it from the device.
+ *  - signing out removes it from the device, along with the saved plans kept here (they stay in the account).
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthResponse | null>(null);
@@ -73,6 +74,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setStatus('ready');
     void clearSession();
+    // The account's plans stay in the cloud; clearing them here keeps them from showing to a guest or being
+    // uploaded to whoever signs in next on this device.
+    clearSavedPlans().catch((error: unknown) => console.warn('Could not clear saved plans', error));
   }, []);
 
   // Restore the saved session on launch.

@@ -87,8 +87,8 @@ describe('PlanCard', () => {
 
     const stops = screen.getAllByLabelText(/^Stop \d/);
     expect(stops.map((stop) => stop.props.accessibilityLabel)).toEqual([
-      'Stop 1: Teresa Carles, Dinner, 20:30–22:00, Estimated €20.00 per person',
-      'Stop 2: Pub Legend, Drinks, 22:15–23:45, Estimated €5.50 per person',
+      'Stop 1: Teresa Carles, Dinner, 20:30-22:00, Estimated €20.00 per person',
+      'Stop 2: Pub Legend, Drinks, 22:15-23:45, Estimated €5.50 per person',
     ]);
     expect(screen.getByText('Carrer Major 1, Lleida')).toBeOnTheScreen();
     expect(screen.getByText('Estimated €20.00 per person')).toBeOnTheScreen();
@@ -138,7 +138,7 @@ describe('PlanCard', () => {
 
 describe('plan formatting', () => {
   it('formats times, prices, distances and dates', () => {
-    expect(formatTimeRange('2026-10-30T19:30:00Z', '2026-10-30T23:05:00Z')).toBe('20:30–00:05');
+    expect(formatTimeRange('2026-10-30T19:30:00Z', '2026-10-30T23:05:00Z')).toBe('20:30-00:05');
     expect(formatEuros(25.5)).toBe('€25.50');
     expect(formatEuros(null)).toBe('price unknown');
     expect(formatDistance(0.4)).toBe('400 m');
