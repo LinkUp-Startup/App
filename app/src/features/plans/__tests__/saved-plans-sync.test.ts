@@ -185,3 +185,32 @@ describe('syncSavedPlans', () => {
     expect(await ids()).toEqual(['a']);
   });
 });
+
+describe('running one at a time', () => {
+  it('a plan deleted while a sync is running stays deleted', async () => {
+    await savePlan(plan('a'), { savedAt: '2026-11-01T09:00:00.000Z', synced: true });
+    let answer!: (value: { plans: ReturnType<typeof remote>[] }) => void;
+    listMock.mockReturnValueOnce(new Promise((resolve) => (answer = resolve)));
+
+    const sync = syncSavedPlans(token);
+    const remove = removePlanFor('a', token); // tapped while the account was still answering
+    answer({ plans: [remote('a', '2026-11-01T09:00:00.000Z')] });
+    await Promise.all([sync, remove]);
+
+    expect(await ids()).toEqual([]);
+    expect(deleteMock).toHaveBeenCalledWith(token, 'a');
+  });
+
+  it('a sync cancelled by signing out does not write the account plans onto the device', async () => {
+    const controller = new AbortController();
+    let answer!: (value: { plans: ReturnType<typeof remote>[] }) => void;
+    listMock.mockReturnValueOnce(new Promise((resolve) => (answer = resolve)));
+
+    const sync = syncSavedPlans(token, controller.signal);
+    controller.abort(); // signed out meanwhile
+    answer({ plans: [remote('theirs', '2026-11-01T09:00:00.000Z')] });
+
+    await expect(sync).rejects.toThrow();
+    expect(await ids()).toEqual([]);
+  });
+});

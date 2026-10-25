@@ -12,7 +12,7 @@ namespace LinkUp.Api.Controllers;
 [ApiController]
 [Route("api/plans")]
 public sealed class PlansController(
-    IPlanService planService, IVenueFilteringService venueFilteringService,
+    IPlanService planService, IVenueFilteringService venueFilteringService, IPlanCostService costs,
     IOptions<PlanGenerationOptions> options) : ControllerBase
 {
     [HttpPost("generate")]
@@ -31,9 +31,13 @@ public sealed class PlansController(
         GeneratePlansRequest request, CancellationToken cancellationToken)
     {
         var preferences = request.Preferences;
-        var candidates = preferences.StartLocation is { } start
+        var filtered = preferences.StartLocation is { } start
             ? await venueFilteringService.FilterAsync(preferences, start.Latitude, start.Longitude, cancellationToken)
             : await venueFilteringService.FilterAsync(preferences, cancellationToken);
+        // A plan with an unpriced venue can't be checked against the budget (#50) and is always rejected, so
+        // unpriced venues never reach the AI: no tokens spent on plans that can't be returned, and a request that
+        // only matches unpriced venues gets the clear 422 below instead of a 502 after the AI.
+        var candidates = filtered.Where(venue => PlanBudgetValidation.IsPriced(venue, costs)).ToList();
         var minimum = options.Value.MinimumCandidateCount;
         if (candidates.Count < minimum)
         {

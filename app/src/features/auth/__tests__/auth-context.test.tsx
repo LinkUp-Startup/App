@@ -249,23 +249,28 @@ describe('signing in and out', () => {
     expect(savedValue()).toBeUndefined();
   });
 
-  it('signOut also removes the saved plans from the device, so the next person does not get them', async () => {
+  it('signOut removes the plans that are safe in the account, so the next person does not get them', async () => {
     const { result } = await renderAuth();
     await untilReady(result);
     await act(async () => result.current.signIn(sessionFor()));
-    await savePlan({
-      id: 'p1',
-      title: 'Tapas',
+    const plan = (id: string) => ({
+      id,
+      title: id,
       summary: '',
       items: [],
       estimatedCostPerPerson: 20,
       estimatedTotalCost: 40,
       totalDistanceKm: 1,
     });
+    await savePlan(plan('in-account'), { synced: true });
+    await savePlan(plan('saved-offline')); // never reached the account
 
     await act(async () => result.current.signOut());
 
-    await waitFor(async () => expect(await getSavedPlans()).toEqual([]));
+    // The offline one stays, so an expired session doesn't lose it; it uploads at the next sign-in.
+    await waitFor(async () =>
+      expect((await getSavedPlans()).map((p) => p.id)).toEqual(['saved-offline']),
+    );
   });
 
   it('says so when the saved plans cannot be cleared on sign out', async () => {

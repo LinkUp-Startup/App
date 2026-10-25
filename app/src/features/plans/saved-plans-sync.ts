@@ -20,10 +20,28 @@ import type { Plan } from '@/types/api';
  *    deleted on another device (without the mark they would be uploaded again).
  */
 
+// Saving, deleting and syncing run one at a time. Otherwise a sync that read the account's list before a delete
+// could write the deleted plan back, or re-upload it after it was deleted from the account.
+let running: Promise<unknown> = Promise.resolve();
+function oneAtATime<T>(task: () => Promise<T>): Promise<T> {
+  const result = running.then(task, task);
+  running = result.catch(() => undefined);
+  return result;
+}
+
+// React Native's AbortSignal has no throwIfAborted().
+function stopIfAborted(signal?: AbortSignal) {
+  if (signal?.aborted) throw new Error('Sync cancelled');
+}
+
 /** Where a save ended up: also in the account, or on this device only (guest, or the account was unreachable). */
 export type SaveOutcome = 'account' | 'device';
 
-export async function savePlanFor(plan: Plan, accessToken: string | null): Promise<SaveOutcome> {
+export function savePlanFor(plan: Plan, accessToken: string | null): Promise<SaveOutcome> {
+  return oneAtATime(() => savePlanNow(plan, accessToken));
+}
+
+async function savePlanNow(plan: Plan, accessToken: string | null): Promise<SaveOutcome> {
   if (accessToken) {
     try {
       const saved = await putSavedPlan(accessToken, plan);
@@ -39,16 +57,20 @@ export async function savePlanFor(plan: Plan, accessToken: string | null): Promi
 }
 
 /** Deletes from the account first, so a failure leaves the plan in both places and nothing comes back later. */
-export async function removePlanFor(id: string, accessToken: string | null): Promise<void> {
-  if (accessToken) await deleteSavedPlan(accessToken, id);
-  await removePlan(id);
+export function removePlanFor(id: string, accessToken: string | null): Promise<void> {
+  return oneAtATime(async () => {
+    if (accessToken) await deleteSavedPlan(accessToken, id);
+    await removePlan(id);
+  });
 }
 
 /** Rejects when the account can't be reached; the plans on the device are then left as they were. */
-export async function syncSavedPlans(
-  accessToken: string,
-  signal?: AbortSignal,
-): Promise<SavedPlan[]> {
+export function syncSavedPlans(accessToken: string, signal?: AbortSignal): Promise<SavedPlan[]> {
+  return oneAtATime(() => syncNow(accessToken, signal));
+}
+
+async function syncNow(accessToken: string, signal?: AbortSignal): Promise<SavedPlan[]> {
+  stopIfAborted(signal);
   const { plans: remote } = await listSavedPlans(accessToken, signal);
   const remoteIds = new Set(remote.map(({ plan }) => plan.id));
 
@@ -78,6 +100,8 @@ export async function syncSavedPlans(
     ...pending,
     ...savedMeanwhile.filter((plan) => !remoteIds.has(plan.id)),
   ].sort((a, b) => Date.parse(b.savedAt) - Date.parse(a.savedAt));
+  // Signed out (or left the screen) meanwhile: don't write this account's plans back onto the device.
+  stopIfAborted(signal);
   await replaceSavedPlans(merged);
   return merged;
 }

@@ -27,8 +27,10 @@ export default function SavedPlansScreen() {
       let active = true;
       const controller = new AbortController();
 
+      // Fresh from the device on every visit, unless the account's list (newer) has already arrived.
+      let synced = false;
       getSavedPlans()
-        .then((local) => active && setPlans((current) => current ?? local))
+        .then((local) => active && !synced && setPlans(local))
         .catch((error: unknown) => {
           console.warn('Could not load saved plans', error);
           if (active) setPlans((current) => current ?? []);
@@ -38,6 +40,7 @@ export default function SavedPlansScreen() {
         syncSavedPlans(accessToken, controller.signal)
           .then((merged) => {
             if (!active) return;
+            synced = true;
             setPlans(merged);
             setSyncFailed(false);
           })

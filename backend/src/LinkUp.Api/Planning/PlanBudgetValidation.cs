@@ -15,6 +15,11 @@ internal static class PlanBudgetValidation
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(preferences.GroupSize);
     }
 
+    /// <summary>Whether the venue has a complete price (entrance fee and typical spend), so plans with it can be checked against the budget.</summary>
+    internal static bool IsPriced(Venue venue, IPlanCostService costs) =>
+        costs.Estimate(new Plan { Title = "", Summary = "", Items = [new PlanItem { VenueId = venue.Id, Venue = venue }] }, 1)
+            .IsComplete;
+
     internal static bool TryEstimate(
         IEnumerable<Venue> venues, NightPreferencesDto preferences, IPlanCostService costs,
         out PlanCostEstimate estimate, out string? problem)

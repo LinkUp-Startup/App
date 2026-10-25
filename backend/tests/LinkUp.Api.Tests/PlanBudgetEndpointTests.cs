@@ -76,6 +76,16 @@ public sealed class PlanBudgetEndpointTests
         using var response = await application.CreateClient().PostAsJsonAsync("/api/plans/generate",
             new GeneratePlansRequest(Preferences() with { BudgetPerPerson = 10m }));
 
+        if (unknown)
+        {
+            // Unpriced venues never reach the AI: a clear "no venues match" instead of a 502 after AI calls.
+            Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+            using var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert.Equal("no_candidates", problem.RootElement.GetProperty("code").GetString());
+            Assert.Equal(0, ai.Calls);
+            return;
+        }
+
         Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
