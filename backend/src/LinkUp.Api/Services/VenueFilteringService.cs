@@ -19,12 +19,16 @@ public sealed class VenueFilteringService(AppDbContext db) : IVenueFilteringServ
             .Distinct()
             .ToArray() ?? [];
 
+        // The form requires a transport choice; unknown enum values do not establish availability.
+        var hasTransport = preferences.Transport?.Any(mode => Enum.IsDefined(mode)) == true;
+
         var query = db.Venues.AsNoTracking()
-            .Where(v => v.IsActive)
+            .Where(v => v.IsActive && hasTransport)
             .OpenDuring(preferences.StartTime, preferences.EndTime)
             .Where(v => categories.Contains(v.Category));
 
-        // Compose further preference conditions here before materializing (#60).
+        // No origin, venue capacity or transport-access data exists for further constraints.
+        // See docs/venue-filtering.md before adding distance or group-size exclusions.
         return await query
             .Include(v => v.OpeningHours)
             .OrderBy(v => v.Id)
