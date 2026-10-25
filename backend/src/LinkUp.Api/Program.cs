@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Identity;
 using LinkUp.Api.OpenApi;
 using LinkUp.Api.Options;
 using LinkUp.Api.Planning;
+using LinkUp.Api.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -105,6 +106,7 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
         };
     });
 builder.Services.AddAuthorization();
+builder.Services.AddApiRateLimiting(builder.Configuration);
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
 {
     // Native React Native requests send no Origin header, so this only matters for web/Expo web.
@@ -114,10 +116,14 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
 
 var app = builder.Build();
 
+// First, so everything after it (logs, rate limits) sees the real client IP behind the proxy.
+app.UseForwardedHeaders();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseHttpLogging();
 app.UseCors();
 app.UseAuthentication();
+// After authentication, so logged-in users are limited per account instead of per IP.
+app.UseRateLimiter();
 app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())

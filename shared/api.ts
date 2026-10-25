@@ -289,6 +289,15 @@ export interface paths {
                         "application/problem+json": components["schemas"]["CandidateAvailabilityProblem"];
                     };
                 };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
                 /** @description Bad Gateway */
                 502: {
                     headers: {

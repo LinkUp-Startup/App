@@ -27,6 +27,12 @@ describe('describeApiError', () => {
     expect(describeApiError(new ApiError(400, '{}'))).toMatch(/Check the form/);
   });
 
+  it('asks the user to wait when rate limited', () => {
+    expect(describeApiError(new ApiError(429, ''))).toBe(
+      'Too many requests right now. Wait a minute and try again.',
+    );
+  });
+
   it('explains server errors', () => {
     expect(describeApiError(new ApiError(503, ''))).toMatch(/on our side/);
   });

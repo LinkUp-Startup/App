@@ -23,6 +23,10 @@ public class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("ConnectionStrings:Default", "Host=localhost;Database=unused");
         builder.UseSetting("Database:MigrateOnStartup", "false"); // no real database in these tests
         builder.UseSetting("Jwt:SigningKey", TestJwt.SigningKey);
+        // Tests send many requests from one (unknown) address; RateLimitingTests set real limits.
+        builder.UseSetting("RateLimiting:RequestsPerMinute", "100000");
+        builder.UseSetting("RateLimiting:GenerationsPerMinute", "10000");
+        builder.UseSetting("RateLimiting:GenerationsPerHour", "10000");
         builder.ConfigureServices(services =>
             services.Configure<HealthCheckServiceOptions>(options =>
             {
