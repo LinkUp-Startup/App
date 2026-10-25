@@ -14,6 +14,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using LinkUp.Api.Services;
 using Microsoft.EntityFrameworkCore;
+using LinkUp.Api.Data.Seed;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,7 +50,11 @@ builder.Services.AddHttpLogging(options =>
 var isOpenApiGeneration = Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider";
 var connectionString = PostgresConnectionString.Resolve(
     builder.Configuration.GetConnectionString("Default"), allowMissing: isOpenApiGeneration);
-builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddDbContext<AppDbContext>(options => options
+    .UseNpgsql(connectionString)
+    // Inserts the curated venues whenever migrations run
+    .UseSeeding((context, _) => VenueSeeder.Seed(context))
+    .UseAsyncSeeding((context, _, cancellationToken) => VenueSeeder.SeedAsync(context, cancellationToken)));
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("database");
 
 builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(DatabaseOptions.SectionName));

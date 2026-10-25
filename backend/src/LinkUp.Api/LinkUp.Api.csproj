@@ -27,4 +27,11 @@
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.3.1" />
   </ItemGroup>
 
+    <ItemGroup>
+    <!-- The curated venue dataset, read by VenueSeedData. Embedded in the DLL so it is always
+         available: when running locally, in tests and in the Docker image -->
+    <EmbeddedResource Include="Data/Seed/lleida_venues.json" LogicalName="LinkUp.Api.Data.Seed.lleida_venues.json" />
+    <Content Remove="Data/Seed/lleida_venues.json" />
+  </ItemGroup>
+
 </Project>
