@@ -12,10 +12,11 @@ public sealed class VenueFilteringService(AppDbContext db) : IVenueFilteringServ
     {
         ArgumentNullException.ThrowIfNull(preferences);
 
-        var query = db.Venues.AsNoTracking().Where(v => v.IsActive);
+        var query = db.Venues.AsNoTracking()
+            .Where(v => v.IsActive)
+            .OpenDuring(preferences.StartTime, preferences.EndTime);
 
-        // Compose preference conditions here before materializing (#58–#60).
-        // VenueQueries.OpenAt can be reused once #58 defines time-window matching.
+        // Compose further preference conditions here before materializing (#59–#60).
         return await query
             .Include(v => v.OpeningHours)
             .OrderBy(v => v.Id)
