@@ -122,4 +122,11 @@ describe('toNightPreferences', () => {
   it('leaves out empty notes', () => {
     expect(toNightPreferences(validForm({ notes: '   ' }))).not.toHaveProperty('notes');
   });
+
+  it('sends the start location only when one is set', () => {
+    const start = { latitude: 41.6164, longitude: 0.6236 };
+
+    expect(toNightPreferences(validForm({ startLocation: start })).startLocation).toEqual(start);
+    expect(toNightPreferences(validForm())).not.toHaveProperty('startLocation');
+  });
 });

@@ -48,6 +48,15 @@ describe('PlanCard', () => {
     expect(screen.getByText('Price unknown · 910 m from the previous stop')).toBeOnTheScreen();
   });
 
+  it('shows how far the first stop is from the start', async () => {
+    const [dinner, drinks] = tapasPlan.items;
+    await render(
+      <PlanCard plan={{ ...tapasPlan, items: [{ ...dinner, distanceKm: 1.2 }, drinks] }} />,
+    );
+
+    expect(screen.getByText('~€20 per person · 1.2 km from your start')).toBeOnTheScreen();
+  });
+
   it('leaves out an empty summary', async () => {
     await render(<PlanCard plan={{ ...tapasPlan, summary: '', items: [] }} />);
 

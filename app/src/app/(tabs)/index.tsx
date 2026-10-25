@@ -13,6 +13,7 @@ import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { ActivityLabels, Limits, TransportLabels } from '@/features/preferences/form';
+import { StartLocationField } from '@/features/preferences/start-location-field';
 import { toggle, usePreferencesForm } from '@/features/preferences/use-preferences-form';
 
 export default function PreferencesScreen() {
@@ -91,7 +92,10 @@ export default function PreferencesScreen() {
         </View>
       </View>
 
-      <FormField label="Maximum distance" error={errors.maxDistanceKm}>
+      <FormField
+        label="Where do you start, and how far will you go?"
+        hint="The circle shows how far venues can be from your start"
+        error={errors.maxDistanceKm}>
         <Stepper
           label="Maximum distance"
           value={form.maxDistanceKm}
@@ -100,6 +104,11 @@ export default function PreferencesScreen() {
           max={Limits.maxDistanceKm.max}
           step={Limits.maxDistanceKm.step}
           format={(km) => `${km} km`}
+        />
+        <StartLocationField
+          value={form.startLocation}
+          onChange={(point) => setField('startLocation', point)}
+          radiusKm={form.maxDistanceKm}
         />
       </FormField>
 
