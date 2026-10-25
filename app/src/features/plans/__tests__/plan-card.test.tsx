@@ -30,6 +30,24 @@ describe('PlanCard', () => {
     expect(screen.getByText('Footer')).toBeOnTheScreen();
   });
 
+  it('says when a price is unknown instead of showing €0', async () => {
+    const [dinner, drinks] = tapasPlan.items;
+    await render(
+      <PlanCard
+        plan={{
+          ...tapasPlan,
+          items: [dinner, { ...drinks, estimatedCostPerPerson: null }],
+          estimatedCostPerPerson: null,
+          estimatedTotalCost: null,
+        }}
+      />,
+    );
+
+    expect(screen.getByText('2 stops · price unknown · 910 m')).toBeOnTheScreen();
+    expect(screen.getByText('~€20 per person')).toBeOnTheScreen();
+    expect(screen.getByText('Price unknown · 910 m from the previous stop')).toBeOnTheScreen();
+  });
+
   it('leaves out an empty summary', async () => {
     await render(<PlanCard plan={{ ...tapasPlan, summary: '', items: [] }} />);
 
@@ -42,6 +60,7 @@ describe('plan formatting', () => {
   it('formats times, prices, distances and dates', () => {
     expect(formatTimeRange('2026-10-30T19:30:00Z', '2026-10-30T23:05:00Z')).toBe('20:30–00:05');
     expect(formatEuros(25.5)).toBe('~€26');
+    expect(formatEuros(null)).toBe('price unknown');
     expect(formatDistance(0.4)).toBe('400 m');
     expect(formatDistance(1.25)).toBe('1.3 km');
     expect(formatNightDate('2026-10-30T19:30:00Z')).toBe('Fri 30 Oct');

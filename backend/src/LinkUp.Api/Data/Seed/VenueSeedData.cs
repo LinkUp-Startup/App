@@ -110,7 +110,10 @@ public static class VenueSeedData
     {
         try
         {
-            var (minSpend, maxSpend) = ParseSpend(record.AverageSpendIfConsuming);
+            // Null when no source states a typical spend: unknown, never guessed (docs/venue-prices.md).
+            var (minSpend, maxSpend) = record.AverageSpendIfConsuming is { } spend
+                ? ParseSpend(spend)
+                : ((decimal?)null, (decimal?)null);
             return new Venue
             {
                 Id = record.Id,
@@ -123,7 +126,7 @@ public static class VenueSeedData
                 EntranceFee = record.EntranceFeeEur,
                 MinSpend = minSpend,
                 MaxSpend = maxSpend,
-                PriceLevel = PriceLevelFor(minSpend, maxSpend),
+                PriceLevel = minSpend is { } min && maxSpend is { } max ? PriceLevelFor(min, max) : null,
                 Notes = record.Notes,
                 OpeningHours = ParseOpeningHours(record.OpeningHours).ToList(),
             };
@@ -172,7 +175,7 @@ public static class VenueSeedData
         string Category,
         decimal? EntranceFeeEur,
         string Entrance,
-        string AverageSpendIfConsuming,
+        string? AverageSpendIfConsuming,
         string Address,
         double Latitude,
         double Longitude,

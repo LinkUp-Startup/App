@@ -124,6 +124,7 @@ public sealed class PlanBudgetEndpointTests
         Assert.All(plans, plan =>
         {
             Assert.Equal(price, plan.GetProperty("estimatedCostPerPerson").GetDecimal());
+            Assert.Equal(price * 3m, plan.GetProperty("estimatedTotalCost").GetDecimal());
             Assert.Equal(price, Assert.Single(plan.GetProperty("items").EnumerateArray())
                 .GetProperty("estimatedCostPerPerson").GetDecimal());
         });

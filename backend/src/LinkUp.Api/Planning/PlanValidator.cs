@@ -9,7 +9,7 @@ namespace LinkUp.Api.Planning;
 /// <summary>
 /// Checks the AI's plans against the candidate venues and the group's window (issue #67). Invalid stops are
 /// dropped rather than failing the whole response, so no invented or closed venue reaches the app.
-/// Prices and distances come from the database, never from the AI.
+/// Prices (<see cref="IPlanCostService"/>) and distances come from the database, never from the AI.
 /// </summary>
 public static class PlanValidator
 {
@@ -162,7 +162,8 @@ public static class PlanValidator
             Truncate(plan.Title, TitleMaxLength, "Night out"),
             Truncate(plan.Summary, SummaryMaxLength, ""),
             items,
-            estimate.EstimatedCostPerPerson!.Value,
+            estimate.EstimatedCostPerPerson,
+            estimate.TotalEstimatedCost,
             Math.Round(items.Sum(i => i.DistanceKm), 2));
     }
 

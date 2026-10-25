@@ -735,6 +735,7 @@
           "summary",
           "items",
           "estimatedCostPerPerson",
+          "estimatedTotalCost",
           "totalDistanceKm"
         ],
         "type": "object",
@@ -755,7 +756,17 @@
             }
           },
           "estimatedCostPerPerson": {
-            "type": "number",
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "estimatedTotalCost": {
+            "type": [
+              "null",
+              "number"
+            ],
             "format": "double"
           },
           "totalDistanceKm": {
@@ -786,7 +797,10 @@
             "format": "date-time"
           },
           "estimatedCostPerPerson": {
-            "type": "number",
+            "type": [
+              "null",
+              "number"
+            ],
             "format": "double"
           },
           "distanceKm": {

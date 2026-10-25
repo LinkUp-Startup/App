@@ -23,9 +23,12 @@ public sealed class PlanValidatorTests
     [Fact]
     public void Keeps_a_valid_plan_and_adds_prices_and_distances_from_the_database()
     {
+        _restaurant.EntranceFee = 0;
         _restaurant.MinSpend = 15;
         _restaurant.MaxSpend = 25;
         _bar.EntranceFee = 5;
+        _bar.MinSpend = 4;
+        _bar.MaxSpend = 4;
 
         var result = Validate(Plan(Stop(1, At(20), At(22)), Stop(2, At(22, 15), At(24))));
 
@@ -34,12 +37,28 @@ public sealed class PlanValidatorTests
         Assert.Equal("Tapas and drinks", plan.Title);
         Assert.Equal(["1", "2"], plan.Items.Select(i => i.Venue.Id));
         Assert.Equal([Activity.Dinner, Activity.Drinks], plan.Items.Select(i => i.Venue.Category));
-        Assert.Equal([20m, 5m], plan.Items.Select(i => i.EstimatedCostPerPerson));
-        Assert.Equal(25m, plan.EstimatedCostPerPerson);
+        Assert.Equal([20m, 9m], plan.Items.Select(i => i.EstimatedCostPerPerson));
+        Assert.Equal(29m, plan.EstimatedCostPerPerson);
+        Assert.Equal(116m, plan.EstimatedTotalCost); // a group of 4
         Assert.Equal(0, plan.Items[0].DistanceKm);
         Assert.InRange(plan.Items[1].DistanceKm, 0.9, 1.1);
         Assert.Equal(plan.Items[1].DistanceKm, plan.TotalDistanceKm);
         Assert.Equal(Start.AddHours(2).AddMinutes(15), plan.Items[1].StartTime);
+    }
+
+    [Fact]
+    public void An_unknown_price_is_rejected_because_the_budget_cannot_be_verified()
+    {
+        _restaurant.EntranceFee = 0;
+        _restaurant.MinSpend = 15;
+        _restaurant.MaxSpend = 25;
+        _bar.EntranceFee = null;
+
+        var result = Validate(Plan(Stop(1, At(20), At(22)), Stop(2, At(22), At(23))));
+
+        Assert.Empty(result.Plans);
+        Assert.True(result.HasCostFailures);
+        Assert.Contains(result.Problems, problem => problem.Contains("cost is incomplete"));
     }
 
     [Fact]

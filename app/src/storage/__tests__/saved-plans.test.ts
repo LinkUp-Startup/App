@@ -10,6 +10,7 @@ function plan(id: string): Plan {
     summary: '',
     items: [],
     estimatedCostPerPerson: 20,
+    estimatedTotalCost: 80,
     totalDistanceKm: 1,
   };
 }

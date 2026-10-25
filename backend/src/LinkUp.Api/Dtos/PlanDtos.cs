@@ -9,14 +9,18 @@ public sealed record PlanDto(
     string Title,
     string Summary,
     IReadOnlyList<PlanItemDto> Items,
-    decimal EstimatedCostPerPerson,
+    // Null when the price of any stop is unknown (see docs/venue-prices.md).
+    decimal? EstimatedCostPerPerson,
+    // For the whole group: the cost per person times the group size. Null like the cost per person.
+    decimal? EstimatedTotalCost,
     double TotalDistanceKm);
 
 public sealed record PlanItemDto(
     VenueDto Venue,
     DateTimeOffset StartTime,
     DateTimeOffset EndTime,
-    decimal EstimatedCostPerPerson,
+    // Entrance fee plus typical spend; null when the venue's price is unknown.
+    decimal? EstimatedCostPerPerson,
     double DistanceKm);
 
 public sealed record VenueDto(

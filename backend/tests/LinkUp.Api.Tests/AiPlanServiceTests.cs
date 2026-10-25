@@ -292,6 +292,7 @@ public sealed class AiPlanServiceTests
         Assert.All(plans, p =>
         {
             Assert.Equal(20m, p.EstimatedCostPerPerson);
+            Assert.Equal(20m * groupSize, p.EstimatedTotalCost);
             Assert.Equal(p.EstimatedCostPerPerson, p.Items.Sum(i => i.EstimatedCostPerPerson));
             Assert.True(p.EstimatedCostPerPerson * groupSize <= preferences.BudgetPerPerson * groupSize);
         });

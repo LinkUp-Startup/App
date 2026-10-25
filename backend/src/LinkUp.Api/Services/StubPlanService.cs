@@ -27,6 +27,7 @@ public sealed class StubPlanService(IPlanCostService costs) : IPlanService
                 "Sample plan: no AI key is configured on the API.",
                 [new PlanItemDto(PlanValidator.ToVenueDto(venue, preferences), preferences.StartTime, preferences.EndTime, cost, 0)],
                 cost,
+                estimate.TotalEstimatedCost,
                 0));
         }
 
