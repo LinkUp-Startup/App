@@ -23,6 +23,98 @@ namespace LinkUp.Api.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("LinkUp.Api.Data.Entities.Plan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<decimal>("EstimatedCostPerPerson")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("numeric(8,2)");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<double>("TotalDistanceKm")
+                        .HasColumnType("double precision");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Plans", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Plans_EstimatedCostPerPerson", "\"EstimatedCostPerPerson\" >= 0");
+
+                            t.HasCheckConstraint("CK_Plans_TotalDistanceKm", "\"TotalDistanceKm\" >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("LinkUp.Api.Data.Entities.PlanItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<double>("DistanceKm")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTimeOffset>("EndTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("EstimatedCostPerPerson")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("numeric(8,2)");
+
+                    b.Property<Guid>("PlanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("StartTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("VenueId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VenueId");
+
+                    b.HasIndex("PlanId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("PlanItems", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PlanItems_DistanceKm", "\"DistanceKm\" >= 0");
+
+                            t.HasCheckConstraint("CK_PlanItems_EstimatedCostPerPerson", "\"EstimatedCostPerPerson\" >= 0");
+
+                            t.HasCheckConstraint("CK_PlanItems_Position", "\"Position\" >= 0");
+
+                            t.HasCheckConstraint("CK_PlanItems_Times", "\"EndTime\" > \"StartTime\"");
+                        });
+                });
+
             modelBuilder.Entity("LinkUp.Api.Data.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -156,6 +248,31 @@ namespace LinkUp.Api.Data.Migrations
                     b.ToTable("VenueOpeningHours", (string)null);
                 });
 
+            modelBuilder.Entity("LinkUp.Api.Data.Entities.Plan", b =>
+                {
+                    b.HasOne("LinkUp.Api.Data.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade);
+                });
+
+            modelBuilder.Entity("LinkUp.Api.Data.Entities.PlanItem", b =>
+                {
+                    b.HasOne("LinkUp.Api.Data.Entities.Plan", null)
+                        .WithMany("Items")
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("LinkUp.Api.Data.Entities.Venue", "Venue")
+                        .WithMany()
+                        .HasForeignKey("VenueId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Venue");
+                });
+
             modelBuilder.Entity("LinkUp.Api.Data.Entities.VenueOpeningHours", b =>
                 {
                     b.HasOne("LinkUp.Api.Data.Entities.Venue", null)
@@ -163,6 +280,11 @@ namespace LinkUp.Api.Data.Migrations
                         .HasForeignKey("VenueId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("LinkUp.Api.Data.Entities.Plan", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("LinkUp.Api.Data.Entities.Venue", b =>

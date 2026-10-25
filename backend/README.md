@@ -93,6 +93,18 @@ dotnet ef migrations remove --project src/LinkUp.Api                            
 
 To apply to another database (e.g. `project_dev`), set `ConnectionStrings__Default` for that command. Commit the generated migration files together with the entity changes.
 
+### Data model
+
+| Table | Holds | Relations |
+| --- | --- | --- |
+| `Venues` | Curated Lleida venues, seeded from `Data/Seed` | has many `VenueOpeningHours` |
+| `VenueOpeningHours` | One opening slot per row (day, opens, closes) | deleted with its venue |
+| `users` | Accounts | has many `Plans` |
+| `Plans` | A night plan: title, summary, cost per person, total distance | optional owner (`UserId`, deleted with the account), has many `PlanItems` |
+| `PlanItems` | One stop: venue, `Position` (0-based, unique per plan), times, cost, distance from the previous stop | deleted with its plan; a venue used in a plan can't be deleted (set `IsActive = false` instead) |
+
+Plan item times are stored in UTC; EF converts any offset on write. Read items sorted by `Position`.
+
 ## Docker image
 
 `backend/Dockerfile` is a multi-stage build that works on ARM64 (the VPS) and x86-64. Build context is `backend/`:
@@ -110,7 +122,7 @@ curl http://localhost:8080/health
 
 ### Migrations on startup
 
-The API applies pending migrations when it starts (`Database:MigrateOnStartup`, default `true`), so deploying a new migration updates the database. It retries for a few seconds while the database comes up, and refuses to start if migrating still fails (a failed deploy beats running against an outdated schema). EF Core locks the database while migrating, so several instances starting at once is safe.
+The API applies pending migrations when it starts (`Database:MigrateOnStartup`, default `true`), so deploying a new migration updates the database. It retries for a few seconds while the database comes up, and refuses to start if migrating still fails (a failed deploy beats running against an outdated schema). EF Core locks the database while migrating, so several instances starting at once is safe. `MigrationOnStartupTests` checks this against a database that is one migration behind.
 
 | Setting (env var)                      | Default |                                                                            |
 | -------------------------------------- | ------- | -------------------------------------------------------------------------- |
