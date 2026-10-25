@@ -29,7 +29,10 @@ public sealed class PlansController(
     public async Task<ActionResult<GeneratePlansResponse>> Generate(
         GeneratePlansRequest request, CancellationToken cancellationToken)
     {
-        var candidates = await venueFilteringService.FilterAsync(request.Preferences, cancellationToken);
+        var preferences = request.Preferences;
+        var candidates = preferences.StartLocation is { } start
+            ? await venueFilteringService.FilterAsync(preferences, start.Latitude, start.Longitude, cancellationToken)
+            : await venueFilteringService.FilterAsync(preferences, cancellationToken);
         var minimum = options.Value.MinimumCandidateCount;
         if (candidates.Count < minimum)
         {
@@ -44,7 +47,9 @@ public sealed class PlansController(
                     : $"Only {candidates.Count} matching {(candidates.Count == 1 ? "venue was" : "venues were")} found; at least {minimum} are needed to build a plan.",
                 CandidateCount = candidates.Count,
                 MinimumRequired = minimum,
-                Suggestion = "Try different activities or a wider time window, and check that a transport option is selected.",
+                Suggestion = preferences.StartLocation is null
+                    ? "Try different activities or a wider time window, and check that a transport option is selected."
+                    : "Try a larger distance, different activities or a wider time window, and check that a transport option is selected.",
             });
         }
 

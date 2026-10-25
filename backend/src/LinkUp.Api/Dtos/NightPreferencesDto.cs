@@ -7,6 +7,11 @@ public enum Activity { Dinner, Drinks, Club, Concert, Cinema, Games, Outdoor }
 
 public enum Transport { Walking, Bike, Car, PublicTransport, Taxi }
 
+/// <summary>A point on the map in WGS 84 degrees, as phones report it.</summary>
+public sealed record GeoPointDto(
+    [property: JsonRequired] [Range(-90, 90)] double Latitude,
+    [property: JsonRequired] [Range(-180, 180)] double Longitude);
+
 /// <summary>What the user wants from their night. Sent by the app's preference form.</summary>
 /// <remarks>
 /// Limits mirror the app's form (<c>Limits</c> in app/src/features/preferences/form.ts); keep both in sync.
@@ -22,7 +27,9 @@ public sealed record NightPreferencesDto(
     [property: JsonRequired] DateTimeOffset EndTime,
     [property: JsonRequired] [Range(0.5, 30)] double MaxDistanceKm,
     [MinLength(1, ErrorMessage = "Pick at least one way to get around.")] IReadOnlyList<Transport> Transport,
-    [MaxLength(500)] string? Notes = null) : IValidatableObject
+    [MaxLength(500)] string? Notes = null,
+    // Where the group starts (#53). When set, venues further than MaxDistanceKm from it are left out.
+    GeoPointDto? StartLocation = null) : IValidatableObject
 {
     public static readonly TimeSpan MinDuration = TimeSpan.FromHours(1);
     public static readonly TimeSpan MaxDuration = TimeSpan.FromHours(12);

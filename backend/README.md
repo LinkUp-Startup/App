@@ -101,7 +101,7 @@ To apply to another database (e.g. `project_dev`), set `ConnectionStrings__Defau
 | `VenueOpeningHours` | One opening slot per row (day, opens, closes) | deleted with its venue |
 | `users` | Accounts | has many `Plans` |
 | `Plans` | A night plan: title, summary, cost per person, total distance | optional owner (`UserId`, deleted with the account), has many `PlanItems` |
-| `PlanItems` | One stop: venue, `Position` (0-based, unique per plan), times, cost, distance from the previous stop | deleted with its plan; a venue used in a plan can't be deleted (set `IsActive = false` instead) |
+| `PlanItems` | One stop: venue, `Position` (0-based, unique per plan), times, cost, distance from the previous stop (the first from the start location) | deleted with its plan; a venue used in a plan can't be deleted (set `IsActive = false` instead) |
 
 Plan item times are stored in UTC; EF converts any offset on write. Read items sorted by `Position`.
 
@@ -187,7 +187,7 @@ On the server (Dokploy) set the environment variable `Ai__ApiKey`. Without a key
 `POST /api/plans/generate`: filter venues → select candidates → `AiPlanService` → validate → plans.
 
 1. **Candidates** (`Planning/CandidateSelector.cs`): at most `PlanGeneration__MaxAiCandidates` (default 20) of the filtered venues go to the AI, split evenly across the selected activities and picked at random, so a broad request stays at about 3,500 input tokens (~$0.0007) and repeating it gives other venues. The AI may only use the venues it was sent.
-2. **Prompt** (`Planning/PlanPrompt.cs`): instructions plus compact JSON with the preferences and only the filtered candidates (id, name, category, prices, opening hours, tags), all times in `Europe/Madrid`. `PlanPrompt.Version` (e.g. `plans-v1`) is logged with every generation: bump it whenever the prompt, its input or the schema change.
+2. **Prompt** (`Planning/PlanPrompt.cs`): instructions plus compact JSON with the preferences and only the filtered candidates (id, name, category, prices, opening hours, tags, and `distanceFromStartKm` when the request has a `startLocation`), all times in `Europe/Madrid`. `PlanPrompt.Version` (e.g. `plans-v1`) is logged with every generation: bump it whenever the prompt, its input or the schema change.
 3. **Structured output** (`Planning/PlanSchema.cs`): OpenAI strict JSON schema `{ plans: [{ title, summary, stops: [{ venueId, startTime, endTime }] }] }`. Output that doesn't parse gets one more try.
 4. **Validation** (`Planning/PlanValidator.cs`), repairing rather than rejecting:
    - stops whose venue is not a candidate, has unreadable times, lies outside the window or at a closed venue are dropped; stops spilling over the window are trimmed to it
