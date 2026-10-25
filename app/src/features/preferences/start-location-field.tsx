@@ -62,6 +62,12 @@ export function StartLocationField({ value, onChange, radiusKm }: StartLocationF
     }
   }
 
+  // Choosing a point on the map also clears an earlier "couldn't get your location" message.
+  function choose(point: GeoPoint) {
+    setMessage(undefined);
+    onChange(point);
+  }
+
   const far = value !== undefined && distanceKm(value, LleidaCentre) > FarFromLleidaKm;
 
   return (
@@ -71,7 +77,9 @@ export function StartLocationField({ value, onChange, radiusKm }: StartLocationF
         testID="start-location-map"
         style={styles.map}
         initialRegion={regionFor(value ?? LleidaCentre, radiusKm)}
-        onPress={(event) => onChange(event.nativeEvent.coordinate)}
+        onPress={(event) => choose(event.nativeEvent.coordinate)}
+        // On Android a tap on a place icon (a museum, a restaurant) is a POI click, not a map press.
+        onPoiClick={(event) => choose(event.nativeEvent.coordinate)}
         accessibilityLabel="Map. Tap to choose where you start.">
         {value && (
           <>
@@ -80,9 +88,12 @@ export function StartLocationField({ value, onChange, radiusKm }: StartLocationF
               title="Start"
               pinColor={theme.tint}
               draggable
-              onDragEnd={(event) => onChange(event.nativeEvent.coordinate)}
+              onDragEnd={(event) => choose(event.nativeEvent.coordinate)}
             />
             <Circle
+              // Android's circle doesn't reliably apply a new center or radius (and comes back with its first
+              // values after the map is redrawn), so a new key draws a fresh one whenever either changes.
+              key={`${value.latitude},${value.longitude},${radiusKm}`}
               center={value}
               radius={radiusKm * 1000}
               strokeColor={theme.tint}
