@@ -27,7 +27,7 @@ export function describeApiError(error: unknown): string {
 }
 
 /** Flattens an ASP.NET ValidationProblemDetails body into its messages. */
-function parseValidationErrors(body: string): string[] {
+export function parseValidationErrors(body: string): string[] {
   try {
     const problem = JSON.parse(body) as ValidationProblem;
     return Object.values(problem.errors ?? {}).flat();
