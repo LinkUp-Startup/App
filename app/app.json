@@ -33,7 +33,13 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "LinkUp uses your location to plan a night that starts where you are."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

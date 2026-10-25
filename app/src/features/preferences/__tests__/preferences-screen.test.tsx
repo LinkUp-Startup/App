@@ -1,10 +1,11 @@
-import { render, screen, userEvent } from '@testing-library/react-native';
+import { fireEvent, render, screen, userEvent } from '@testing-library/react-native';
 import { router } from 'expo-router';
 
 import PreferencesScreen from '@/app/(tabs)/index';
 
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 jest.mock('@/components/api-status', () => ({ ApiStatus: () => null }));
+jest.mock('expo-location', () => ({ reverseGeocodeAsync: jest.fn().mockResolvedValue([]) }));
 
 afterEach(() => jest.mocked(router.push).mockReset());
 
@@ -43,5 +44,21 @@ describe('PreferencesScreen', () => {
       budgetPerPerson: 25,
       notes: 'vegetarian',
     });
+  });
+
+  it('sends the start point picked on the map', async () => {
+    const user = userEvent.setup();
+    await render(<PreferencesScreen />);
+
+    await user.press(screen.getByRole('checkbox', { name: 'Drinks' }));
+    await fireEvent.press(screen.getByTestId('start-location-map'), {
+      nativeEvent: { coordinate: { latitude: 41.6164, longitude: 0.6236 } },
+    });
+    await screen.findByText(/^Starting at/);
+    await user.press(screen.getByRole('button', { name: 'Generate plans' }));
+
+    const [href] = jest.mocked(router.push).mock.calls[0];
+    const { preferences } = (href as unknown as { params: { preferences: string } }).params;
+    expect(JSON.parse(preferences).startLocation).toEqual({ latitude: 41.6164, longitude: 0.6236 });
   });
 });

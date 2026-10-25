@@ -145,16 +145,17 @@ public static class PlanValidator
         AiPlan plan, List<Stop> stops, NightPreferencesDto preferences, PlanCostEstimate estimate)
     {
         var items = new List<PlanItemDto>();
-        Venue? previous = null;
+        // The first leg starts at the group's start point (#55); without one the first stop has no leg.
+        var from = preferences.StartLocation is { } start ? (start.Latitude, start.Longitude) : ((double, double)?)null;
         foreach (var stop in stops)
         {
-            var distance = previous is null
-                ? 0
-                : GeoDistance.HaversineKm(previous.Latitude, previous.Longitude, stop.Venue.Latitude, stop.Venue.Longitude);
+            var distance = from is var (latitude, longitude)
+                ? GeoDistance.HaversineKm(latitude, longitude, stop.Venue.Latitude, stop.Venue.Longitude)
+                : 0;
             items.Add(new PlanItemDto(
                 ToVenueDto(stop.Venue, preferences), stop.Start, stop.End,
                 estimate.ItemCostsPerPerson[items.Count]!.Value, Math.Round(distance, 2)));
-            previous = stop.Venue;
+            from = (stop.Venue.Latitude, stop.Venue.Longitude);
         }
 
         return new PlanDto(

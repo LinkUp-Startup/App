@@ -867,6 +867,23 @@
           }
         }
       },
+      "GeoPointDto": {
+        "required": [
+          "latitude",
+          "longitude"
+        ],
+        "type": "object",
+        "properties": {
+          "latitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "longitude": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
       "HealthResponse": {
         "required": [
           "status",
@@ -953,6 +970,16 @@
             "type": [
               "null",
               "string"
+            ]
+          },
+          "startLocation": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GeoPointDto"
+              }
             ]
           }
         }

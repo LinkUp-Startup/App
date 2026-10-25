@@ -21,6 +21,7 @@ public sealed record PlanItemDto(
     DateTimeOffset EndTime,
     // Entrance fee plus typical spend; null when the venue's price is unknown.
     decimal? EstimatedCostPerPerson,
+    // From the previous stop, or from the start location for the first stop (0 without one).
     double DistanceKm);
 
 public sealed record VenueDto(
