@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using LinkUp.Api.Ai;
 using LinkUp.Api.Data;
 using LinkUp.Api.Data.Entities;
 using LinkUp.Api.Middleware;
@@ -63,6 +64,7 @@ builder.Services.AddOptions<PlanGenerationOptions>()
     .ValidateDataAnnotations()
     .ValidateOnStart();
 builder.Services.AddScoped<IPlanService, StubPlanService>();
+builder.Services.AddAiClient(builder.Configuration);
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IVenueService, VenueService>();

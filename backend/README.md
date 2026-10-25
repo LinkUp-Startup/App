@@ -156,6 +156,42 @@ The API applies pending migrations when it starts (`Database:MigrateOnStartup`, 
 
 `appsettings.Development.json` has a development-only key so `dotnet run` works locally. Changing the key signs everyone out.
 
+## AI
+
+Plans are combined by OpenAI **GPT-6 Luna** (`gpt-6-luna`, Responses API with Structured Outputs), called only from the API (`Ai/OpenAiClient.cs`). The app never sees the key or talks to OpenAI.
+
+### API key
+
+Create a key in the OpenAI dashboard (project **LinkUp**, with a monthly budget limit) and keep it out of the repo, `appsettings*.json` and the app:
+
+```bash
+dotnet user-secrets set "Ai:ApiKey" "sk-..." --project backend/src/LinkUp.Api   # local
+```
+
+On the server (Dokploy) set the environment variable `Ai__ApiKey`. Without a key the API still starts, without AI.
+
+### Settings
+
+| Setting (env var) | Default | |
+| --- | --- | --- |
+| `Ai__Model` | `gpt-6-luna` | |
+| `Ai__ReasoningEffort` | `low` | `none` … `max`; higher costs more output tokens and time |
+| `Ai__MaxOutputTokens` | `4000` | Caps one request's cost; reasoning tokens count towards it |
+| `Ai__AttemptTimeoutSeconds` | `25` | One attempt |
+| `Ai__TotalTimeoutSeconds` | `55` | All attempts together; stays under the app's 60 s timeout |
+| `Ai__MaxRetries` | `2` | Retried on 429, 5xx and timeouts |
+| `Ai__InputPricePerMillionTokens` / `Ai__OutputPricePerMillionTokens` | `0.10` / `0.50` | USD list prices, only for the cost estimate in the logs |
+
+### Usage logs
+
+Every request logs one line with tokens, latency, estimated cost and OpenAI's request id, never the prompt or the key:
+
+```
+AI gpt-6-luna completed in 2140 ms: 3000 input + 800 output tokens (200 reasoning), ~$0.00070 (request req_123)
+```
+
+Failures (error status, timeout, refusal, truncated output) are logged as warnings or errors with the same request id.
+
 ## Tests
 
 xUnit tests live in `tests/LinkUp.Api.Tests`: unit tests plus HTTP tests that run the real API in memory (`WebApplicationFactory`, see `ApiFactory`). Most need no database. The account tests (`AuthEndpointsTests`) run against a real PostgreSQL: start it with `docker compose up -d` first. Each test class creates a throwaway database on that server, migrates it with the real migrations and drops it afterwards. To use another server, set `TEST_POSTGRES` to an Npgsql connection string that may create databases.
