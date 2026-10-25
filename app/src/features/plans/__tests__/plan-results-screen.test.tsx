@@ -95,6 +95,42 @@ describe('PlanResultsScreen', () => {
     expect(await screen.findByText(/Pick at least one activity\./)).toBeOnTheScreen();
   });
 
+  it.each([
+    ['no_candidates', 0, 'No venues match the selected preferences. A plan cannot be generated.'],
+    [
+      'insufficient_candidates',
+      1,
+      'Only 1 matching venue was found; at least 3 are needed to build a plan.',
+    ],
+  ])('explains %s and lets the user change preferences', async (code, count, detail) => {
+    withParams({ preferences: JSON.stringify(preferences) });
+    generatePlansMock.mockRejectedValue(
+      new ApiError(
+        422,
+        JSON.stringify({
+          status: 422,
+          code,
+          candidateCount: count,
+          minimumRequired: 3,
+          detail,
+          suggestion:
+            'Try different activities or a wider time window, and check that a transport option is selected.',
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    await render(<PlanResultsScreen />);
+
+    expect(
+      await screen.findByText(/Try different activities or a wider time window/),
+    ).toBeOnTheScreen();
+    expect(screen.getByText(new RegExp(detail))).toBeOnTheScreen();
+    expect(screen.queryByText(/Something went wrong on our side/)).not.toBeOnTheScreen();
+    await user.press(screen.getByRole('button', { name: 'Change preferences' }));
+    expect(router.back).toHaveBeenCalledTimes(1);
+    expect(generatePlansMock).toHaveBeenCalledTimes(1);
+  });
+
   it.each([undefined, 'not json'])(
     'asks for preferences when the parameter is %p',
     async (value) => {

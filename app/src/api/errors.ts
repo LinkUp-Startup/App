@@ -1,4 +1,5 @@
 import { ApiError, NetworkError } from '@/api/client';
+import type { CandidateAvailabilityProblem } from '@/types/api';
 
 type ValidationProblem = {
   title?: string;
@@ -12,6 +13,10 @@ export function describeApiError(error: unknown): string {
   }
 
   if (error instanceof ApiError) {
+    if (error.status === 422) {
+      const message = candidateAvailabilityMessage(error.message);
+      if (message) return message;
+    }
     if (error.status === 400) {
       const details = parseValidationErrors(error.message);
       return details.length > 0
@@ -24,6 +29,23 @@ export function describeApiError(error: unknown): string {
   }
 
   return 'Something unexpected went wrong. Try again.';
+}
+
+/** Expected filtering outcomes use a structured problem, not a server-error message. */
+function candidateAvailabilityMessage(body: string): string | undefined {
+  try {
+    const problem = JSON.parse(body) as Partial<CandidateAvailabilityProblem> | null;
+    if (
+      (problem?.code === 'no_candidates' || problem?.code === 'insufficient_candidates') &&
+      typeof problem.detail === 'string' &&
+      typeof problem.suggestion === 'string'
+    ) {
+      return `${problem.detail} ${problem.suggestion}`;
+    }
+  } catch {
+    // A malformed or unrelated response uses the existing generic error message.
+  }
+  return undefined;
 }
 
 /** Flattens an ASP.NET ValidationProblemDetails body into its messages. */

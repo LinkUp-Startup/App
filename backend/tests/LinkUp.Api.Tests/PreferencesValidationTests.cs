@@ -5,7 +5,7 @@ using System.Text.Json.Nodes;
 
 namespace LinkUp.Api.Tests;
 
-public sealed class PreferencesValidationTests(ApiFactory factory) : IClassFixture<ApiFactory>
+public sealed class PreferencesValidationTests(PlanningApiFactory factory) : IClassFixture<PlanningApiFactory>
 {
     private static JsonObject ValidPreferences() => new()
     {

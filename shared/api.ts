@@ -276,6 +276,15 @@ export interface paths {
                         "text/json": components["schemas"]["ValidationProblemDetails"];
                     };
                 };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["CandidateAvailabilityProblem"];
+                    };
+                };
             };
         };
         delete?: never;
@@ -382,6 +391,20 @@ export interface components {
             /** Format: date-time */
             expiresAt: string;
             user: components["schemas"]["UserDto"];
+        };
+        CandidateAvailabilityProblem: {
+            type?: null | string;
+            title?: null | string;
+            /** Format: int32 */
+            status?: null | number;
+            detail?: null | string;
+            instance?: null | string;
+            code: string;
+            /** Format: int32 */
+            candidateCount?: number;
+            /** Format: int32 */
+            minimumRequired?: number;
+            suggestion: string;
         };
         /** @enum {unknown} */
         DayOfWeek: "sunday" | "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday";
