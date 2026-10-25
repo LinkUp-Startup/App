@@ -58,6 +58,10 @@ builder.Services.AddDbContext<AppDbContext>(options => options
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("database");
 
 builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(DatabaseOptions.SectionName));
+builder.Services.AddOptions<PlanGenerationOptions>()
+    .Bind(builder.Configuration.GetSection(PlanGenerationOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 builder.Services.AddScoped<IPlanService, StubPlanService>();
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<IAuthService, AuthService>();

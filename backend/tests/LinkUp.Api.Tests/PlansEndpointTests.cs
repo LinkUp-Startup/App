@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace LinkUp.Api.Tests;
 
-public sealed class PlansEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
+public sealed class PlansEndpointTests(PlanningApiFactory factory) : IClassFixture<PlanningApiFactory>
 {
     // Same shape the app sends (see app/src/types/api.ts): camelCase, enums as camelCase strings.
     private static readonly object ValidRequest = new

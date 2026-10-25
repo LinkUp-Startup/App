@@ -2,6 +2,10 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using LinkUp.Api.Data.Entities;
+using LinkUp.Api.Dtos;
+using LinkUp.Api.Services;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace LinkUp.Api.Tests;
 
@@ -42,4 +46,26 @@ public class ApiFactory : WebApplicationFactory<Program>
 public sealed class UnhealthyDatabaseApiFactory : ApiFactory
 {
     protected override HealthStatus DatabaseStatus => HealthStatus.Unhealthy;
+}
+
+// Plan HTTP/validation tests remain independent of PostgreSQL. Filtering is tested with SQLite.
+public class PlanningApiFactory : ApiFactory
+{
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IVenueFilteringService>();
+            services.AddScoped<IVenueFilteringService, EligibleVenueFilter>();
+        });
+    }
+
+    private sealed class EligibleVenueFilter : IVenueFilteringService
+    {
+        public Task<IReadOnlyList<Venue>> FilterAsync(
+            NightPreferencesDto preferences, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<Venue>>(
+                [new Venue { Id = 1, Name = "Eligible venue", Address = "Test address" }]);
+    }
 }

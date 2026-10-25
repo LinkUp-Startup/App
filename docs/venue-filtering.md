@@ -74,6 +74,42 @@ candidate-count adjustment, or recommendation logic.
 
 ## Verification
 
+### No or insufficient candidates (#62)
+
+`POST /api/plans/generate` calls the existing filtering service once before invoking the plan
+generator. It uses the count of the filtered list, not a second database query or the raw venue
+count. It does not relax preferences or insert fallback venues.
+
+`PlanGeneration:MinimumCandidateCount` (environment variable
+`PlanGeneration__MinimumCandidateCount`) defaults to **1** and must be positive. The current
+`StubPlanService` returns a one-stop plan, and there is no requirement for more venues. This
+default is an explicit assumption based on the current implementation, not a requirement for
+future AI plans. A future generator's agreed minimum can be configured centrally. There is no
+positive insufficient count at the default minimum; tests configure 3 to exercise that case.
+
+| Filtered count | HTTP response | Code | Generation |
+| --- | --- | --- | --- |
+| Zero | 422 `application/problem+json` | `no_candidates` | Not called |
+| Positive but below minimum | 422 `application/problem+json` | `insufficient_candidates` | Not called |
+| At least minimum | Existing 200 `{ "plans": [...] }` | No change to success shape | Called once |
+
+Both expected 422 problems include `status`, `title`, `detail`, `code`, `candidateCount`,
+`minimumRequired`, and `suggestion`. Detail distinguishes zero matches from too few and the
+insufficient case includes both counts. The suggestion recommends different activities, a wider
+time window, or checking transport selection, which affect the implemented filters. Invalid
+requests still return validation errors (400) before filtering or generation.
+
+The app recognizes these problem codes in `describeApiError` and displays the explanation and
+suggestion in its existing results error panel. The existing **Change preferences** button
+returns to the form; the app does not automatically retry, alter preferences, or treat a 422 as
+an unexpected server failure. Unknown or malformed responses retain the existing generic message.
+
+The generator is still the existing placeholder: this issue adds the pre-generation candidate
+guard, not candidate-aware AI generation. The success payload and stub implementation are
+unchanged. Capacity and distance limitations documented above still apply.
+
+### Test commands
+
 Service tests in `backend/tests/LinkUp.Api.Tests/VenueFilteringServiceTests.cs` exercise each
 transport mode, combinations, duplicates, missing/unknown transport, unknown capacities across
 valid group sizes, unchanged eligibility without an origin, and composition with existing filters

@@ -31,6 +31,32 @@ describe('describeApiError', () => {
     expect(describeApiError(new ApiError(503, ''))).toMatch(/on our side/);
   });
 
+  it.each(['no_candidates', 'insufficient_candidates'])(
+    'shows the explanation and actionable suggestion for %s',
+    (code) => {
+      const body = JSON.stringify({
+        code,
+        detail: 'Only 1 matching venue was found; at least 3 are needed to build a plan.',
+        suggestion: 'Try different activities or a wider time window.',
+      });
+
+      expect(describeApiError(new ApiError(422, body))).toBe(
+        'Only 1 matching venue was found; at least 3 are needed to build a plan. Try different activities or a wider time window.',
+      );
+    },
+  );
+
+  it.each([
+    'not json',
+    'null',
+    '{}',
+    JSON.stringify({ code: 'another_problem', detail: 'Other', suggestion: 'Other' }),
+    JSON.stringify({ code: 'no_candidates', suggestion: 'Try another activity.' }),
+    JSON.stringify({ code: 'insufficient_candidates', detail: 'Too few venues.' }),
+  ])('uses a safe fallback for an unrelated or incomplete 422 body: %s', (body) => {
+    expect(describeApiError(new ApiError(422, body))).toMatch(/unexpected/);
+  });
+
   it('has a fallback for anything else', () => {
     expect(describeApiError(new ApiError(404, ''))).toMatch(/unexpected/);
     expect(describeApiError(new Error('boom'))).toMatch(/unexpected/);
