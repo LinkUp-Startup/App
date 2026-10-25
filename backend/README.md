@@ -208,12 +208,24 @@ Failures (error status, timeout, refusal, truncated output) are logged as warnin
 
 ## Tests
 
-xUnit tests live in `tests/LinkUp.Api.Tests`: unit tests plus HTTP tests that run the real API in memory (`WebApplicationFactory`, see `ApiFactory`). Most need no database. The account tests (`AuthEndpointsTests`) run against a real PostgreSQL: start it with `docker compose up -d` first. Each test class creates a throwaway database on that server, migrates it with the real migrations and drops it afterwards. To use another server, set `TEST_POSTGRES` to an Npgsql connection string that may create databases.
+xUnit tests live in `tests/LinkUp.Api.Tests`: unit tests, isolated SQLite relational tests, and HTTP tests that run the real API in memory (`WebApplicationFactory`, see `ApiFactory`). Most need no database server. The full suite also includes PostgreSQL tests for accounts, migrations, persistence and filtering: start it with `docker compose up -d` first. Each PostgreSQL test class creates a throwaway database, migrates it with the real migrations and drops it afterwards. To use another test server, set `TEST_POSTGRES` to an Npgsql connection string that may create databases. CI supplies PostgreSQL automatically.
 
 ```bash
 dotnet test backend/LinkUp.sln
 dotnet test backend/LinkUp.sln --collect:"XPlat Code Coverage;Format=opencover"   # with coverage
 ```
+
+Run all portable filtering and Haversine tests from the repository root with one command,
+without Docker, a running PostgreSQL server, API keys or interactive setup:
+
+```bash
+dotnet test backend/LinkUp.sln --filter "(FullyQualifiedName~VenueFiltering|FullyQualifiedName~VenueOpenAtTests|FullyQualifiedName~GeoDistanceTests)&FullyQualifiedName!~Postgres"
+```
+
+Append `--collect:"XPlat Code Coverage;Format=opencover"` to collect the same report format as
+SonarQube CI. The existing CI solution command also discovers the native PostgreSQL combination
+tests. See [filtering verification](../docs/venue-filtering.md#filtering-regression-suite-61)
+for scenarios, isolation and provider limitations.
 
 ## Structure
 

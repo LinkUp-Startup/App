@@ -152,3 +152,71 @@ must be verified in CI; local OpenCover measurements do not replace its branch/b
 Distance tests additionally cover changing radii, exact/zero boundaries, date-line crossing,
 invalid origins/radii, missing maximum-distance requests, and composition with all current filters.
 `VenueDistancePostgresTests` executes the origin-aware service against the native provider in CI.
+
+### Filtering regression suite (#61)
+
+The individual cases in `VenueFilteringServiceTests`, `VenueOpenAtTests` and `GeoDistanceTests`
+already cover budget/rounding, free and unknown prices, distance boundaries and invalid inputs,
+weekday/overnight/DST hours, multi-activity and compound categories, and transport/unknown capacity.
+Issue #61 adds composition coverage instead of copying those individual cases.
+
+`VenueFilteringCombinationTests` uses 16 deterministic venues, one for every pass/fail combination
+of the four primary constraints. Broad preferences include all 16. Tightening each dimension
+independently distinguishes:
+
+| Dimension | Two venue variants | Broad preference | Tight preference |
+| --- | --- | --- | --- |
+| Budget | EUR 4 or 14 consumption plus EUR 1 admission | EUR 30 per person | EUR 5 per person |
+| Distance | Approximately 0.56 or 5.56 km from an explicit Lleida test origin | 10 km | 1 km |
+| Hours | Friday 19:00–22:00 or Friday 23:00–Saturday 02:00, Madrid time | Friday 20:00–Saturday 02:00 | Friday 20:00–22:00 |
+| Category | Restaurant or Bar | Dinner OR Drinks | Dinner |
+
+The dataset and expected IDs are shared with `VenueFilteringCombinationPostgresTests`. Expected
+membership follows the independently assigned scenario flags, not production filter helpers or
+copied price/distance formulas. Each database is isolated, records are inserted in reverse order,
+and assertions check exact ordered candidate IDs. The local suite also checks one read query
+per filtering call and an empty change tracker.
+
+The parameterized matrix covers all requested combinations:
+
+- All six pairs: budget/distance, budget/hours, budget/category, distance/hours, distance/category,
+  hours/category.
+- All four triples: budget/distance/hours, budget/distance/category, budget/hours/category,
+  distance/hours/category.
+- All four primary constraints together.
+
+Additional regressions compare the combined result with the intersection of four independently
+filtered sets; relax and re-tighten each preference while keeping the others active; combine all
+four with transport selections and group sizes 1–20; and verify that omitting an origin removes
+only distance filtering. Other cases combine overnight availability with exact price/distance
+boundaries, ensure unknown prices do not disable other filters, and return no matches when the
+only otherwise eligible venue is inactive. Capacity thresholds are not invented: the model has
+no capacity data, so the suite verifies the documented unknown-capacity behavior.
+
+From the repository root, run the portable suite with **one command**:
+
+```sh
+dotnet test backend/LinkUp.sln --filter "(FullyQualifiedName~VenueFiltering|FullyQualifiedName~VenueOpenAtTests|FullyQualifiedName~GeoDistanceTests)&FullyQualifiedName!~Postgres"
+```
+
+For coverage, append `--collect:"XPlat Code Coverage;Format=opencover"`. This runs real relational
+SQLite queries, with no mocked IQueryable, database server, production data, live AI calls or
+location service. .NET restores the existing test dependencies; no new package or CI step is needed.
+
+Run `dotnet test backend/LinkUp.sln` for the full solution, including PostgreSQL integration cases.
+Those require the development/test PostgreSQL server described in `backend/README.md`. The existing
+SonarQube workflow supplies PostgreSQL 18, runs that solution command with coverage, and discovers
+all new tests automatically. PostgreSQL cases insert their scenario rows in a transaction and roll
+back per case, in the fixture's temporary database. The portable command selects SQLite/unit tests;
+no test is disabled, and every native-provider case remains part of the full CI suite.
+
+SQLite catches unsupported LINQ and exercises decimal/trigonometric query execution, but it does
+not enforce PostgreSQL's numeric storage precision/scale and may use different arithmetic/math
+implementations. Native PostgreSQL matrix tests therefore remain necessary for production-provider
+execution. The pre-existing SQL-translation tests also run locally without a PostgreSQL server.
+
+Measure `VenueFilteringService`, `VenueQueries` and `GeoDistance` separately in OpenCover rather than
+using overall project coverage as a proxy. Issue #61 changes only tests/docs: there are no new
+executable production lines on which to calculate a new-code coverage percentage. Existing CI
+already excludes test files from that metric; no exclusions or gate thresholds are changed.
+Report existing filtering coverage separately, and let CI determine the final SonarQube metric.
