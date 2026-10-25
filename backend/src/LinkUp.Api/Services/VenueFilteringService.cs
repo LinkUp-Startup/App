@@ -25,7 +25,8 @@ public sealed class VenueFilteringService(AppDbContext db) : IVenueFilteringServ
         var query = db.Venues.AsNoTracking()
             .Where(v => v.IsActive && hasTransport)
             .OpenDuring(preferences.StartTime, preferences.EndTime)
-            .Where(v => categories.Contains(v.Category));
+            .Where(v => categories.Contains(v.Category))
+            .WithinBudget(preferences.BudgetPerPerson);
 
         // No origin, venue capacity or transport-access data exists for further constraints.
         // See docs/venue-filtering.md before adding distance or group-size exclusions.

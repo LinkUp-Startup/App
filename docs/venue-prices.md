@@ -66,17 +66,59 @@ than silently changing it. `Currency` and `EstimatedSpendPerPerson` are explicit
 Rollback requires all price labels to be known before restoring the old NOT NULL column; it does
 not fabricate a level such as 0 or 1 for unknown prices.
 
+## Venue budget filtering (#49)
+
+`VenueFilteringService` applies `VenueQueries.WithinBudget` in the same database query as the
+other filters. `BudgetPerPerson` is a required EUR **per-person** amount from 0 to 500. Group
+size does not multiply a per-person price or divide this budget. There is no unlimited-budget
+sentinel: missing/null budget requests return 400, zero is a real zero budget, and negative
+budgets are rejected (also for direct query-helper/service calls).
+
+No remaining-budget ledger or spent-amount input exists. At initial candidate selection the
+entire `BudgetPerPerson` is still available. This is the applicable amount for this call; future
+planning code can pass preferences with `BudgetPerPerson` set to its remaining per-person amount.
+This issue neither calculates prior spending nor estimates the cost of a whole plan.
+
+The following explicit policy uses the known price components without asserting affordability
+when information is missing:
+
+- With both spend bounds and an admission fee known, compare
+  `EstimatedSpendPerPerson + EntranceFee` with the available budget. Equality qualifies.
+- With complete consumption prices but unknown admission, exclude only if the consumption
+  estimate alone exceeds the budget. Admission stays unknown, not free.
+- With an incomplete/unknown consumption range, exclude if the known admission fee alone
+  exceeds the budget. A partial range is still not a complete consumption estimate.
+- With neither component known, retain the venue without inventing a price. No monetary value
+  is inferred from `PriceLevel` or `EntranceType`. Retention does not guarantee affordability.
+
+Known free venues qualify at zero budget; known positive costs do not. Unknown-price venues may
+also remain at zero under this policy. A later plan-cost/validation policy must address their
+uncertainty; this filter does not resolve it by silently turning missing amounts into zero.
+
+All arithmetic is decimal and stays database-side. To preserve #47's cent rounding without
+calling the unmapped getter or a provider-specific rounding function, the query compares the
+unrounded midpoint plus the known fee against the exclusive bound
+`Floor(budget * 100) / 100 + 0.005`. For nonnegative, cent-stored prices this is exactly equivalent
+to the rounded consumption estimate plus fee being at most the budget: a midpoint exactly at
+the half-cent boundary rounds up and is excluded at the lower budget. The half cent is a rounding
+boundary, not an additional allowance. Budgets with fractional cents are therefore also compared
+correctly. A separate admission-fee check handles unknown consumption. Coalescing an unknown fee
+inside the midpoint comparison tests a known-cost lower bound; it does not change stored values.
+
+Lowering only the budget can only keep or remove candidates, never add them. All other eligibility
+conditions remain ANDed with this price condition; no filters are relaxed and no fallback is added.
+
 ## Future budget work and limitations
 
 The numeric per-person consumption estimate and separate admission amount provide inputs for
-future plan estimates (#48), budget filters (#49), validation (#50), and app display (#51).
-Those features must choose how to combine fees/consumption, handle unknown components, and apply
-group size. No group-total calculation, price filtering, budget validation, currency conversion,
+future plan estimates (#48), validation (#50), and app display (#51).
+Those features must choose their policies for complete plans, unknown components, and group
+size. No group-total calculation, whole-plan budget validation, currency conversion,
 or new price UI is implemented here. Group discounts, fixed booking charges and verified observed
 averages are not represented by the source data.
 
 EF Core cannot translate the ordinary `EstimatedSpendPerPerson` getter in a database predicate.
-Future database filters should compose supported expressions over the stored decimal fields;
+Database filters compose supported expressions over the stored decimal fields;
 they must not load all venues to evaluate the getter. Unknown prices must remain distinguishable
 from free venues in any future budget policy.
 
@@ -84,3 +126,7 @@ Tests verify entity estimates, nulls/zero, cent rounding, persistence and DTO ma
 SQLite, and PostgreSQL metadata/migration SQL generation without connecting to a server. Dedicated
 PostgreSQL tests verify native numeric scale and constraints in CI. SQLite does not enforce
 PostgreSQL's numeric precision/scale and does not substitute for that native-provider check.
+Budget tests additionally verify zero, exact/half-cent boundaries, unknown components, monotonic
+candidate sets, per-person group semantics, and composition through the service on SQLite.
+PostgreSQL budget tests verify native query execution in CI; SQL translation is tested locally
+without requiring a server.

@@ -8,6 +8,27 @@ public static class VenueQueries
     public static readonly TimeZoneInfo VenueTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Madrid");
 
     /// <summary>
+    /// Excludes venues whose known per-person admission/consumption amounts exceed the available EUR.
+    /// Unknown components are retained unless known costs alone already exceed the budget.
+    /// </summary>
+    public static IQueryable<Venue> WithinBudget(this IQueryable<Venue> venues, decimal budgetPerPerson)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(budgetPerPerson);
+
+        // Prices are stored in cents. For nonnegative amounts, Round(midpoint, 2, AwayFromZero)
+        // <= budget is equivalent to midpoint < Floor(budget * 100) / 100 + half a cent.
+        // Moving this boundary to a parameter avoids invoking the unmapped getter or a
+        // provider-specific rounding function in SQL; all arithmetic remains decimal.
+        var exclusiveLimit = decimal.Floor(budgetPerPerson * 100m) / 100m + 0.005m;
+
+        // Coalescing an unknown fee checks a lower bound only; it does not label admission free.
+        return venues.Where(v =>
+            (v.EntranceFee == null || v.EntranceFee <= budgetPerPerson) &&
+            (v.MinSpend == null || v.MaxSpend == null ||
+                (v.MinSpend + v.MaxSpend) / 2m + (v.EntranceFee ?? 0m) < exclusiveLimit));
+    }
+
+    /// <summary>
     /// Candidates need a positive overlap with availability, not to remain open for the entire night.
     /// Both intervals are half-open: merely touching an opening or closing boundary does not match.
     /// Hours recur weekly in Madrid wall-clock time; Closes &lt;= Opens ends the following day.

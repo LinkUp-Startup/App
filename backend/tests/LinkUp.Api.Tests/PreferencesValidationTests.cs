@@ -32,6 +32,22 @@ public sealed class PreferencesValidationTests(PlanningApiFactory factory) : ICl
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Missing_or_null_budget_is_not_interpreted_as_zero_or_unlimited(bool missing)
+    {
+        var preferences = ValidPreferences();
+        if (missing)
+            preferences.Remove("budgetPerPerson");
+        else
+            preferences["budgetPerPerson"] = null;
+
+        var errors = await AssertValidationProblemAsync(await PostAsync(preferences));
+
+        Assert.NotEmpty(errors.EnumerateObject());
+    }
+
+    [Theory]
     [InlineData("budgetPerPerson", -1, "Preferences.BudgetPerPerson")]
     [InlineData("budgetPerPerson", 501, "Preferences.BudgetPerPerson")]
     [InlineData("groupSize", 0, "Preferences.GroupSize")]
