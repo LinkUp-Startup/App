@@ -79,6 +79,10 @@
         }
       ],
       "text-summary"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/__tests__/fixtures/"
     ]
   },
   "overrides": {

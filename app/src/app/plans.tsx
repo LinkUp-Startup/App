@@ -1,14 +1,15 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { PlanCard } from '@/features/plans/plan-card';
 import { useGeneratePlans } from '@/features/plans/use-generate-plans';
 import { useTheme } from '@/hooks/use-theme';
+import { getSavedPlans, savePlan } from '@/storage/saved-plans';
 import type { NightPreferences, Plan } from '@/types/api';
 
 export default function PlanResultsScreen() {
@@ -67,29 +68,59 @@ function Results({ preferences }: { preferences: NightPreferences }) {
           activities.
         </ThemedText>
       ) : (
-        <>
-          {state.plans.map((plan) => (
-            <PlanCard key={plan.id} plan={plan} />
-          ))}
-        </>
+        <SaveablePlans plans={state.plans} />
       );
   }
 }
 
-// TODO(#72): full results design — stops, times, map.
-function PlanCard({ plan }: { plan: Plan }) {
-  return (
-    <ThemedView type="backgroundElement" style={styles.card}>
-      <ThemedText type="smallBold">{plan.title}</ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">
-        {plan.summary}
-      </ThemedText>
-      <ThemedText type="small">
-        {plan.items.length} {plan.items.length === 1 ? 'stop' : 'stops'} · ~€
-        {plan.estimatedCostPerPerson.toFixed(0)} per person · {plan.totalDistanceKm.toFixed(1)} km
-      </ThemedText>
-    </ThemedView>
-  );
+/** The plans, each with a button to keep it on this device (guest saving, #73). */
+function SaveablePlans({ plans }: { plans: Plan[] }) {
+  const [saved, setSaved] = useState<ReadonlySet<string>>(new Set());
+  const [failed, setFailed] = useState<string>();
+
+  useEffect(() => {
+    getSavedPlans()
+      .then((stored) => setSaved(new Set(stored.map((plan) => plan.id))))
+      .catch((error: unknown) => console.warn('Could not load saved plans', error));
+  }, []);
+
+  async function save(plan: Plan) {
+    try {
+      await savePlan(plan);
+      setSaved((ids) => new Set(ids).add(plan.id));
+      setFailed(undefined);
+    } catch (error) {
+      console.warn('Could not save plan', error);
+      setFailed(plan.id);
+    }
+  }
+
+  return plans.map((plan) => {
+    const isSaved = saved.has(plan.id);
+    return (
+      <PlanCard
+        key={plan.id}
+        plan={plan}
+        footer={
+          <>
+            <Button
+              title={isSaved ? 'Saved' : 'Save plan'}
+              accessibilityLabel={isSaved ? `${plan.title} saved` : `Save ${plan.title}`}
+              accessibilityState={{ disabled: isSaved }}
+              variant={isSaved ? 'secondary' : 'primary'}
+              disabled={isSaved}
+              onPress={() => save(plan)}
+            />
+            {failed === plan.id && (
+              <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">
+                Couldn&apos;t save this plan. Try again.
+              </ThemedText>
+            )}
+          </>
+        }
+      />
+    );
+  });
 }
 
 function parsePreferences(value: string | undefined): NightPreferences | undefined {
@@ -109,10 +140,5 @@ const styles = StyleSheet.create({
   },
   error: {
     gap: Spacing.two,
-  },
-  card: {
-    borderRadius: 12,
-    gap: Spacing.one,
-    padding: Spacing.three,
   },
 });

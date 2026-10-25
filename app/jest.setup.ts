@@ -1,5 +1,7 @@
 // Runs before each test file.
 process.env.EXPO_PUBLIC_API_URL = 'http://api.test/';
+// Times are shown in the device's zone; pin it so tests read the same on every machine.
+process.env.TZ = 'Europe/Madrid';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
