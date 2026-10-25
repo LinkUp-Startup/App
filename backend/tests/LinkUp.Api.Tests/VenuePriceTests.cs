@@ -164,8 +164,8 @@ public sealed class VenuePriceTests : IAsyncLifetime
     public void PostgreSQL_migration_preserves_existing_values_and_adds_price_validation()
     {
         using var db = PostgreSQLContext();
-        var latest = db.Database.GetMigrations().Last();
-        Assert.EndsWith("DefineVenuePriceModel", latest);
+        // By name, not "the newest migration", so later migrations don't break this test.
+        var latest = db.Database.GetMigrations().Single(m => m.EndsWith("_DefineVenuePriceModel"));
 
         var script = db.GetService<IMigrator>().GenerateScript("20261024172225_AddUser", latest);
 
@@ -184,7 +184,8 @@ public sealed class VenuePriceTests : IAsyncLifetime
     {
         var venues = VenueSeedData.Load();
 
-        Assert.All(venues, venue =>
+        // The original 70 venues all had a spend range; venues added later may have an unknown (null) spend.
+        Assert.All(venues.Where(v => v.Id <= 70), venue =>
         {
             Assert.Equal("EUR", venue.Currency);
             Assert.True(venue.MinSpend >= 0m);
