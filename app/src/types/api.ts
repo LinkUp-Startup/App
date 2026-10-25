@@ -18,3 +18,7 @@ export type Plan = Schemas['PlanDto'];
 export type GeneratePlansRequest = Schemas['GeneratePlansRequest'];
 export type GeneratePlansResponse = Schemas['GeneratePlansResponse'];
 export type HealthResponse = Schemas['HealthResponse'];
+export type RegisterRequest = Schemas['RegisterRequest'];
+export type LoginRequest = Schemas['LoginRequest'];
+export type User = Schemas['UserDto'];
+export type AuthResponse = Schemas['AuthResponse'];

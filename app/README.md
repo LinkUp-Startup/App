@@ -54,11 +54,14 @@ Add packages with `npx expo install <pkg>` (not `npm install`) so versions match
 src/
 ├── app/                 Routes (Expo Router — every file is a screen)
 │   ├── _layout.tsx      Root stack + theme
-│   ├── (tabs)/          Bottom tabs: Plan (index), Saved
-│   └── plans.tsx        Generated plans screen
+│   ├── (tabs)/          Bottom tabs: Plan (index), Saved, Account
+│   ├── plans.tsx        Generated plans screen
+│   ├── login.tsx        Log in
+│   └── register.tsx     Create account
 ├── api/                 REST client + endpoint functions
 ├── components/          Reusable UI (Screen, Button, ThemedText, ThemedView)
 ├── constants/theme.ts   Colors, spacing, fonts
+├── features/            Per-feature logic: preferences form, plans, auth (form rules, session, errors)
 ├── hooks/               Theme / color scheme hooks
 ├── storage/             Local (guest) persistence — AsyncStorage
 ├── types/api.ts         API contract with the ASP.NET Core backend
@@ -66,6 +69,10 @@ src/
 ```
 
 Keep non-route code out of `src/app/`. Import from `src` with the `@/` alias.
+
+### Accounts
+
+The app works fully as a guest; an account is optional. The **Account** tab opens the login and register screens. Their form rules (`features/auth/form.ts`) mirror the server's limits, and a test fails if they drift apart. After a successful login or registration the API's access token is held in memory (`features/auth/auth-context.tsx`): it is lost when the app closes, because storing it securely is a separate issue (#86). To try it against a local API, run the backend and set `EXPO_PUBLIC_API_URL` to it (see `.env.example`); `npx expo start --web` also works for a quick look in a browser.
 
 ## Native builds
 
