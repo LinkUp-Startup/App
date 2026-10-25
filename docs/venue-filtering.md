@@ -83,11 +83,10 @@ generator. It uses the count of the filtered list, not a second database query o
 count. It does not relax preferences or insert fallback venues.
 
 `PlanGeneration:MinimumCandidateCount` (environment variable
-`PlanGeneration__MinimumCandidateCount`) defaults to **1** and must be positive. The current
-`StubPlanService` returns a one-stop plan, and there is no requirement for more venues. This
-default is an explicit assumption based on the current implementation, not a requirement for
-future AI plans. A future generator's agreed minimum can be configured centrally. There is no
-positive insufficient count at the default minimum; tests configure 3 to exercise that case.
+`PlanGeneration__MinimumCandidateCount`) defaults to **2** and must be positive. The endpoint
+returns 2 or 3 distinct plans (#71), and two plans with different venues need at least two
+venues, so a single match gets the clear `insufficient_candidates` response instead of an AI
+call that cannot succeed.
 
 | Filtered count | HTTP response | Code | Generation |
 | --- | --- | --- | --- |

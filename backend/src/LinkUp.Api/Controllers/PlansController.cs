@@ -14,6 +14,11 @@ public sealed class PlansController(
     IOptions<PlanGenerationOptions> options) : ControllerBase
 {
     [HttpPost("generate")]
+    [EndpointSummary("Generate 2-3 night plans")]
+    [EndpointDescription(
+        "Validates the preferences (400), filters the venue database (422 when too few venues match), lets the AI " +
+        "combine the remaining venues into plans, and checks every plan against the database before returning " +
+        "2 or 3 distinct plans. 502 when the AI is unavailable or returns fewer than 2 usable plans.")]
     [ProducesResponseType<GeneratePlansResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<CandidateAvailabilityProblem>(StatusCodes.Status422UnprocessableEntity, "application/problem+json")]

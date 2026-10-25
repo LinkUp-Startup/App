@@ -12,7 +12,7 @@ public sealed class AiPlanService(
     IAiClient ai, IOptions<AiOptions> options, IOptions<PlanGenerationOptions> planOptions, ILogger<AiPlanService> logger)
     : IPlanService
 {
-    /// <summary>Unusable output (bad JSON, or no valid plan) gets one more try before giving up.</summary>
+    /// <summary>Fewer than <see cref="PlanValidator.MinPlans"/> distinct valid plans gets one more try.</summary>
     public const int MaxAttempts = 2;
 
     public async Task<IReadOnlyList<PlanDto>> GeneratePlansAsync(
@@ -28,6 +28,8 @@ public sealed class AiPlanService(
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(TimeSpan.FromSeconds(options.Value.TotalTimeoutSeconds));
 
+        // Valid plans from every attempt count, so two attempts with one plan each still give two plans (#71).
+        var plans = new List<PlanDto>();
         for (var attempt = 1; attempt <= MaxAttempts; attempt++)
         {
             AiJsonResponse response;
@@ -57,11 +59,21 @@ public sealed class AiPlanService(
                 logger.LogWarning("Plan generation ({PromptVersion}) repaired the AI output: {Problems}",
                     PlanPrompt.Version, string.Join("; ", result.Problems));
 
-            if (result.Plans.Count > 0)
-                return result.Plans;
+            foreach (var plan in result.Plans)
+            {
+                var key = PlanValidator.VenueKey(plan);
+                if (plans.Count < PlanValidator.MaxPlans && plans.All(p => PlanValidator.VenueKey(p) != key))
+                    plans.Add(plan);
+            }
+
+            if (plans.Count >= PlanValidator.MinPlans)
+                return plans;
         }
 
-        throw new PlanGenerationException($"The AI returned no usable plan in {MaxAttempts} attempts.");
+        logger.LogWarning("Plan generation ({PromptVersion}) gave up with {Count} distinct plan(s), {Min} needed",
+            PlanPrompt.Version, plans.Count, PlanValidator.MinPlans);
+        throw new PlanGenerationException(
+            $"The AI returned {plans.Count} usable plan(s) in {MaxAttempts} attempts; at least {PlanValidator.MinPlans} are needed.");
     }
 }
 
