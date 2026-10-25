@@ -354,6 +354,104 @@
           }
         }
       }
+    },
+    "/api/venues": {
+      "get": {
+        "tags": [
+          "Venues"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VenueDetailsDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VenueDetailsDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VenueDetailsDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/venues/{id}": {
+      "get": {
+        "tags": [
+          "Venues"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/VenueDetailsDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VenueDetailsDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VenueDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -388,6 +486,25 @@
             "$ref": "#/components/schemas/UserDto"
           }
         }
+      },
+      "DayOfWeek": {
+        "enum": [
+          "sunday",
+          "monday",
+          "tuesday",
+          "wednesday",
+          "thursday",
+          "friday",
+          "saturday"
+        ]
+      },
+      "EntranceType": {
+        "enum": [
+          "free",
+          "paid",
+          "paidEventDependent",
+          "unverified"
+        ]
       },
       "GeneratePlansRequest": {
         "required": [
@@ -501,6 +618,27 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "OpeningHoursDto": {
+        "required": [
+          "day",
+          "opens",
+          "closes"
+        ],
+        "type": "object",
+        "properties": {
+          "day": {
+            "$ref": "#/components/schemas/DayOfWeek"
+          },
+          "opens": {
+            "type": "string",
+            "format": "time"
+          },
+          "closes": {
+            "type": "string",
+            "format": "time"
           }
         }
       },
@@ -700,6 +838,114 @@
           }
         }
       },
+      "VenueCategory": {
+        "enum": [
+          "restaurant",
+          "bar",
+          "pub",
+          "barRestaurant",
+          "nightclub",
+          "cafe",
+          "bakery",
+          "bakeryCafe",
+          "iceCreamShop",
+          "museum",
+          "library",
+          "market"
+        ]
+      },
+      "VenueDetailsDto": {
+        "required": [
+          "id",
+          "name",
+          "category",
+          "address",
+          "latitude",
+          "longitude",
+          "entranceType",
+          "entranceFee",
+          "minSpend",
+          "maxSpend",
+          "priceLevel",
+          "notes",
+          "tags",
+          "isActive",
+          "openingHours"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "$ref": "#/components/schemas/VenueCategory"
+          },
+          "address": {
+            "type": "string"
+          },
+          "latitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "longitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "entranceType": {
+            "$ref": "#/components/schemas/EntranceType"
+          },
+          "entranceFee": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "minSpend": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "maxSpend": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "priceLevel": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "notes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "openingHours": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpeningHoursDto"
+            }
+          }
+        }
+      },
       "VenueDto": {
         "required": [
           "id",
@@ -757,6 +1003,9 @@
     },
     {
       "name": "Plans"
+    },
+    {
+      "name": "Venues"
     }
   ]
 }
