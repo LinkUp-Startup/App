@@ -34,6 +34,11 @@ export function PlanCard({ plan, footer }: PlanCardProps) {
           </ThemedText>
         ) : null}
         <ThemedText type="small">{planSummaryLine(plan)}</ThemedText>
+        <ThemedText type="smallBold">
+          {plan.estimatedTotalCost == null
+            ? 'Estimated total for the group: price unavailable'
+            : `Estimated total for the group: ${formatEuros(plan.estimatedTotalCost)}`}
+        </ThemedText>
       </View>
 
       {plan.items.map((item, index) => (
@@ -48,12 +53,16 @@ export function PlanCard({ plan, footer }: PlanCardProps) {
 function Stop({ item, number }: { item: PlanItem; number: number }) {
   const theme = useTheme();
   const time = formatTimeRange(item.startTime, item.endTime);
+  const price =
+    item.estimatedCostPerPerson == null
+      ? 'Price unknown'
+      : `Estimated ${formatEuros(item.estimatedCostPerPerson)} per person`;
 
   return (
     <View
       style={styles.stop}
       accessible
-      accessibilityLabel={`Stop ${number}: ${item.venue.name}, ${activityName(item.venue.category)}, ${time}`}>
+      accessibilityLabel={`Stop ${number}: ${item.venue.name}, ${activityName(item.venue.category)}, ${time}, ${price}`}>
       <View style={[styles.number, { backgroundColor: theme.tint }]}>
         <ThemedText type="smallBold" style={styles.numberLabel}>
           {number}
@@ -68,9 +77,7 @@ function Stop({ item, number }: { item: PlanItem; number: number }) {
           {item.venue.address}
         </ThemedText>
         <ThemedText type="small">
-          {item.estimatedCostPerPerson === null
-            ? 'Price unknown'
-            : `${formatEuros(item.estimatedCostPerPerson)} per person`}
+          {price}
           {legLabel(item, number)}
         </ThemedText>
       </View>

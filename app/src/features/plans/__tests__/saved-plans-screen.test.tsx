@@ -31,7 +31,9 @@ describe('SavedPlansScreen', () => {
 
     await user.press(await screen.findByRole('button', { name: 'Open Tapas and drinks' }));
 
-    expect(screen.getByText('Fri 30 Oct · 2 stops · ~€26 per person · 910 m')).toBeOnTheScreen();
+    expect(
+      screen.getByText('Fri 30 Oct · 2 stops · estimated €25.50 per person · 910 m'),
+    ).toBeOnTheScreen();
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/saved-plan/[id]',
       params: { id: 'p1' },
