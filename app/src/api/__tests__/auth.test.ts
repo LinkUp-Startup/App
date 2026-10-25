@@ -1,4 +1,4 @@
-import { login, register } from '@/api/auth';
+import { getMe, login, register } from '@/api/auth';
 import { apiRequest } from '@/api/client';
 
 jest.mock('@/api/client', () => ({ apiRequest: jest.fn() }));
@@ -33,6 +33,25 @@ describe('auth endpoints', () => {
       body: request,
       signal: controller.signal,
     });
+  });
+
+  it('getMe asks /api/auth/me for the account, sending the token as a bearer token', async () => {
+    const controller = new AbortController();
+
+    await getMe('the-token', controller.signal);
+
+    expect(apiRequest).toHaveBeenCalledWith('/api/auth/me', {
+      headers: { Authorization: 'Bearer the-token' },
+      signal: controller.signal,
+    });
+  });
+
+  it('getMe does not use a request body or change the method', async () => {
+    await getMe('the-token');
+
+    const [, options] = jest.mocked(apiRequest).mock.calls[0];
+    expect(options).not.toHaveProperty('method');
+    expect(options).not.toHaveProperty('body');
   });
 
   it('returns what the API answered', async () => {
