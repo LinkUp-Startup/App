@@ -55,8 +55,10 @@ tags, notes, transport modes, or vehicle seating.
 ## Combining filters and incomplete data
 
 All currently applicable constraints are ANDed in one EF Core query: active venue, positive
-opening-hours overlap, category matching at least one selected activity, and at least one
-recognized transport mode. Results include opening hours, are ordered by venue id, and are
+opening-hours overlap, category matching at least one selected activity, at least one
+recognized transport mode, and known venue costs within the per-person budget (see
+[venue-prices.md](venue-prices.md#venue-budget-filtering-49) for the unknown-price and rounding rules).
+Results include opening hours, are ordered by venue id, and are
 loaded asynchronously without tracking or intermediate venue materialization.
 
 Opening hours use Madrid time, include overnight slots, and handle daylight-saving transitions.

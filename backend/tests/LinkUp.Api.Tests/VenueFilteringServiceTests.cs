@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Globalization;
 using LinkUp.Api.Data;
 using LinkUp.Api.Data.Entities;
 using LinkUp.Api.Dtos;
@@ -205,6 +206,152 @@ public sealed class VenueFilteringServiceTests : IAsyncLifetime
         venue.OpeningHours.Add(Slot(DayOfWeek.Saturday, "18:00", "23:00"));
         return venue;
     }
+
+    [Theory]
+    [InlineData("10.00", "10.00", "0", "11.00", true)]
+    [InlineData("10.00", "10.00", "0", "10.00", true)]
+    [InlineData("10.00", "10.00", "0", "9.99", false)]
+    [InlineData("0", "0", "0", "0", true)]
+    [InlineData("0.01", "0.01", "0", "0", false)]
+    [InlineData("0", "0", "0.01", "0", false)]
+    [InlineData("10.00", "10.01", "0", "10.00", false)]
+    [InlineData("10.00", "10.01", "0", "10.01", true)]
+    [InlineData("10.00", "10.01", "0", "10.005", false)]
+    [InlineData("10.00", "10.00", "0", "9.999", false)]
+    [InlineData("10.25", "20.75", "4.25", "19.75", true)]
+    [InlineData("10.25", "20.75", "4.25", "19.74", false)]
+    [InlineData("0", "0", "10.01", "10.00", false)]
+    [InlineData(null, null, null, "0", true)]
+    [InlineData("10", null, null, "0", true)]
+    [InlineData(null, "20", null, "0", true)]
+    [InlineData("10", "10", null, "9.99", false)]
+    [InlineData("10", "10", null, "10", true)]
+    [InlineData(null, null, "10", "9.99", false)]
+    [InlineData(null, null, "10", "10", true)]
+    public async Task Budget_filter_compares_known_EUR_components_and_preserves_unknowns(
+        string? minimum, string? maximum, string? fee, string budget, bool expected)
+    {
+        var venue = OpenVenue(1, VenueCategory.Restaurant);
+        venue.MinSpend = Money(minimum);
+        venue.MaxSpend = Money(maximum);
+        venue.EntranceFee = Money(fee);
+        await SeedAsync(venue);
+
+        var result = await new VenueFilteringService(_db).FilterAsync(
+            Preferences with { BudgetPerPerson = Money(budget)!.Value }, CancellationToken.None);
+
+        Assert.Equal(expected ? new[] { 1 } : Array.Empty<int>(), result.Select(v => v.Id));
+        if (expected)
+        {
+            // A retained unknown price stays null instead of being replaced with a free price.
+            Assert.Equal(Money(fee), result[0].EntranceFee);
+            Assert.Equal(Money(minimum), result[0].MinSpend);
+            Assert.Equal(Money(maximum), result[0].MaxSpend);
+        }
+        var sql = Assert.Single(_queries.Commands);
+        Assert.Contains("MinSpend", sql, StringComparison.Ordinal);
+        Assert.Contains("COALESCE", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(_db.ChangeTracker.Entries());
+    }
+
+    [Fact]
+    public async Task Lowering_budget_only_removes_candidates_and_increasing_it_restores_them()
+    {
+        var cheap = PricedVenue(1, 5m);
+        var medium = PricedVenue(2, 10m);
+        var expensive = PricedVenue(3, 20m);
+        var unknown = OpenVenue(4, VenueCategory.Restaurant);
+        await SeedAsync(cheap, medium, expensive, unknown);
+        var service = new VenueFilteringService(_db);
+
+        var high = await service.FilterAsync(Preferences with { BudgetPerPerson = 20m }, CancellationToken.None);
+        var low = await service.FilterAsync(Preferences with { BudgetPerPerson = 5m }, CancellationToken.None);
+        var middle = await service.FilterAsync(Preferences with { BudgetPerPerson = 10m }, CancellationToken.None);
+
+        Assert.Equal(new[] { 1, 2, 3, 4 }, high.Select(v => v.Id));
+        Assert.Equal(new[] { 1, 4 }, low.Select(v => v.Id));
+        Assert.Equal(new[] { 1, 2, 4 }, middle.Select(v => v.Id));
+        Assert.Equal(3, _queries.Commands.Count);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(4)]
+    [InlineData(20)]
+    public async Task Per_person_budget_does_not_change_with_group_size(int groupSize)
+    {
+        await SeedAsync(PricedVenue(1, 10m), PricedVenue(2, 10.01m));
+
+        var result = await new VenueFilteringService(_db).FilterAsync(
+            Preferences with { GroupSize = groupSize, BudgetPerPerson = 10m }, CancellationToken.None);
+
+        Assert.Equal(new[] { 1 }, result.Select(v => v.Id));
+    }
+
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    public async Task Budget_combines_with_active_hours_category_and_transport(bool zeroBudget, bool transport)
+    {
+        var closed = PricedVenue(2, 5m);
+        closed.OpeningHours.Clear();
+        var wrongCategory = PricedVenue(3, 5m);
+        wrongCategory.Category = VenueCategory.Bar;
+        var inactive = PricedVenue(4, 5m);
+        inactive.IsActive = false;
+        await SeedAsync(PricedVenue(1, 5m), closed, wrongCategory, inactive, PricedVenue(5, 15m));
+
+        var result = await new VenueFilteringService(_db).FilterAsync(Preferences with
+        {
+            BudgetPerPerson = zeroBudget ? 0m : 10m,
+            Transport = transport ? [Transport.Walking, Transport.Bike] : [],
+        }, CancellationToken.None);
+
+        Assert.Equal(!zeroBudget && transport ? new[] { 1 } : Array.Empty<int>(), result.Select(v => v.Id));
+        Assert.Single(_queries.Commands);
+    }
+
+    [Fact]
+    public async Task Negative_budget_is_rejected_without_querying()
+    {
+        var error = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            new VenueFilteringService(_db).FilterAsync(
+                Preferences with { BudgetPerPerson = -0.01m }, CancellationToken.None));
+
+        Assert.Equal("budgetPerPerson", error.ParamName);
+        Assert.Empty(_queries.Commands);
+    }
+
+    [Fact]
+    public void Budget_predicate_translates_with_the_production_PostgreSQL_provider()
+    {
+        using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
+            .UseNpgsql("Host=localhost;Database=unused").Options);
+
+        var sql = db.Venues.Where(v => v.IsActive)
+            .OpenDuring(Preferences.StartTime, Preferences.EndTime)
+            .WithinBudget(10.01m).Include(v => v.OpeningHours).AsSingleQuery().ToQueryString();
+
+        Assert.Contains("EXISTS", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("COALESCE", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("MinSpend", sql, StringComparison.Ordinal);
+        Assert.Contains("MaxSpend", sql, StringComparison.Ordinal);
+        Assert.Contains("EntranceFee", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("EstimatedSpendPerPerson", sql, StringComparison.Ordinal);
+    }
+
+    private static Venue PricedVenue(int id, decimal spend)
+    {
+        var venue = OpenVenue(id, VenueCategory.Restaurant);
+        venue.MinSpend = spend;
+        venue.MaxSpend = spend;
+        venue.EntranceFee = 0m;
+        return venue;
+    }
+
+    private static decimal? Money(string? value) => value is null
+        ? null : decimal.Parse(value, CultureInfo.InvariantCulture);
 
     [Theory]
     [InlineData(Transport.Walking)]

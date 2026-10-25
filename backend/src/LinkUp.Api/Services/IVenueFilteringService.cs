@@ -10,6 +10,7 @@ public interface IVenueFilteringService
     /// Missing/empty activities or activities with no mapped categories yield no candidates.
     /// At least one recognized transport option is required. Unknown capacity/accessibility
     /// does not exclude venues; distance filtering requires an origin not yet present in preferences.
+    /// Known per-person venue costs must fit BudgetPerPerson; unknown costs are not assumed free.
     /// </summary>
     Task<IReadOnlyList<Venue>> FilterAsync(
         NightPreferencesDto preferences, CancellationToken cancellationToken);
