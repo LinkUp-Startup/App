@@ -23,7 +23,7 @@ public static class DatabaseMigrator
                 await using var scope = app.Services.CreateAsyncScope();
                 var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-                                var pending = (await context.Database.GetPendingMigrationsAsync()).ToList();
+                var pending = (await context.Database.GetPendingMigrationsAsync()).ToList();
                 if (pending.Count == 0)
                     logger.LogInformation("Database schema is up to date.");
                 else

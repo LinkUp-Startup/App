@@ -7,6 +7,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 {
     public DbSet<Venue> Venues => Set<Venue>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<Plan> Plans => Set<Plan>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

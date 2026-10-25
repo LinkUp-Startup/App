@@ -25,7 +25,7 @@ public sealed class AuthApiFactory : ApiFactory
 
     public AuthApiFactory() => CreateDatabase();
 
-    private string TestConnectionString =>
+    public string TestConnectionString =>
         new NpgsqlConnectionStringBuilder(_adminConnectionString) { Database = _databaseName }.ConnectionString;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
