@@ -39,7 +39,7 @@ public sealed class VenueFilteringService(AppDbContext db) : IVenueFilteringServ
 
     // Map only capabilities established by the category, without inferring events from tags/notes.
     // Compound categories can support more than one activity; unknown values never add matches.
-    private static VenueCategory[] CategoriesFor(Activity activity) => activity switch
+    internal static VenueCategory[] CategoriesFor(Activity activity) => activity switch
     {
         Activity.Dinner => [VenueCategory.Restaurant, VenueCategory.BarRestaurant],
         Activity.Drinks =>

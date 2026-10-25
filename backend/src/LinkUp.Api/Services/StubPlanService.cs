@@ -1,26 +1,27 @@
+using LinkUp.Api.Data.Entities;
 using LinkUp.Api.Dtos;
+using LinkUp.Api.Planning;
 
 namespace LinkUp.Api.Services;
 
 /// <summary>
-/// Placeholder so the app can talk to the API end to end.
-/// Replaced by venue filtering + AI generation (issues #57, #64-#71).
+/// Used when no AI key is configured (local development, tests): one plan with the first candidate for the
+/// whole night, so the app works end to end without OpenAI.
 /// </summary>
 public sealed class StubPlanService : IPlanService
 {
     public Task<IReadOnlyList<PlanDto>> GeneratePlansAsync(
-        NightPreferencesDto preferences, CancellationToken cancellationToken)
+        NightPreferencesDto preferences, IReadOnlyList<Venue> candidates, CancellationToken cancellationToken)
     {
-        var venue = new VenueDto(
-            "stub-1", "Sample Venue", Activity.Dinner, "Carrer Major, Lleida", 41.6176, 0.6200, 2);
-
+        var venue = candidates[0];
+        var cost = PlanValidator.EstimateCost(venue);
         var plan = new PlanDto(
-            "stub-plan-1",
-            "Sample night",
-            "Stub plan until the real generator is implemented.",
-            [new PlanItemDto(venue, preferences.StartTime, preferences.EndTime, 15m, 0.5)],
-            15m,
-            0.5);
+            $"stub-{venue.Id}",
+            $"Night at {venue.Name}",
+            "Sample plan: no AI key is configured on the API.",
+            [new PlanItemDto(PlanValidator.ToVenueDto(venue, preferences), preferences.StartTime, preferences.EndTime, cost, 0)],
+            cost,
+            0);
 
         return Task.FromResult<IReadOnlyList<PlanDto>>([plan]);
     }

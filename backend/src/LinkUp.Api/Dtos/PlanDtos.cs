@@ -26,4 +26,4 @@ public sealed record VenueDto(
     string Address,
     double Latitude,
     double Longitude,
-    int PriceLevel);
+    int? PriceLevel);

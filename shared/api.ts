@@ -285,6 +285,15 @@ export interface paths {
                         "application/problem+json": components["schemas"]["CandidateAvailabilityProblem"];
                     };
                 };
+                /** @description Bad Gateway */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
             };
         };
         delete?: never;
@@ -542,7 +551,7 @@ export interface components {
             /** Format: double */
             longitude: number;
             /** Format: int32 */
-            priceLevel: number;
+            priceLevel: null | number;
         };
     };
     responses: never;
