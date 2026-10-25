@@ -35,6 +35,7 @@ function RootNavigator() {
     <Stack>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="plans" options={{ title: 'Your plans' }} />
+      <Stack.Screen name="saved-plan/[id]" options={{ title: 'Saved plan' }} />
       <Stack.Screen name="login" options={{ title: 'Log in' }} />
       <Stack.Screen name="register" options={{ title: 'Create account' }} />
     </Stack>

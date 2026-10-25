@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { getSavedPlans, removePlan, savePlan } from '@/storage/saved-plans';
+import { getSavedPlan, getSavedPlans, removePlan, savePlan } from '@/storage/saved-plans';
 import type { Plan } from '@/types/api';
 
 function plan(id: string): Plan {
@@ -36,6 +36,13 @@ describe('saved plans', () => {
     await savePlan(plan('a'));
 
     expect((await getSavedPlans()).map((p) => p.id)).toEqual(['a', 'b']);
+  });
+
+  it('finds one saved plan by id', async () => {
+    await savePlan(plan('a'));
+
+    expect((await getSavedPlan('a'))?.title).toBe('Plan a');
+    await expect(getSavedPlan('missing')).resolves.toBeUndefined();
   });
 
   it('removes a plan', async () => {

@@ -1,4 +1,5 @@
 // Runs after the test framework is installed, so it can use hooks.
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type * as SecureStore from 'expo-secure-store';
 
 type FakeSecureStore = typeof SecureStore & {
@@ -6,8 +7,10 @@ type FakeSecureStore = typeof SecureStore & {
   __implementation: Pick<typeof SecureStore, 'getItemAsync' | 'setItemAsync' | 'deleteItemAsync'>;
 };
 
-// Every test starts with empty secure storage and working functions, whatever the last test did to them.
-beforeEach(() => {
+// Every test starts with empty storage and working functions, whatever the last test did to them.
+beforeEach(async () => {
+  await AsyncStorage.clear();
+
   const secureStore = jest.requireMock<FakeSecureStore>('expo-secure-store');
   secureStore.__store.clear();
   jest

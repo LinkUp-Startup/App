@@ -4,7 +4,10 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { ApiError, NetworkError } from '@/api/client';
 import { generatePlans } from '@/api/plans';
 import PlanResultsScreen from '@/app/plans';
+import { getSavedPlans, savePlan } from '@/storage/saved-plans';
 import type { NightPreferences, Plan } from '@/types/api';
+
+import { tapasPlan } from './fixtures/plans';
 
 jest.mock('expo-router', () => ({
   router: { back: jest.fn(), navigate: jest.fn() },
@@ -163,5 +166,45 @@ describe('PlanResultsScreen', () => {
     await unmount();
 
     expect(signal.aborted).toBe(true);
+  });
+
+  it('saves a plan on the device and marks it saved', async () => {
+    withParams({ preferences: JSON.stringify(preferences) });
+    generatePlansMock.mockResolvedValue({
+      plans: [tapasPlan, { ...tapasPlan, id: 'p2', title: 'Other' }],
+    });
+    const user = userEvent.setup();
+    await render(<PlanResultsScreen />);
+
+    await user.press(await screen.findByRole('button', { name: 'Save Tapas and drinks' }));
+
+    expect(await screen.findByRole('button', { name: 'Tapas and drinks saved' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Save Other' })).toBeEnabled();
+    expect((await getSavedPlans()).map((p) => p.id)).toEqual(['p1']);
+  });
+
+  it('shows plans that were saved before as saved', async () => {
+    await savePlan(tapasPlan);
+    withParams({ preferences: JSON.stringify(preferences) });
+    generatePlansMock.mockResolvedValue({ plans: [tapasPlan] });
+    await render(<PlanResultsScreen />);
+
+    expect(await screen.findByRole('button', { name: 'Tapas and drinks saved' })).toBeDisabled();
+  });
+
+  it('says so when saving fails', async () => {
+    withParams({ preferences: JSON.stringify(preferences) });
+    generatePlansMock.mockResolvedValue({ plans: [tapasPlan] });
+    const storage = jest.requireMock<{ setItem: jest.Mock }>(
+      '@react-native-async-storage/async-storage',
+    );
+    storage.setItem.mockRejectedValueOnce(new Error('disk full'));
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const user = userEvent.setup();
+    await render(<PlanResultsScreen />);
+
+    await user.press(await screen.findByRole('button', { name: 'Save Tapas and drinks' }));
+
+    expect(await screen.findByText("Couldn't save this plan. Try again.")).toBeOnTheScreen();
   });
 });

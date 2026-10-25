@@ -16,6 +16,10 @@ export async function getSavedPlans(): Promise<SavedPlan[]> {
   }
 }
 
+export async function getSavedPlan(id: string): Promise<SavedPlan | undefined> {
+  return (await getSavedPlans()).find((plan) => plan.id === id);
+}
+
 export async function savePlan(plan: Plan) {
   const plans = await getSavedPlans();
   const next = [

@@ -79,7 +79,12 @@
         }
       ],
       "text-summary"
-    ]
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/__tests__/fixtures/"
+    ],
+    "globalSetup": "<rootDir>/jest.global-setup.ts"
   },
   "overrides": {
     "react-native-windows": {
