@@ -2,6 +2,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useState } from 'react';
 import { Platform, Pressable, StyleSheet } from 'react-native';
 
+import { formatTime } from '@/components/form/format-time';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -13,11 +14,12 @@ type TimeFieldProps = {
   invalid?: boolean;
 };
 
-export function formatTime(date: Date) {
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-}
+export { formatTime };
 
-/** Time of day. Android opens the native dialog on press; iOS shows the compact inline picker. */
+/**
+ * Time of day. Android opens the native dialog on press; iOS shows the compact inline picker.
+ * The web has its own version in time-field.web.tsx.
+ */
 export function TimeField({ label, value, onChange, invalid }: TimeFieldProps) {
   const theme = useTheme();
   const [open, setOpen] = useState(false);
