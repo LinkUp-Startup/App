@@ -143,7 +143,7 @@ The API applies pending migrations when it starts (`Database:MigrateOnStartup`, 
 - Passwords are hashed with ASP.NET Core's `PasswordHasher` (PBKDF2); only the hash is stored and it is never returned.
 - Emails are trimmed and lowercased, so they are case-insensitive. Password length is 8-128.
 - Login gives the same `401` for an unknown email and a wrong password, and takes the same time for both.
-- Request bodies on `/api/auth/*` are never logged (the rest of the API logs them), and neither are tokens. Keep that when adding auth endpoints: put `[HttpLogging(...)]` without `RequestBody` on the controller.
+- Request bodies are only logged in Development (they contain personal data such as the start location and notes), and never for `/api/auth/*`; tokens are never logged. Keep that when adding auth endpoints: put `[HttpLogging(...)]` without `RequestBody` on the controller.
 - To protect an endpoint, add `[Authorize]`. The signed-in account id is `User.FindFirst("sub")`.
 
 ### Token settings
@@ -206,7 +206,8 @@ On the server (Dokploy) set the environment variable `Ai__ApiKey`. Without a key
 2. **Prompt** (`Planning/PlanPrompt.cs`): instructions plus compact JSON with the preferences and only the filtered candidates (id, name, category, prices, opening hours, tags, and `distanceFromStartKm` when the request has a `startLocation`), all times in `Europe/Madrid`. `PlanPrompt.Version` (e.g. `plans-v3`) is logged with every generation: bump it whenever the prompt, its input or the schema change.
 3. **Structured output** (`Planning/PlanSchema.cs`): OpenAI strict JSON schema `{ plans: [{ title, summary, stops: [{ venueId, startTime, endTime }] }] }`. Output that doesn't parse gets one more try.
 4. **Validation** (`Planning/PlanValidator.cs`), repairing rather than rejecting:
-   - stops whose venue is not a candidate, has unreadable times, lies outside the window or at a closed venue are dropped; stops spilling over the window are trimmed to it
+   - stops whose venue is not a candidate, has unreadable times or lies outside the window are dropped; stops spilling over the window are trimmed to it
+   - a stop must lie inside one of the venue's opening slots (overnight slots included): one that runs past closing time is trimmed to the slot it overlaps most, and dropped when less than 30 minutes are left
    - stops are sorted; overlapping stops, repeat visits and stops beyond 4 are dropped
    - empty plans, plans with the same venues as an earlier one (in any order) and plans beyond 3 are dropped
    - prices and distances come from the database, never from the AI; #48's cost estimator prices the repaired plan, and #50 rejects incomplete or over-budget group totals before returning any successful plan. See [budget validation](../docs/plan-budget-validation.md).
