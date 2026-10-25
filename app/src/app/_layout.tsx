@@ -32,7 +32,8 @@ function RootNavigator() {
   }, [status]);
 
   return (
-    <Stack>
+    // Without a back title iOS shows the previous route's name, which for the tabs is "(tabs)".
+    <Stack screenOptions={{ headerBackTitle: 'Back' }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="plans" options={{ title: 'Your plans' }} />
       <Stack.Screen name="saved-plan/[id]" options={{ title: 'Saved plan' }} />
