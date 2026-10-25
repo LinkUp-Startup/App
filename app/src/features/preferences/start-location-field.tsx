@@ -40,7 +40,8 @@ export function StartLocationField({ value, onChange, radiusKm }: StartLocationF
   useEffect(() => {
     if (!value) return;
     let current = true;
-    describePlace(value).then((name) => {
+    // describePlace never rejects (it resolves to undefined on failure), so there's nothing to catch.
+    void describePlace(value).then((name) => {
       if (current) setNamed({ point: value, name });
     });
     return () => {
