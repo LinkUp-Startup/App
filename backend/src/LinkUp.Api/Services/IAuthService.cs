@@ -9,4 +9,7 @@ public interface IAuthService
 
     /// <summary>Returns the account when the credentials are right, otherwise null.</summary>
     Task<UserDto?> LoginAsync(LoginRequest request, CancellationToken cancellationToken);
+
+    /// <summary>Returns the account with this id, or null if it no longer exists.</summary>
+    Task<UserDto?> GetUserAsync(Guid id, CancellationToken cancellationToken);
 }

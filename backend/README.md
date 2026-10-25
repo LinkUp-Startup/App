@@ -122,14 +122,27 @@ The API applies pending migrations when it starts (`Database:MigrateOnStartup`, 
 
 | Endpoint | Success | Errors |
 | --- | --- | --- |
-| `POST /api/auth/register` `{ email, password, displayName }` | `201` with `{ id, email, displayName }` | `400` invalid input, `409` email already registered |
-| `POST /api/auth/login` `{ email, password }` | `200` with `{ id, email, displayName }` | `400` missing fields, `401` wrong email or password |
+| `POST /api/auth/register` `{ email, password, displayName }` | `201` with `{ accessToken, expiresAt, user }` | `400` invalid input, `409` email already registered |
+| `POST /api/auth/login` `{ email, password }` | `200` with `{ accessToken, expiresAt, user }` | `400` missing fields, `401` wrong email or password |
+| `GET /api/auth/me` (needs a token) | `200` with `{ id, email, displayName }` | `401` no, invalid, expired or unknown-account token |
 
+- Send the token as `Authorization: Bearer <accessToken>`. In Swagger UI (`/swagger`) use the **Authorize** button; only `/api/auth/me` shows a lock. Plan generation stays public so the app works without an account.
+- Tokens are JWTs signed with HMAC-SHA256, valid for 60 minutes by default, and carry the account id (`sub`), email and display name. A valid token for an account that has been deleted gets `401`.
 - Passwords are hashed with ASP.NET Core's `PasswordHasher` (PBKDF2); only the hash is stored and it is never returned.
 - Emails are trimmed and lowercased, so they are case-insensitive. Password length is 8-128.
 - Login gives the same `401` for an unknown email and a wrong password, and takes the same time for both.
-- Request bodies on `/api/auth/*` are never logged (the rest of the API logs them). Keep that when adding auth endpoints: put `[HttpLogging(...)]` without `RequestBody` on the controller.
-- Login does not issue a token yet; that is #84.
+- Request bodies on `/api/auth/*` are never logged (the rest of the API logs them), and neither are tokens. Keep that when adding auth endpoints: put `[HttpLogging(...)]` without `RequestBody` on the controller.
+- To protect an endpoint, add `[Authorize]`. The signed-in account id is `User.FindFirst("sub")`.
+
+### Token settings
+
+| Setting (env var) | Default | |
+| --- | --- | --- |
+| `Jwt__SigningKey` | none | **Required, at least 32 characters.** The API refuses to start without it. Anyone who knows it can sign in as any account, so never commit it: generate a long random value and set it in Dokploy next to the connection string. |
+| `Jwt__AccessTokenMinutes` | `60` | Token lifetime. |
+| `Jwt__Issuer` / `Jwt__Audience` | `linkup-api` / `linkup-app` | Tokens for other values are rejected. |
+
+`appsettings.Development.json` has a development-only key so `dotnet run` works locally. Changing the key signs everyone out.
 
 ## Tests
 
