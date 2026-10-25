@@ -934,7 +934,9 @@
           "notes",
           "tags",
           "isActive",
-          "openingHours"
+          "openingHours",
+          "estimatedSpendPerPerson",
+          "currency"
         ],
         "type": "object",
         "properties": {
@@ -984,7 +986,10 @@
             "format": "double"
           },
           "priceLevel": {
-            "type": "integer",
+            "type": [
+              "null",
+              "integer"
+            ],
             "format": "int32"
           },
           "notes": {
@@ -1007,6 +1012,16 @@
             "items": {
               "$ref": "#/components/schemas/OpeningHoursDto"
             }
+          },
+          "estimatedSpendPerPerson": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "currency": {
+            "type": "string"
           }
         }
       },

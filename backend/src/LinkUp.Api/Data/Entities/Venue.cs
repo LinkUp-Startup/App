@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace LinkUp.Api.Data.Entities;
  
 public sealed class Venue
@@ -11,13 +13,23 @@ public sealed class Venue
     public double Longitude { get; set; }
 
     public EntranceType EntranceType { get; set; }
-    // Null when unknown or event-dependent
+    // EUR per person. Null means unknown or event-dependent, not free.
     public decimal? EntranceFee { get; set; }
-    // Typical spend per person when consuming
+    // Typical EUR spend per person when consuming, excluding admission. Null means unknown.
     public decimal? MinSpend { get; set; }
     public decimal? MaxSpend { get; set; }
-    // 1 = cheap … 4 = expensive. Derived from the spend range at import
-    public int PriceLevel { get; set; }
+    // 1 = cheap … 4 = expensive. Derived from the spend range at import; null when unknown.
+    public int? PriceLevel { get; set; }
+
+    // Single-currency domain: no per-row currency column or conversion is needed.
+    [NotMapped]
+    public string Currency => "EUR";
+
+    // A range midpoint estimate, not an observed average or a guaranteed total visit price.
+    [NotMapped]
+    public decimal? EstimatedSpendPerPerson => MinSpend is { } min && MaxSpend is { } max
+        ? decimal.Round((min + max) / 2m, 2, MidpointRounding.AwayFromZero)
+        : null;
 
     public string? Notes { get; set; }
     public List<string> Tags { get; set; } = [];

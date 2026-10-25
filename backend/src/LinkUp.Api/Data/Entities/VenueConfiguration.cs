@@ -13,6 +13,8 @@ public sealed class VenueConfiguration : IEntityTypeConfiguration<Venue>
             table.HasCheckConstraint("CK_Venues_Latitude", "\"Latitude\" BETWEEN -90 AND 90");
             table.HasCheckConstraint("CK_Venues_Longitude", "\"Longitude\" BETWEEN -180 AND 180");
             table.HasCheckConstraint("CK_Venues_EntranceFee", "\"EntranceFee\" IS NULL OR \"EntranceFee\" >= 0");
+            table.HasCheckConstraint("CK_Venues_MinSpend", "\"MinSpend\" IS NULL OR \"MinSpend\" >= 0");
+            table.HasCheckConstraint("CK_Venues_MaxSpend", "\"MaxSpend\" IS NULL OR \"MaxSpend\" >= 0");
             table.HasCheckConstraint("CK_Venues_SpendRange",
                 "\"MinSpend\" IS NULL OR \"MaxSpend\" IS NULL OR \"MinSpend\" <= \"MaxSpend\"");
         });

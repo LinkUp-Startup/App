@@ -22,7 +22,8 @@ public sealed class VenueSeedDataTests
     public void Every_venue_has_a_valid_price_level_and_spend_range() =>
         Assert.All(Venues, v =>
         {
-            Assert.InRange(v.PriceLevel, 1, 4);
+            Assert.NotNull(v.PriceLevel);
+            Assert.InRange(v.PriceLevel.Value, 1, 4);
             Assert.True(v.MinSpend <= v.MaxSpend);
         });
 

@@ -523,11 +523,14 @@ export interface components {
             /** Format: double */
             maxSpend: null | number;
             /** Format: int32 */
-            priceLevel: number;
+            priceLevel: null | number;
             notes: null | string;
             tags: string[];
             isActive: boolean;
             openingHours: components["schemas"]["OpeningHoursDto"][];
+            /** Format: double */
+            estimatedSpendPerPerson: null | number;
+            currency: string;
         };
         VenueDto: {
             id: string;
