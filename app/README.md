@@ -1,6 +1,6 @@
 # LinkUp — mobile app
 
-React Native + TypeScript app built with [Expo](https://expo.dev) (SDK 57) and Expo Router. One codebase for Android and iOS; the school release targets Android first.
+React Native + TypeScript app built with [Expo](https://expo.dev) (SDK 58) and Expo Router. One codebase for Android and iOS; the school release targets Android first.
 
 ## Requirements
 
