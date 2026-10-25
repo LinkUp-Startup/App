@@ -7,23 +7,24 @@ import { useTheme } from '@/hooks/use-theme';
 
 type ScreenProps = {
   children: ReactNode;
-  /** Safe-area edges to pad. Screens under a navigation header leave out 'top'. */
+  /** Safe-area edges to pad on Android. Screens under a navigation header leave out 'top'. */
   edges?: Edge[];
 };
 
 export function Screen({ children, edges = ['top'] }: ScreenProps) {
   const theme = useTheme();
-  // iOS draws the navigation header over the content (translucent since iOS 26), so a scroll view under a
-  // header insets itself below it and above the home indicator instead of using safe-area padding.
-  const underIosHeader = Platform.OS === 'ios' && !edges.includes('top');
+  // iOS draws the navigation header and the tab bar over the content (translucent glass since iOS 26). The
+  // scroll view insets itself for all of them, the status bar and the home indicator together, instead of
+  // safe-area padding that only knows about the screen edges.
+  const ios = Platform.OS === 'ios';
 
   return (
     <SafeAreaView
-      edges={underIosHeader ? [] : edges}
+      edges={ios ? [] : edges}
       style={[styles.root, { backgroundColor: theme.background }]}>
       <ScrollView
         testID="screen-scroll"
-        contentInsetAdjustmentBehavior={underIosHeader ? 'automatic' : 'never'}
+        contentInsetAdjustmentBehavior={ios ? 'automatic' : 'never'}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled">
         {children}

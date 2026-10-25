@@ -20,7 +20,7 @@ describe('Screen', () => {
     expect(scrollView().props.contentInsetAdjustmentBehavior).toBe('automatic');
   });
 
-  it('pads the safe area itself on screens without a header', async () => {
+  it('also insets tab screens on iOS, so content clears the glass tab bar', async () => {
     jest.replaceProperty(Platform, 'OS', 'ios');
     await render(
       <Screen>
@@ -28,7 +28,7 @@ describe('Screen', () => {
       </Screen>,
     );
 
-    expect(scrollView().props.contentInsetAdjustmentBehavior).toBe('never');
+    expect(scrollView().props.contentInsetAdjustmentBehavior).toBe('automatic');
   });
 
   it('pads the safe area under a header on Android, where the header is not drawn over the content', async () => {
