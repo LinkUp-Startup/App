@@ -138,7 +138,7 @@ The API applies pending migrations when it starts (`Database:MigrateOnStartup`, 
 | `POST /api/auth/login` `{ email, password }` | `200` with `{ accessToken, expiresAt, user }` | `400` missing fields, `401` wrong email or password |
 | `GET /api/auth/me` (needs a token) | `200` with `{ id, email, displayName }` | `401` no, invalid, expired or unknown-account token |
 
-- Send the token as `Authorization: Bearer <accessToken>`. In Swagger UI (`/swagger`) use the **Authorize** button; only `/api/auth/me` shows a lock. Plan generation stays public so the app works without an account.
+- Send the token as `Authorization: Bearer <accessToken>`. In Swagger UI (`/swagger`) use the **Authorize** button; `/api/auth/me` and `/api/saved-plans` show a lock. Plan generation stays public so the app works without an account (guest mode).
 - Tokens are JWTs signed with HMAC-SHA256, valid for 60 minutes by default, and carry the account id (`sub`), email and display name. A valid token for an account that has been deleted gets `401`.
 - Passwords are hashed with ASP.NET Core's `PasswordHasher` (PBKDF2); only the hash is stored and it is never returned.
 - Emails are trimmed and lowercased, so they are case-insensitive. Password length is 8-128.
@@ -155,6 +155,21 @@ The API applies pending migrations when it starts (`Database:MigrateOnStartup`, 
 | `Jwt__Issuer` / `Jwt__Audience` | `linkup-api` / `linkup-app` | Tokens for other values are rejected. |
 
 `appsettings.Development.json` has a development-only key so `dotnet run` works locally. Changing the key signs everyone out.
+
+## Saved plans
+
+Plans saved to an account, so they show up on every device (#88). Guests keep their plans on the device only (see the app's `storage/saved-plans.ts`); the app uploads them when the person logs in.
+
+| Endpoint (all need a token) | Success | Errors |
+| --- | --- | --- |
+| `GET /api/saved-plans` | `200` with `{ plans: [{ plan, savedAt }] }`, most recently saved first | `401` |
+| `PUT /api/saved-plans/{id}` with a plan as returned by `/api/plans/generate` | `200` with `{ plan, savedAt }` | `400` invalid plan, `401`, `404` the id belongs to another account, `409` the account is at its limit of 200 plans |
+| `DELETE /api/saved-plans/{id}` | `204`, also when it wasn't saved | `401` |
+
+- `PUT` is idempotent: saving the same id again replaces the plan and counts as saved now. The id must be a GUID (what the generator returns) and match the plan's `id`.
+- The venues are read from the database: only each stop's venue id, times, costs and activity are taken from the request, so a request can't change a venue's name or address.
+- A plan has 1 to 10 stops in order without overlap, each ending after it starts, and no negative costs. A price that was unknown stays unknown (`null`).
+- Plans belong to the account (`Plans.UserId`) and are deleted with it. One account can't see, replace or delete another's plans; `DELETE` answers `204` either way so it doesn't reveal whether a plan exists.
 
 ## AI
 

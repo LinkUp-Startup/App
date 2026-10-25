@@ -1,3 +1,5 @@
+using LinkUp.Api.Dtos;
+
 namespace LinkUp.Api.Data.Entities;
 
 // One stop of a plan
@@ -15,7 +17,11 @@ public sealed class PlanItem
     public DateTimeOffset StartTime { get; set; }
     public DateTimeOffset EndTime { get; set; }
 
-    public decimal EstimatedCostPerPerson { get; set; }
+    // The selected activity this stop covers (dinner, drinks, ...)
+    public Activity Activity { get; set; }
+
+    // Null when the venue's price is unknown
+    public decimal? EstimatedCostPerPerson { get; set; }
     // Distance from the previous stop; 0 for the first one
     public double DistanceKm { get; set; }
 }

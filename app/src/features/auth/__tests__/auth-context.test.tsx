@@ -7,6 +7,7 @@ import { getMe } from '@/api/auth';
 import { ApiError, NetworkError } from '@/api/client';
 import { AuthProvider, RestoreTimeoutMs, useAuth } from '@/features/auth/auth-context';
 import { ExpirySkewMs } from '@/features/auth/expiry';
+import { getSavedPlans, savePlan } from '@/storage/saved-plans';
 import { saveSession } from '@/storage/session';
 import type { AuthResponse } from '@/types/api';
 
@@ -246,6 +247,43 @@ describe('signing in and out', () => {
     expect(result.current.user).toBeNull();
     expect(result.current.accessToken).toBeNull();
     expect(savedValue()).toBeUndefined();
+  });
+
+  it('signOut also removes the saved plans from the device, so the next person does not get them', async () => {
+    const { result } = await renderAuth();
+    await untilReady(result);
+    await act(async () => result.current.signIn(sessionFor()));
+    await savePlan({
+      id: 'p1',
+      title: 'Tapas',
+      summary: '',
+      items: [],
+      estimatedCostPerPerson: 20,
+      estimatedTotalCost: 40,
+      totalDistanceKm: 1,
+    });
+
+    await act(async () => result.current.signOut());
+
+    await waitFor(async () => expect(await getSavedPlans()).toEqual([]));
+  });
+
+  it('says so when the saved plans cannot be cleared on sign out', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const storage = jest.requireMock<{ removeItem: jest.Mock }>(
+      '@react-native-async-storage/async-storage',
+    );
+    storage.removeItem.mockRejectedValueOnce(new Error('disk full'));
+    const { result } = await renderAuth();
+    await untilReady(result);
+    await act(async () => result.current.signIn(sessionFor()));
+
+    await act(async () => result.current.signOut());
+
+    expect(result.current.user).toBeNull();
+    await waitFor(() =>
+      expect(warn).toHaveBeenCalledWith('Could not clear saved plans', expect.any(Error)),
+    );
   });
 
   it('a second sign in replaces the first, in memory and on the device', async () => {

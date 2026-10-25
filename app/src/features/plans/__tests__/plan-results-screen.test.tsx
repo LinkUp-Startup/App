@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 
 import { ApiError, NetworkError } from '@/api/client';
 import { generatePlans } from '@/api/plans';
+import { putSavedPlan } from '@/api/saved-plans';
 import PlanResultsScreen from '@/app/plans';
 import { getSavedPlans, savePlan } from '@/storage/saved-plans';
 import type { NightPreferences, Plan } from '@/types/api';
@@ -14,6 +15,12 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: jest.fn(),
 }));
 jest.mock('@/api/plans', () => ({ generatePlans: jest.fn() }));
+jest.mock('@/api/saved-plans');
+// Guest by default; the signed-in tests set a token.
+const mockAuth = { accessToken: null as string | null };
+jest.mock('@/features/auth/auth-context', () => ({
+  useAuth: () => ({ accessToken: mockAuth.accessToken }),
+}));
 
 const generatePlansMock = jest.mocked(generatePlans);
 
@@ -43,7 +50,10 @@ function withParams(params: { preferences?: string }) {
   jest.mocked(useLocalSearchParams).mockReturnValue(defined);
 }
 
-afterEach(() => jest.clearAllMocks());
+afterEach(() => {
+  jest.clearAllMocks();
+  mockAuth.accessToken = null;
+});
 
 describe('PlanResultsScreen', () => {
   it('sends the submitted preferences and shows a loading state', async () => {
@@ -207,5 +217,59 @@ describe('PlanResultsScreen', () => {
     await user.press(await screen.findByRole('button', { name: 'Save Tapas and drinks' }));
 
     expect(await screen.findByText("Couldn't save this plan. Try again.")).toBeOnTheScreen();
+  });
+
+  describe('when signed in', () => {
+    beforeEach(() => {
+      mockAuth.accessToken = 'token-1';
+      withParams({ preferences: JSON.stringify(preferences) });
+      generatePlansMock.mockResolvedValue({ plans: [tapasPlan] });
+    });
+
+    it('saves the plan to the account as well and marks the device copy as synced', async () => {
+      jest
+        .mocked(putSavedPlan)
+        .mockResolvedValue({ plan: tapasPlan, savedAt: '2026-10-30T12:00:00.000Z' });
+      const user = userEvent.setup();
+      await render(<PlanResultsScreen />);
+
+      await user.press(await screen.findByRole('button', { name: 'Save Tapas and drinks' }));
+
+      expect(await screen.findByRole('button', { name: 'Tapas and drinks saved' })).toBeDisabled();
+      expect(putSavedPlan).toHaveBeenCalledWith('token-1', tapasPlan);
+      expect(await getSavedPlans()).toEqual([
+        { ...tapasPlan, savedAt: '2026-10-30T12:00:00.000Z', synced: true },
+      ]);
+      expect(screen.queryByText(/Saved on this device/)).toBeNull();
+    });
+
+    it('keeps the plan on the device and says so when the account cannot be reached', async () => {
+      jest.mocked(putSavedPlan).mockRejectedValue(new NetworkError('offline'));
+      jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const user = userEvent.setup();
+      await render(<PlanResultsScreen />);
+
+      await user.press(await screen.findByRole('button', { name: 'Save Tapas and drinks' }));
+
+      expect(await screen.findByRole('button', { name: 'Tapas and drinks saved' })).toBeDisabled();
+      expect(
+        screen.getByText(/Saved on this device\. It will be added to your account/),
+      ).toBeOnTheScreen();
+      const [stored] = await getSavedPlans();
+      expect(stored.id).toBe('p1');
+      expect(stored.synced).toBeUndefined();
+    });
+  });
+
+  it('does not call the account when saving as a guest', async () => {
+    withParams({ preferences: JSON.stringify(preferences) });
+    generatePlansMock.mockResolvedValue({ plans: [tapasPlan] });
+    const user = userEvent.setup();
+    await render(<PlanResultsScreen />);
+
+    await user.press(await screen.findByRole('button', { name: 'Save Tapas and drinks' }));
+
+    expect(await screen.findByRole('button', { name: 'Tapas and drinks saved' })).toBeDisabled();
+    expect(putSavedPlan).not.toHaveBeenCalled();
   });
 });

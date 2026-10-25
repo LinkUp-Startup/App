@@ -74,6 +74,7 @@ else
     builder.Services.AddScoped<IPlanService, StubPlanService>();
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ISavedPlanService, SavedPlanService>();
 builder.Services.AddScoped<IVenueService, VenueService>();
 builder.Services.AddScoped<IVenueFilteringService, VenueFilteringService>();
 builder.Services.AddSingleton<IPlanCostService, PlanCostService>();

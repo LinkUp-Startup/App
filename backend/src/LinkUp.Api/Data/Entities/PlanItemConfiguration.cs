@@ -18,6 +18,7 @@ public sealed class PlanItemConfiguration : IEntityTypeConfiguration<PlanItem>
 
         builder.HasIndex(i => new { i.PlanId, i.Position }).IsUnique();
         builder.Property(i => i.EstimatedCostPerPerson).HasPrecision(8, 2);
+        builder.Property(i => i.Activity).HasConversion<string>().HasMaxLength(32);
 
         // Npgsql only writes UTC offsets, but plan times arrive in the user's offset (e.g. +01:00)
         builder.Property(i => i.StartTime).HasConversion(t => t.ToUniversalTime(), t => t);

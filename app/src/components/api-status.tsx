@@ -9,7 +9,7 @@ import { useTheme } from '@/hooks/use-theme';
 const labels: Record<ApiHealth, string> = {
   checking: 'Checking API…',
   online: 'API online',
-  offline: 'API unreachable — tap to retry',
+  offline: 'API unreachable. Tap to retry',
 };
 
 /** Development aid: shows whether the backend at EXPO_PUBLIC_API_URL answers /health. */

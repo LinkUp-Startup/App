@@ -17,7 +17,7 @@ public sealed class StubPlanService(IPlanCostService costs) : IPlanService
         {
             var prices = PlanPricing.Price(costs, [venue], preferences.GroupSize);
             return new PlanDto(
-                $"stub-{venue.Id}",
+                Guid.NewGuid().ToString(),
                 $"Night at {venue.Name}",
                 "Sample plan: no AI key is configured on the API.",
                 [new PlanItemDto(
