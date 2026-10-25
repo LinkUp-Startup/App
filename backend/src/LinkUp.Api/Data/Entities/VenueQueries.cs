@@ -1,9 +1,87 @@
+using System.Linq.Expressions;
+
 namespace LinkUp.Api.Data.Entities;
 
 public static class VenueQueries
 {
     // Opening hours in Spanish local time
     public static readonly TimeZoneInfo VenueTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Madrid");
+
+    /// <summary>
+    /// Candidates need a positive overlap with availability, not to remain open for the entire night.
+    /// Both intervals are half-open: merely touching an opening or closing boundary does not match.
+    /// Hours recur weekly in Madrid wall-clock time; Closes &lt;= Opens ends the following day.
+    /// </summary>
+    public static IQueryable<Venue> OpenDuring(
+        this IQueryable<Venue> venues, DateTimeOffset start, DateTimeOffset end)
+    {
+        if (end <= start)
+            throw new ArgumentOutOfRangeException(nameof(end), "Availability must end after it starts.");
+
+        var localStart = TimeZoneInfo.ConvertTime(start, VenueTimeZone);
+        var localEnd = TimeZoneInfo.ConvertTime(end, VenueTimeZone);
+        var overlaps = OverlapPredicate(localStart.DateTime, localEnd.DateTime);
+        // Valid preference windows are at most 12 hours, so they can cross at most one
+        // Madrid offset transition. Split there to handle skipped/repeated clock hours.
+        if (localStart.Offset != localEnd.Offset)
+        {
+            var before = start.UtcTicks;
+            var after = end.UtcTicks;
+            while (after - before > 1)
+            {
+                var middle = before + (after - before) / 2;
+                var offset = VenueTimeZone.GetUtcOffset(new DateTimeOffset(middle, TimeSpan.Zero));
+                if (offset == localStart.Offset)
+                    before = middle;
+                else
+                    after = middle;
+            }
+
+            var transition = new DateTimeOffset(after, TimeSpan.Zero);
+            var first = OverlapPredicate(localStart.DateTime, transition.UtcDateTime + localStart.Offset);
+            var second = OverlapPredicate(
+                TimeZoneInfo.ConvertTime(transition, VenueTimeZone).DateTime, localEnd.DateTime);
+            overlaps = Expression.Lambda<Func<Venue, bool>>(
+                Expression.OrElse(first.Body, Expression.Invoke(second, first.Parameters)), first.Parameters);
+        }
+
+        return venues.Where(overlaps);
+    }
+
+    private static Expression<Func<Venue, bool>> OverlapPredicate(DateTime start, DateTime end)
+    {
+        var startDate = start.Date;
+        var endDate = end.Date;
+        var startTime = TimeOnly.FromDateTime(start);
+        var endTime = TimeOnly.FromDateTime(end);
+
+        Expression<Func<Venue, bool>> overlaps = v => false;
+        if (end <= start)
+            return overlaps;
+        // Include yesterday's slots, since they may remain open after midnight today.
+        for (var date = startDate.AddDays(-1); date <= endDate; date = date.AddDays(1))
+        {
+            var slotDate = date;
+            var day = date.DayOfWeek;
+            var nextDate = date.AddDays(1);
+            Expression<Func<Venue, bool>> onDay = v => v.OpeningHours.Any(h => h.Day == day &&
+                // Same-day slot: its end must follow availability's start.
+                ((h.Opens < h.Closes && slotDate >= startDate &&
+                    (slotDate > startDate || h.Closes > startTime))
+                // Overnight slot: its end belongs to the following date.
+                || (h.Closes <= h.Opens &&
+                    (nextDate > startDate || (nextDate == startDate && h.Closes > startTime)))) &&
+                // Either kind of slot must begin before availability ends.
+                (slotDate < endDate || h.Opens < endTime));
+
+            // EF Core expands invocation expressions before translating the combined predicate.
+            overlaps = Expression.Lambda<Func<Venue, bool>>(
+                Expression.OrElse(overlaps.Body, Expression.Invoke(onDay, overlaps.Parameters)),
+                overlaps.Parameters);
+        }
+
+        return overlaps;
+    }
 
     // Convertes the open hour to the local time
     public static IQueryable<Venue> OpenAt(this IQueryable<Venue> venues, DateTimeOffset moment)

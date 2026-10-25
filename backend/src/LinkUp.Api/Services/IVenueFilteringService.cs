@@ -6,8 +6,8 @@ namespace LinkUp.Api.Services;
 public interface IVenueFilteringService
 {
     /// <summary>
-    /// Returns candidate venues using the currently supported filters.
-    /// Preference-specific conditions are added in issues #58–#60.
+    /// Returns active venues whose opening hours overlap the requested availability.
+    /// Further preference conditions are added in issues #59–#60.
     /// </summary>
     Task<IReadOnlyList<Venue>> FilterAsync(
         NightPreferencesDto preferences, CancellationToken cancellationToken);
