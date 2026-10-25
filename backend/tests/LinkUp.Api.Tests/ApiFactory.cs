@@ -18,6 +18,7 @@ public class ApiFactory : WebApplicationFactory<Program>
         builder.UseEnvironment("Testing");
         builder.UseSetting("ConnectionStrings:Default", "Host=localhost;Database=unused");
         builder.UseSetting("Database:MigrateOnStartup", "false"); // no real database in these tests
+        builder.UseSetting("Jwt:SigningKey", TestJwt.SigningKey);
         builder.ConfigureServices(services =>
             services.Configure<HealthCheckServiceOptions>(options =>
             {

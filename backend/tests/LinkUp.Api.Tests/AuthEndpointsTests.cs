@@ -33,7 +33,7 @@ public sealed class AuthEndpointsTests : IClassFixture<AuthApiFactory>
         _client.PostAsJsonAsync("/api/auth/login", new { email, password });
 
     [Fact]
-    public async Task Register_creates_the_account_and_never_returns_the_hash()
+    public async Task Register_creates_the_account_and_returns_a_token_but_never_the_hash()
     {
         var email = NewEmail();
 
@@ -41,12 +41,15 @@ public sealed class AuthEndpointsTests : IClassFixture<AuthApiFactory>
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        var user = JsonSerializer.Deserialize<UserDto>(body, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
-        Assert.Equal(email, user.Email);
-        Assert.Equal("Ann", user.DisplayName);
-        Assert.NotEqual(Guid.Empty, user.Id);
-        Assert.DoesNotContain("hash", body, StringComparison.OrdinalIgnoreCase);
+        var auth = JsonSerializer.Deserialize<AuthResponse>(body, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+        Assert.Equal(email, auth.User.Email);
+        Assert.Equal("Ann", auth.User.DisplayName);
+        Assert.NotEqual(Guid.Empty, auth.User.Id);
+        Assert.False(string.IsNullOrEmpty(auth.AccessToken));
         Assert.DoesNotContain(Password, body);
+        // The response must not expose anything hash-like, whatever it is called.
+        Assert.DoesNotContain(JsonDocument.Parse(body).RootElement.GetProperty("user").EnumerateObject(),
+            p => p.Name.Contains("hash", StringComparison.OrdinalIgnoreCase) || p.Name.Contains("password", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -185,9 +188,10 @@ public sealed class AuthEndpointsTests : IClassFixture<AuthApiFactory>
         var response = await LoginAsync(email.ToUpperInvariant(), Password);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var user = await response.Content.ReadFromJsonAsync<UserDto>();
-        Assert.Equal(email, user!.Email);
-        Assert.Equal("Ann", user.DisplayName);
+        var auth = await response.Content.ReadFromJsonAsync<AuthResponse>();
+        Assert.Equal(email, auth!.User.Email);
+        Assert.Equal("Ann", auth.User.DisplayName);
+        Assert.False(string.IsNullOrEmpty(auth.AccessToken));
     }
 
     [Fact]

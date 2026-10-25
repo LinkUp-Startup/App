@@ -6,7 +6,12 @@ using LinkUp.Api.Data.Entities;
 using LinkUp.Api.Middleware;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Identity;
+using LinkUp.Api.OpenApi;
 using LinkUp.Api.Options;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using LinkUp.Api.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,7 +32,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(enumConverter);
     options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
 });
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options => options.AddBearerSecurity());
 builder.Services.AddHttpLogging(options =>
 {
     // Log method/path/status plus the request body so submitted forms are visible (issue #26).
@@ -51,6 +56,36 @@ builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(Dat
 builder.Services.AddScoped<IPlanService, StubPlanService>();
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+
+// JWT access tokens (#84). The signing key comes from configuration (Jwt__SigningKey on the server) and is
+// validated at startup, so a deploy without it fails loudly instead of running with no or a weak key.
+// Build-time OpenAPI generation runs without configuration, so it gets a throwaway key.
+if (isOpenApiGeneration)
+    builder.Configuration["Jwt:SigningKey"] ??= new string('x', JwtOptions.SigningKeyMinLength);
+builder.Services.AddOptions<JwtOptions>()
+    .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<ITokenService, TokenService>();
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
+builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+    .Configure<IOptions<JwtOptions>>((bearer, jwtOptions) =>
+    {
+        var jwt = jwtOptions.Value;
+        bearer.MapInboundClaims = false; // keep "sub" and "name" as written in the token
+        bearer.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidIssuer = jwt.Issuer,
+            ValidAudience = jwt.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey)),
+            ValidateIssuerSigningKey = true,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromSeconds(30),
+            NameClaimType = "name",
+        };
+    });
+builder.Services.AddAuthorization();
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
 {
     // Native React Native requests send no Origin header, so this only matters for web/Expo web.
@@ -63,6 +98,8 @@ var app = builder.Build();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseHttpLogging();
 app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
 {
