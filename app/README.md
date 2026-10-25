@@ -72,7 +72,18 @@ Keep non-route code out of `src/app/`. Import from `src` with the `@/` alias.
 
 ### Accounts
 
-The app works fully as a guest; an account is optional. The **Account** tab opens the login and register screens. Their form rules (`features/auth/form.ts`) mirror the server's limits, and a test fails if they drift apart. After a successful login or registration the API's access token is held in memory (`features/auth/auth-context.tsx`): it is lost when the app closes, because storing it securely is a separate issue (#86). To try it against a local API, run the backend and set `EXPO_PUBLIC_API_URL` to it (see `.env.example`); `npx expo start --web` also works for a quick look in a browser.
+The app works fully as a guest; an account is optional. The **Account** tab opens the login and register screens. Their form rules (`features/auth/form.ts`) mirror the server's limits, and a test fails if they drift apart.
+
+**The session survives closing the app.** After a login or registration the account and access token are kept in the phone's secure storage (iOS Keychain / Android Keystore, via `expo-secure-store`, not backed up or moved to another device); `storage/session.ts` is the only code that touches it. On launch (`features/auth/auth-context.tsx`):
+
+- the saved session is restored, unless it has expired or is damaged (then it is removed and the user starts as a guest). The splash screen stays up until this is done, so a signed-in user never sees the app flash as a guest.
+- the token is confirmed in the background with `GET /api/auth/me`. A `401` (expired, or the server no longer accepts it) signs the user out; being offline or a server error does not, because the app can't tell.
+- while the app runs, the user is signed out when the token expires (30 seconds early, so a request never leaves with a token about to lapse), including after the app was in the background.
+- **Log out** removes the session from the device.
+
+On the **web** there is no secure storage, so a production web build keeps the session in memory only (a reload logs out). In development builds the browser preview uses `localStorage` instead, only so a reload behaves like reopening the app; never rely on it for anything real.
+
+To try it against a local API, run the backend and set `EXPO_PUBLIC_API_URL` to it (see `.env.example`); `npx expo start --web` also works for a quick look in a browser. Tests use an in-memory stand-in for the secure storage (`jest.setup.ts`), emptied before every test.
 
 ## Native builds
 

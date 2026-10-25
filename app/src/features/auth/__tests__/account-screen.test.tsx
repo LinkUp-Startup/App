@@ -15,7 +15,7 @@ function SignedInAsAnn() {
   useEffect(() => {
     signIn({
       accessToken: 'token-1',
-      expiresAt: '2026-10-30T20:00:00Z',
+      expiresAt: new Date(Date.now() + 60 * 60_000).toISOString(), // always in the future
       user: { id: 'u1', email: 'ann@example.com', displayName: 'Ann' },
     });
   }, [signIn]);
