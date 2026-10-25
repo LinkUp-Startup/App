@@ -33,6 +33,7 @@ const plan: Plan = {
   summary: 'Dinner in the old town, then a cocktail bar.',
   items: [],
   estimatedCostPerPerson: 27.4,
+  estimatedTotalCost: 109.6,
   totalDistanceKm: 1.25,
 };
 

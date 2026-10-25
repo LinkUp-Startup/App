@@ -51,7 +51,7 @@ public sealed class AiPlanServiceTests
         var logger = LoggerFactory.Create(builder => builder.AddProvider(logs)).CreateLogger<AiPlanService>();
         var options = Microsoft.Extensions.Options.Options.Create(new AiOptions { TotalTimeoutSeconds = timeoutSeconds });
         var planOptions = Microsoft.Extensions.Options.Options.Create(new PlanGenerationOptions { MaxAiCandidates = maxCandidates });
-        return (new AiPlanService(ai, options, planOptions, logger), logs);
+        return (new AiPlanService(ai, new LinkUp.Api.Services.PlanCostService(), options, planOptions, logger), logs);
     }
 
     [Fact]

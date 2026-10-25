@@ -38,5 +38,6 @@ export const tapasPlan: Plan = {
     },
   ],
   estimatedCostPerPerson: 25.5,
+  estimatedTotalCost: 102,
   totalDistanceKm: 0.91,
 };

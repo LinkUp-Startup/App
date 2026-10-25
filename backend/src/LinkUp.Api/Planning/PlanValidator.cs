@@ -9,7 +9,7 @@ namespace LinkUp.Api.Planning;
 /// <summary>
 /// Checks the AI's plans against the candidate venues and the group's window (issue #67). Invalid stops are
 /// dropped rather than failing the whole response, so no invented or closed venue reaches the app.
-/// Prices and distances come from the database, never from the AI.
+/// Prices (<see cref="PlanPricing"/>) and distances come from the database, never from the AI.
 /// </summary>
 public static class PlanValidator
 {
@@ -24,7 +24,8 @@ public static class PlanValidator
     public sealed record Result(IReadOnlyList<PlanDto> Plans, IReadOnlyList<string> Problems);
 
     public static Result Validate(
-        IReadOnlyList<AiPlan> aiPlans, IReadOnlyList<Venue> candidates, NightPreferencesDto preferences)
+        IReadOnlyList<AiPlan> aiPlans, IReadOnlyList<Venue> candidates, NightPreferencesDto preferences,
+        IPlanCostService costs)
     {
         var venues = candidates.ToDictionary(v => v.Id);
         var problems = new List<string>();
@@ -54,7 +55,7 @@ public static class PlanValidator
                 continue;
             }
 
-            plans.Add(ToPlan(aiPlans[p], stops, preferences));
+            plans.Add(ToPlan(aiPlans[p], stops, preferences, costs));
         }
 
         return new Result(plans, problems);
@@ -130,17 +131,19 @@ public static class PlanValidator
     private static bool IsOpenDuring(Venue venue, DateTimeOffset start, DateTimeOffset end) =>
         new[] { venue }.AsQueryable().OpenDuring(start, end).Any();
 
-    private static PlanDto ToPlan(AiPlan plan, List<Stop> stops, NightPreferencesDto preferences)
+    private static PlanDto ToPlan(
+        AiPlan plan, List<Stop> stops, NightPreferencesDto preferences, IPlanCostService costs)
     {
+        var prices = PlanPricing.Price(costs, stops.Select(s => s.Venue).ToList(), preferences.GroupSize);
         var items = new List<PlanItemDto>();
         Venue? previous = null;
-        foreach (var stop in stops)
+        foreach (var (stop, i) in stops.Select((stop, i) => (stop, i)))
         {
             var distance = previous is null
                 ? 0
                 : GeoDistance.HaversineKm(previous.Latitude, previous.Longitude, stop.Venue.Latitude, stop.Venue.Longitude);
             items.Add(new PlanItemDto(
-                ToVenueDto(stop.Venue, preferences), stop.Start, stop.End, EstimateCost(stop.Venue), Math.Round(distance, 2)));
+                ToVenueDto(stop.Venue, preferences), stop.Start, stop.End, prices.PerStop[i], Math.Round(distance, 2)));
             previous = stop.Venue;
         }
 
@@ -149,21 +152,10 @@ public static class PlanValidator
             Truncate(plan.Title, TitleMaxLength, "Night out"),
             Truncate(plan.Summary, SummaryMaxLength, ""),
             items,
-            items.Sum(i => i.EstimatedCostPerPerson),
+            prices.Plan.EstimatedCostPerPerson,
+            prices.Plan.TotalEstimatedCost,
             Math.Round(items.Sum(i => i.DistanceKm), 2));
     }
-
-    /// <summary>
-    /// Placeholder until the cost model of #48: the entrance fee plus the middle of the typical spend range,
-    /// counting unknown prices as 0.
-    /// </summary>
-    internal static decimal EstimateCost(Venue venue) => (venue.EntranceFee ?? 0) + (venue.MinSpend, venue.MaxSpend) switch
-    {
-        ({ } min, { } max) => Math.Round((min + max) / 2, 2),
-        ({ } min, null) => min,
-        (null, { } max) => max,
-        _ => 0,
-    };
 
     /// <summary>The venue with the selected activity it serves in this plan.</summary>
     internal static VenueDto ToVenueDto(Venue venue, NightPreferencesDto preferences)

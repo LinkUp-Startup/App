@@ -9,7 +9,8 @@ namespace LinkUp.Api.Planning;
 
 /// <summary>Plans combined by the AI from the filtered candidates, then checked against them.</summary>
 public sealed class AiPlanService(
-    IAiClient ai, IOptions<AiOptions> options, IOptions<PlanGenerationOptions> planOptions, ILogger<AiPlanService> logger)
+    IAiClient ai, IPlanCostService costs, IOptions<AiOptions> options, IOptions<PlanGenerationOptions> planOptions,
+    ILogger<AiPlanService> logger)
     : IPlanService
 {
     /// <summary>Fewer than <see cref="PlanValidator.MinPlans"/> distinct valid plans gets one more try.</summary>
@@ -51,7 +52,7 @@ public sealed class AiPlanService(
                 continue;
             }
 
-            var result = PlanValidator.Validate(aiPlans, candidates, preferences);
+            var result = PlanValidator.Validate(aiPlans, candidates, preferences, costs);
             logger.LogInformation(
                 "Plan generation ({PromptVersion}) attempt {Attempt}/{MaxAttempts}: {Sent} of {Filtered} candidates sent, {Returned} plans from the AI, {Kept} kept",
                 PlanPrompt.Version, attempt, MaxAttempts, candidates.Count, filtered.Count, aiPlans.Count, result.Plans.Count);

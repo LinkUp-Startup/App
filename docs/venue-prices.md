@@ -160,11 +160,11 @@ retained as a candidate, but does not establish a complete plan total. Budget va
 app price display (#51) can consume the result and `IsComplete` without repeating the arithmetic;
 neither behavior is implemented here. No schema, request, or response fields are changed.
 
-The existing AI/stub response mapper (`PlanValidator.EstimateCost`) is a legacy placeholder with
-different partial-price assumptions. It is not reused by this estimator and is not changed here:
-its current DTO amounts are non-nullable. Wiring incomplete estimates into those existing responses
-requires an explicit consumer/API policy, rather than silently turning a null result back into zero.
-This service supplies the canonical venue-based estimate for that future integration.
+Generated plans use this service (`Planning/PlanPricing.cs`, for both the AI and the stub plans).
+Policy for incomplete estimates in the response: `PlanItemDto.EstimatedCostPerPerson` is the stop's
+own estimate, null when that venue is unpriced, and `PlanDto.EstimatedCostPerPerson` /
+`EstimatedTotalCost` (the group) are null as soon as any stop is unpriced. A null is never turned
+back into zero. The app shows such a cost as "price unknown"; the price design itself is #51.
 
 Run its unit tests without a database server or AI calls:
 

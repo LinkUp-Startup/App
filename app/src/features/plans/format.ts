@@ -20,9 +20,9 @@ export function formatTimeRange(start: string, end: string) {
   return `${formatTime(new Date(start))}–${formatTime(new Date(end))}`;
 }
 
-/** Prices are estimates, so whole euros. */
-export function formatEuros(amount: number) {
-  return `~€${Math.round(amount)}`;
+/** Prices are estimates, so whole euros. Null means the API doesn't know the price (never shown as €0). */
+export function formatEuros(amount: number | null) {
+  return amount === null ? 'price unknown' : `~€${Math.round(amount)}`;
 }
 
 /** "850 m" below a kilometre, "1.3 km" above. */
@@ -42,5 +42,9 @@ export function formatNightDate(iso: string) {
 /** "2 stops · ~€26 per person · 900 m" */
 export function planSummaryLine(plan: Plan) {
   const stops = `${plan.items.length} ${plan.items.length === 1 ? 'stop' : 'stops'}`;
-  return `${stops} · ${formatEuros(plan.estimatedCostPerPerson)} per person · ${formatDistance(plan.totalDistanceKm)}`;
+  const cost =
+    plan.estimatedCostPerPerson === null
+      ? 'price unknown'
+      : `${formatEuros(plan.estimatedCostPerPerson)} per person`;
+  return `${stops} · ${cost} · ${formatDistance(plan.totalDistanceKm)}`;
 }
