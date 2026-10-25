@@ -207,6 +207,125 @@ public sealed class VenueFilteringServiceTests : IAsyncLifetime
     }
 
     [Theory]
+    [InlineData(Transport.Walking)]
+    [InlineData(Transport.Bike)]
+    [InlineData(Transport.Car)]
+    [InlineData(Transport.PublicTransport)]
+    [InlineData(Transport.Taxi)]
+    public async Task Each_recognized_transport_mode_allows_otherwise_eligible_venues(Transport mode)
+    {
+        await SeedAsync(OpenVenue(1, VenueCategory.Restaurant));
+
+        var result = await new VenueFilteringService(_db).FilterAsync(
+            Preferences with { Transport = [mode] }, CancellationToken.None);
+
+        Assert.Equal(new[] { 1 }, result.Select(v => v.Id));
+        Assert.Single(_queries.Commands);
+        Assert.Empty(_db.ChangeTracker.Entries());
+    }
+
+    [Theory]
+    [InlineData(new[] { Transport.Walking, Transport.Bike })]
+    [InlineData(new[] { Transport.Car, Transport.PublicTransport, Transport.Taxi })]
+    [InlineData(new[] { Transport.Walking, Transport.Walking })]
+    [InlineData(new[] { (Transport)999, Transport.Bike })]
+    public async Task Transport_combinations_use_any_recognized_mode_without_duplicate_candidates(
+        Transport[] modes)
+    {
+        await SeedAsync(OpenVenue(1, VenueCategory.Restaurant), OpenVenue(2, VenueCategory.Restaurant));
+
+        var result = await new VenueFilteringService(_db).FilterAsync(
+            Preferences with { Transport = modes }, CancellationToken.None);
+
+        Assert.Equal(new[] { 1, 2 }, result.Select(v => v.Id));
+        Assert.Single(_queries.Commands);
+    }
+
+    [Theory]
+    [InlineData(new Transport[] { })]
+    [InlineData(new[] { (Transport)999 })]
+    [InlineData(new[] { (Transport)(-1), (Transport)999 })]
+    [InlineData(null)]
+    public async Task Missing_empty_or_unknown_transport_returns_no_candidates(Transport[]? modes)
+    {
+        await SeedAsync(OpenVenue(1, VenueCategory.Restaurant));
+
+        var result = await new VenueFilteringService(_db).FilterAsync(
+            Preferences with { Transport = modes! }, CancellationToken.None);
+
+        Assert.Empty(result);
+        Assert.Single(_queries.Commands);
+    }
+
+    [Theory]
+    [InlineData(Transport.Car, 1)]
+    [InlineData(Transport.Car, 4)]
+    [InlineData(Transport.Car, 20)]
+    [InlineData(Transport.Walking, 1)]
+    [InlineData(Transport.Walking, 4)]
+    [InlineData(Transport.Walking, 20)]
+    public async Task Unknown_capacity_does_not_exclude_valid_group_sizes_with_or_without_a_car(
+        Transport mode, int groupSize)
+    {
+        await SeedAsync(OpenVenue(1, VenueCategory.Restaurant), OpenVenue(2, VenueCategory.Restaurant));
+
+        var result = await new VenueFilteringService(_db).FilterAsync(
+            Preferences with { Transport = [mode], GroupSize = groupSize }, CancellationToken.None);
+
+        Assert.Equal(new[] { 1, 2 }, result.Select(v => v.Id));
+        Assert.Single(_queries.Commands);
+    }
+
+    [Theory]
+    [InlineData(Transport.Car, 0.5)]
+    [InlineData(Transport.Car, 30)]
+    [InlineData(Transport.Walking, 0.5)]
+    [InlineData(Transport.Walking, 30)]
+    public async Task Does_not_invent_a_distance_origin_or_treat_zero_coordinates_as_missing(
+        Transport mode, double maximumDistance)
+    {
+        var lleida = OpenVenue(1, VenueCategory.Restaurant);
+        lleida.Latitude = 41.6176;
+        lleida.Longitude = 0.62;
+        var paris = OpenVenue(2, VenueCategory.Restaurant);
+        paris.Latitude = 48.8566;
+        paris.Longitude = 2.3522;
+        // The current non-nullable model has no missing-location marker or access metadata.
+        var zeroCoordinates = OpenVenue(3, VenueCategory.Restaurant);
+        await SeedAsync(lleida, paris, zeroCoordinates);
+
+        var result = await new VenueFilteringService(_db).FilterAsync(
+            Preferences with { Transport = [mode], MaxDistanceKm = maximumDistance }, CancellationToken.None);
+
+        Assert.Equal(new[] { 1, 2, 3 }, result.Select(v => v.Id));
+        Assert.Single(_queries.Commands);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Transport_requirement_combines_with_group_size_opening_hours_and_categories(bool hasTransport)
+    {
+        var closed = OpenVenue(2, VenueCategory.Restaurant);
+        closed.OpeningHours.Clear();
+        var inactive = OpenVenue(3, VenueCategory.Restaurant);
+        inactive.IsActive = false;
+        await SeedAsync(OpenVenue(1, VenueCategory.Restaurant), closed, inactive,
+            OpenVenue(4, VenueCategory.Bar));
+
+        var result = await new VenueFilteringService(_db).FilterAsync(
+            Preferences with
+            {
+                Transport = hasTransport ? [Transport.Car, Transport.Walking] : [],
+                GroupSize = 20,
+            }, CancellationToken.None);
+
+        Assert.Equal(hasTransport ? new[] { 1 } : Array.Empty<int>(), result.Select(v => v.Id));
+        Assert.Single(_queries.Commands);
+        Assert.Empty(_db.ChangeTracker.Entries());
+    }
+
+    [Theory]
     // Monday daytime: full coverage, closed, opens/closes within availability, exact boundaries.
     [InlineData("2026-10-26T18:00:00+01:00", "2026-10-26T22:00:00+01:00", DayOfWeek.Monday, "17:00", "23:00", true)]
     [InlineData("2026-10-26T18:00:00+01:00", "2026-10-26T22:00:00+01:00", DayOfWeek.Monday, "10:00", "16:00", false)]
