@@ -21,15 +21,18 @@ public static class PlanValidator
 
     /// <param name="Plans">Usable plans, at most <see cref="MaxPlans"/>.</param>
     /// <param name="Problems">What was dropped and why, for the logs.</param>
-    public sealed record Result(IReadOnlyList<PlanDto> Plans, IReadOnlyList<string> Problems);
+    public sealed record Result(IReadOnlyList<PlanDto> Plans, IReadOnlyList<string> Problems, bool HasCostFailures);
 
     public static Result Validate(
-        IReadOnlyList<AiPlan> aiPlans, IReadOnlyList<Venue> candidates, NightPreferencesDto preferences)
+        IReadOnlyList<AiPlan> aiPlans, IReadOnlyList<Venue> candidates, NightPreferencesDto preferences,
+        IPlanCostService costs)
     {
+        PlanBudgetValidation.ValidatePreferences(preferences);
         var venues = candidates.ToDictionary(v => v.Id);
         var problems = new List<string>();
         var plans = new List<PlanDto>();
         var seen = new HashSet<string>();
+        var hasCostFailures = false;
 
         for (var p = 0; p < aiPlans.Count; p++)
         {
@@ -54,10 +57,18 @@ public static class PlanValidator
                 continue;
             }
 
-            plans.Add(ToPlan(aiPlans[p], stops, preferences));
+            if (!PlanBudgetValidation.TryEstimate(stops.Select(s => s.Venue), preferences, costs,
+                out var estimate, out var costProblem))
+            {
+                problems.Add($"{label}: dropped, {costProblem}");
+                hasCostFailures = true;
+                continue;
+            }
+
+            plans.Add(ToPlan(aiPlans[p], stops, preferences, estimate));
         }
 
-        return new Result(plans, problems);
+        return new Result(plans, problems, hasCostFailures);
     }
 
     private sealed record Stop(Venue Venue, DateTimeOffset Start, DateTimeOffset End);
@@ -130,7 +141,8 @@ public static class PlanValidator
     private static bool IsOpenDuring(Venue venue, DateTimeOffset start, DateTimeOffset end) =>
         new[] { venue }.AsQueryable().OpenDuring(start, end).Any();
 
-    private static PlanDto ToPlan(AiPlan plan, List<Stop> stops, NightPreferencesDto preferences)
+    private static PlanDto ToPlan(
+        AiPlan plan, List<Stop> stops, NightPreferencesDto preferences, PlanCostEstimate estimate)
     {
         var items = new List<PlanItemDto>();
         Venue? previous = null;
@@ -140,7 +152,8 @@ public static class PlanValidator
                 ? 0
                 : GeoDistance.HaversineKm(previous.Latitude, previous.Longitude, stop.Venue.Latitude, stop.Venue.Longitude);
             items.Add(new PlanItemDto(
-                ToVenueDto(stop.Venue, preferences), stop.Start, stop.End, EstimateCost(stop.Venue), Math.Round(distance, 2)));
+                ToVenueDto(stop.Venue, preferences), stop.Start, stop.End,
+                estimate.ItemCostsPerPerson[items.Count]!.Value, Math.Round(distance, 2)));
             previous = stop.Venue;
         }
 
@@ -149,21 +162,9 @@ public static class PlanValidator
             Truncate(plan.Title, TitleMaxLength, "Night out"),
             Truncate(plan.Summary, SummaryMaxLength, ""),
             items,
-            items.Sum(i => i.EstimatedCostPerPerson),
+            estimate.EstimatedCostPerPerson!.Value,
             Math.Round(items.Sum(i => i.DistanceKm), 2));
     }
-
-    /// <summary>
-    /// Placeholder until the cost model of #48: the entrance fee plus the middle of the typical spend range,
-    /// counting unknown prices as 0.
-    /// </summary>
-    internal static decimal EstimateCost(Venue venue) => (venue.EntranceFee ?? 0) + (venue.MinSpend, venue.MaxSpend) switch
-    {
-        ({ } min, { } max) => Math.Round((min + max) / 2, 2),
-        ({ } min, null) => min,
-        (null, { } max) => max,
-        _ => 0,
-    };
 
     /// <summary>The venue with the selected activity it serves in this plan.</summary>
     internal static VenueDto ToVenueDto(Venue venue, NightPreferencesDto preferences)

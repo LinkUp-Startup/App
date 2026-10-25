@@ -1,6 +1,7 @@
 using LinkUp.Api.Ai;
 using LinkUp.Api.Options;
 using LinkUp.Api.Planning;
+using LinkUp.Api.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using static LinkUp.Api.Tests.PlanTestData;
@@ -45,13 +46,13 @@ public sealed class AiPlanServiceTests
     private static Func<AiJsonResponse> Returns(string json) => () => new AiJsonResponse(json, Usage);
 
     private static (AiPlanService Service, AuthApiFactory.CapturedLogs Logs) Create(
-        IAiClient ai, double timeoutSeconds = 55, int maxCandidates = 3)
+        IAiClient ai, double timeoutSeconds = 55, int maxCandidates = 3, IPlanCostService? costs = null)
     {
         var logs = new AuthApiFactory.CapturedLogs();
         var logger = LoggerFactory.Create(builder => builder.AddProvider(logs)).CreateLogger<AiPlanService>();
         var options = Microsoft.Extensions.Options.Options.Create(new AiOptions { TotalTimeoutSeconds = timeoutSeconds });
         var planOptions = Microsoft.Extensions.Options.Options.Create(new PlanGenerationOptions { MaxAiCandidates = maxCandidates });
-        return (new AiPlanService(ai, options, planOptions, logger), logs);
+        return (new AiPlanService(ai, options, planOptions, logger, costs ?? new PlanCostService()), logs);
     }
 
     [Fact]
@@ -217,5 +218,240 @@ public sealed class AiPlanServiceTests
 
         Assert.Contains("1 usable plan(s)", error.Message);
         Assert.Contains(logs.Messages, m => m.Contains("gave up with 1 distinct plan(s), 2 needed"));
+    }
+
+    private sealed class RecordingCosts : IPlanCostService
+    {
+        public List<(Data.Entities.Plan Plan, int GroupSize, PlanCostEstimate Estimate)> Calls { get; } = [];
+        public PlanCostEstimate Estimate(Data.Entities.Plan plan, int groupSize)
+        {
+            var estimate = new PlanCostService().Estimate(plan, groupSize);
+            Calls.Add((plan, groupSize, estimate));
+            return estimate;
+        }
+    }
+
+    private static Data.Entities.Venue Priced(int id, decimal amount)
+    {
+        var venue = Venue(id);
+        venue.MinSpend = venue.MaxSpend = amount;
+        return venue;
+    }
+
+    [Fact]
+    public async Task Structurally_repaired_plans_are_priced_from_their_final_stops_before_success()
+    {
+        var json = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            plans = new[]
+            {
+                new
+                {
+                    title = "Repaired", summary = "",
+                    stops = new[]
+                    {
+                        new { venueId = 1, startTime = At(21), endTime = At(22) },
+                        new { venueId = 2, startTime = At(27), endTime = At(28) },
+                    },
+                },
+                new
+                {
+                    title = "Other", summary = "",
+                    stops = new[] { new { venueId = 3, startTime = At(21), endTime = At(22) } },
+                },
+            },
+        });
+        var costs = new RecordingCosts();
+        var ai = new FakeAi(Returns(json));
+        var (service, _) = Create(ai, costs: costs);
+
+        var plans = await service.GeneratePlansAsync(Preferences() with { BudgetPerPerson = 10m },
+            [Priced(1, 10m), Priced(2, 100m), Priced(3, 10m)], CancellationToken.None);
+
+        Assert.Equal(["1", "3"], plans.Select(p => Assert.Single(p.Items).Venue.Id));
+        Assert.All(plans, p => Assert.Equal(10m, p.EstimatedCostPerPerson));
+        Assert.Equal([1, 3], costs.Calls.Select(c => Assert.Single(c.Plan.Items).VenueId));
+        Assert.Single(ai.Requests);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    [InlineData(20)]
+    public async Task Exact_per_person_budget_accepts_group_totals_without_double_multiplication(int groupSize)
+    {
+        var costs = new RecordingCosts();
+        var ai = new FakeAi(Returns(PlansJson([1, 2], [3])));
+        var (service, _) = Create(ai, costs: costs);
+        var preferences = Preferences() with { BudgetPerPerson = 20m, GroupSize = groupSize };
+
+        var plans = await service.GeneratePlansAsync(preferences,
+            [Priced(1, 10m), Priced(2, 10m), Priced(3, 20m)], CancellationToken.None);
+
+        Assert.Equal(2, plans.Count);
+        Assert.All(plans, p =>
+        {
+            Assert.Equal(20m, p.EstimatedCostPerPerson);
+            Assert.Equal(p.EstimatedCostPerPerson, p.Items.Sum(i => i.EstimatedCostPerPerson));
+            Assert.True(p.EstimatedCostPerPerson * groupSize <= preferences.BudgetPerPerson * groupSize);
+        });
+        Assert.Equal(["1", "2"], plans[0].Items.Select(i => i.Venue.Id));
+        Assert.Equal(Start.AddHours(1), plans[0].Items[0].StartTime);
+        Assert.Equal(2, costs.Calls.Count); // One estimator call per complete candidate plan, not per item.
+        Assert.All(costs.Calls, c =>
+        {
+            Assert.Equal(groupSize, c.GroupSize);
+            Assert.Equal(20m * groupSize, c.Estimate.TotalEstimatedCost);
+            Assert.All(c.Plan.Items, i => Assert.NotNull(i.Venue));
+        });
+        Assert.Single(ai.Requests);
+    }
+
+    [Fact]
+    public async Task Over_budget_plans_are_discarded_and_every_regenerated_alternative_is_revalidated()
+    {
+        var costs = new RecordingCosts();
+        var ai = new FakeAi(Returns(PlansJson([1, 2], [1, 3])), Returns(PlansJson([1, 2], [2, 3])));
+        var (service, logs) = Create(ai, costs: costs);
+
+        var plans = await service.GeneratePlansAsync(Preferences(),
+            [Priced(1, 20m), Priced(2, 20m), Priced(3, 5m)], CancellationToken.None);
+
+        Assert.Equal(2, ai.Requests.Count);
+        Assert.Equal(4, costs.Calls.Count);
+        Assert.Equal(["1", "3"], plans[0].Items.Select(i => i.Venue.Id));
+        Assert.Equal(["2", "3"], plans[1].Items.Select(i => i.Venue.Id));
+        Assert.All(plans, p => Assert.Equal(25m, p.EstimatedCostPerPerson));
+        Assert.Contains(logs.Messages, m => m.Contains("estimated total EUR 160.00 exceeds group budget EUR 120.00"));
+    }
+
+    [Fact]
+    public async Task Individually_affordable_venues_can_exceed_the_combined_budget_and_exhaust_regeneration()
+    {
+        var costs = new RecordingCosts();
+        var overBudget = Returns(PlansJson([1, 2, 3]));
+        var ai = new FakeAi(overBudget, overBudget);
+        var (service, _) = Create(ai, costs: costs);
+        // The request model is per person: EUR 33.33 each is EUR 99.99 for three people.
+        var preferences = Preferences() with { BudgetPerPerson = 33.33m, GroupSize = 3 };
+
+        var error = await Assert.ThrowsAsync<PlanBudgetException>(() => service.GeneratePlansAsync(preferences,
+            [Priced(1, 15m), Priced(2, 20m), Priced(3, 10m)], CancellationToken.None));
+
+        Assert.Equal(AiPlanService.MaxAttempts, ai.Requests.Count);
+        Assert.Equal(2, costs.Calls.Count);
+        Assert.All(costs.Calls, c => Assert.Equal(135m, c.Estimate.TotalEstimatedCost));
+        Assert.Contains("within your budget after 2 attempts", error.Message);
+    }
+
+    [Fact]
+    public async Task Unknown_prices_do_not_count_as_free_and_a_priced_retry_can_succeed()
+    {
+        var unknown = Venue(1);
+        unknown.EntranceFee = null;
+        var ai = new FakeAi(Returns(PlansJson([1], [2])), Returns(PlansJson([2], [3])));
+        var (service, logs) = Create(ai);
+
+        var plans = await service.GeneratePlansAsync(Preferences(), [unknown, Venue(2), Venue(3)], CancellationToken.None);
+
+        Assert.Equal(["2", "3"], plans.Select(p => Assert.Single(p.Items).Venue.Id));
+        Assert.Equal(2, ai.Requests.Count);
+        Assert.Contains(logs.Messages, m => m.Contains("cost is incomplete (1 unpriced item(s))"));
+    }
+
+    [Fact]
+    public async Task Persistent_unknown_prices_are_not_returned_after_the_last_attempt()
+    {
+        var unknown = Venue(1);
+        unknown.MinSpend = null;
+        var response = Returns(PlansJson([1], [2]));
+        var ai = new FakeAi(response, response);
+        var (service, _) = Create(ai);
+
+        await Assert.ThrowsAsync<PlanBudgetException>(() =>
+            service.GeneratePlansAsync(Preferences(), [unknown, Venue(2)], CancellationToken.None));
+
+        Assert.Equal(AiPlanService.MaxAttempts, ai.Requests.Count);
+    }
+
+    [Fact]
+    public async Task Zero_budget_accepts_only_fully_known_free_plans()
+    {
+        var ai = new FakeAi(Returns(ValidJson));
+        var (service, _) = Create(ai);
+
+        var plans = await service.GeneratePlansAsync(Preferences() with { BudgetPerPerson = 0m },
+            [Venue(1), Venue(2)], CancellationToken.None);
+
+        Assert.Equal(2, plans.Count);
+        Assert.All(plans, p => Assert.Equal(0m, p.EstimatedCostPerPerson));
+        Assert.Single(ai.Requests);
+    }
+
+    [Fact]
+    public async Task Zero_budget_rejects_positive_prices_on_every_attempt()
+    {
+        var ai = new FakeAi(Returns(ValidJson), Returns(ValidJson));
+        var (service, _) = Create(ai);
+
+        await Assert.ThrowsAsync<PlanBudgetException>(() => service.GeneratePlansAsync(
+            Preferences() with { BudgetPerPerson = 0m }, [Priced(1, 0.01m), Priced(2, 0.01m)], CancellationToken.None));
+
+        Assert.Equal(AiPlanService.MaxAttempts, ai.Requests.Count);
+    }
+
+    [Theory]
+    [InlineData("10.01", true)]
+    [InlineData("10.00", false)]
+    public async Task Half_cent_venue_rounding_is_verified_at_exact_decimal_budget_boundaries(string budget, bool accepted)
+    {
+        var first = Priced(1, 10m);
+        var second = Priced(2, 10m);
+        first.MaxSpend = second.MaxSpend = 10.01m;
+        var ai = new FakeAi(Returns(ValidJson), Returns(ValidJson));
+        var (service, _) = Create(ai);
+        var preferences = Preferences() with
+        {
+            BudgetPerPerson = decimal.Parse(budget, System.Globalization.CultureInfo.InvariantCulture), GroupSize = 3,
+        };
+
+        if (accepted)
+        {
+            var plans = await service.GeneratePlansAsync(preferences, [first, second], CancellationToken.None);
+            Assert.All(plans, p => Assert.Equal(10.01m, p.EstimatedCostPerPerson));
+            Assert.Single(ai.Requests);
+        }
+        else
+        {
+            await Assert.ThrowsAsync<PlanBudgetException>(() =>
+                service.GeneratePlansAsync(preferences, [first, second], CancellationToken.None));
+            Assert.Equal(AiPlanService.MaxAttempts, ai.Requests.Count);
+        }
+    }
+
+    [Theory]
+    [InlineData(-1, 4)]
+    [InlineData(30, 0)]
+    [InlineData(30, -1)]
+    public async Task Invalid_budget_or_group_does_not_reach_the_AI(int budget, int groupSize)
+    {
+        var ai = new FakeAi(Returns(ValidJson));
+        var (service, _) = Create(ai);
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => service.GeneratePlansAsync(
+            Preferences() with { BudgetPerPerson = budget, GroupSize = groupSize }, Two, CancellationToken.None));
+
+        Assert.Empty(ai.Requests);
+    }
+
+    [Fact]
+    public async Task Missing_preferences_do_not_reach_the_AI()
+    {
+        var ai = new FakeAi(Returns(ValidJson));
+        var (service, _) = Create(ai);
+
+        await Assert.ThrowsAsync<ArgumentNullException>(() => service.GeneratePlansAsync(null!, Two, CancellationToken.None));
+
+        Assert.Empty(ai.Requests);
     }
 }

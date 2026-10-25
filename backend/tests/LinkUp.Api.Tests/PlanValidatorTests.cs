@@ -1,6 +1,7 @@
 using LinkUp.Api.Data.Entities;
 using LinkUp.Api.Dtos;
 using LinkUp.Api.Planning;
+using LinkUp.Api.Services;
 using static LinkUp.Api.Tests.PlanTestData;
 
 namespace LinkUp.Api.Tests;
@@ -17,7 +18,7 @@ public sealed class PlanValidatorTests
     private static AiPlan Plan(params AiStop[] stops) => new("Tapas and drinks", "Dinner, then a bar.", stops);
 
     private PlanValidator.Result Validate(params AiPlan[] plans) =>
-        PlanValidator.Validate(plans, [_restaurant, _bar, _pub], Preferences());
+        PlanValidator.Validate(plans, [_restaurant, _bar, _pub], Preferences(), new PlanCostService());
 
     [Fact]
     public void Keeps_a_valid_plan_and_adds_prices_and_distances_from_the_database()
@@ -81,7 +82,7 @@ public sealed class PlanValidatorTests
         var earlyBar = Venue(4, opens: new(17, 0), closes: new(21, 0));
 
         var result = PlanValidator.Validate(
-            [Plan(Stop(4, At(22), At(23)), Stop(1, At(20), At(21)))], [_restaurant, earlyBar], Preferences());
+            [Plan(Stop(4, At(22), At(23)), Stop(1, At(20), At(21)))], [_restaurant, earlyBar], Preferences(), new PlanCostService());
 
         Assert.Equal(["1"], Assert.Single(result.Plans).Items.Select(i => i.Venue.Id));
         Assert.Contains("plan 1 stop 1: venue 4 is closed then", result.Problems);
@@ -107,7 +108,7 @@ public sealed class PlanValidatorTests
         var candidates = Enumerable.Range(1, 5).Select(id => Venue(id)).ToList();
         var stops = candidates.Select((v, i) => Stop(v.Id, At(20 + i), At(21 + i))).ToArray();
 
-        var result = PlanValidator.Validate([Plan(stops)], candidates, Preferences());
+        var result = PlanValidator.Validate([Plan(stops)], candidates, Preferences(), new PlanCostService());
 
         Assert.Equal(PlanValidator.MaxStops, Assert.Single(result.Plans).Items.Count);
     }

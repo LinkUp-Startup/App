@@ -173,6 +173,7 @@ public sealed class CandidateAvailabilityEndpointTests
         {
             Id = id, Name = $"Venue {id}", Address = "Test address", PriceLevel = 1,
             Category = VenueCategory.Restaurant,
+            EntranceFee = 0m, MinSpend = 0m, MaxSpend = 0m,
             OpeningHours = [new VenueOpeningHours
             {
                 Day = DayOfWeek.Friday, Opens = new TimeOnly(18, 0), Closes = new TimeOnly(23, 0),
@@ -205,7 +206,7 @@ public sealed class CandidateAvailabilityEndpointTests
             NightPreferencesDto preferences, IReadOnlyList<Venue> candidates, CancellationToken cancellationToken)
         {
             Calls++;
-            return new StubPlanService().GeneratePlansAsync(preferences, candidates, cancellationToken);
+            return new StubPlanService(new PlanCostService()).GeneratePlansAsync(preferences, candidates, cancellationToken);
         }
     }
 }

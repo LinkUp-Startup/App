@@ -111,10 +111,11 @@ conditions remain ANDed with this price condition; no filters are relaxed and no
 ## Future budget work and limitations
 
 The numeric per-person consumption estimate and separate admission amount provide inputs for
-future plan estimates (#48), validation (#50), and app display (#51).
-Those features must choose their policies for complete plans, unknown components, and group
-size. No group-total calculation, whole-plan budget validation, currency conversion,
-or new price UI is implemented here. Group discounts, fixed booking charges and verified observed
+plan estimates (#48) and validation (#50), documented in
+[plan-budget-validation.md](plan-budget-validation.md), and future app display (#51).
+The estimator returns null totals for incomplete prices; generated plans with such costs cannot
+be verified within budget. Complete group estimates are checked before successful generation.
+No currency conversion or new price UI is implemented here. Group discounts, fixed booking charges and verified observed
 averages are not represented by the source data.
 
 EF Core cannot translate the ordinary `EstimatedSpendPerPerson` getter in a database predicate.
