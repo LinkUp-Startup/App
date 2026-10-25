@@ -121,7 +121,68 @@ public sealed class PlanValidatorTests
             [Plan(Stop(4, At(22), At(23)), Stop(1, At(20), At(21)))], [_restaurant, earlyBar], Preferences(), new PlanCostService());
 
         Assert.Equal(["1"], Assert.Single(result.Plans).Items.Select(i => i.Venue.Id));
-        Assert.Contains("plan 1 stop 1: venue 4 is closed then", result.Problems);
+        Assert.Contains("plan 1 stop 1: venue 4 is closed for (most of) that time", result.Problems);
+    }
+
+    private static Venue PricedVenue(int id, params VenueOpeningHours[] hours)
+    {
+        var venue = Venue(id);
+        (venue.EntranceFee, venue.MinSpend, venue.MaxSpend) = (0, 5, 5);
+        venue.OpeningHours = [.. hours];
+        return venue;
+    }
+
+    private static VenueOpeningHours Slot(DayOfWeek day, int opens, int closes) =>
+        new() { Day = day, Opens = new(opens, 0), Closes = new(closes % 24, 0) };
+
+    private static PlanItemDto OnlyStop(PlanValidator.Result result) =>
+        Assert.Single(Assert.Single(result.Plans).Items);
+
+    [Fact]
+    public void A_stop_running_past_closing_time_is_trimmed_to_the_opening_hours()
+    {
+        var bar = PricedVenue(5, Slot(DayOfWeek.Friday, 18, 22)); // closes at 22:00
+
+        var result = PlanValidator.Validate([Plan(Stop(5, At(21), At(24)))], [bar], Preferences(), new PlanCostService());
+
+        var stop = OnlyStop(result);
+        Assert.Equal((Start.AddHours(1), Start.AddHours(2)), (stop.StartTime, stop.EndTime)); // 21:00-22:00
+        Assert.Contains("plan 1 stop 1: trimmed to venue 5's opening hours", result.Problems);
+    }
+
+    [Fact]
+    public void A_stop_with_less_than_half_an_hour_inside_the_opening_hours_is_dropped()
+    {
+        var bar = PricedVenue(5, Slot(DayOfWeek.Friday, 18, 21)); // closes at 21:00
+        var result = PlanValidator.Validate(
+            [Plan(Stop(5, At(20, 45), At(23)), Stop(1, At(21), At(22)))], [bar, _restaurant], Preferences(), new PlanCostService());
+
+        Assert.Equal(["1"], Assert.Single(result.Plans).Items.Select(i => i.Venue.Id));
+    }
+
+    [Fact]
+    public void An_overnight_opening_slot_covers_stops_after_midnight()
+    {
+        var club = PricedVenue(5, Slot(DayOfWeek.Friday, 23, 6)); // Friday 23:00 to Saturday 06:00
+
+        var result = PlanValidator.Validate([Plan(Stop(5, At(24), At(26)))], [club], Preferences(), new PlanCostService());
+
+        var stop = OnlyStop(result); // 00:00-02:00 on Saturday, untouched
+        Assert.Equal((Start.AddHours(4), Start.AddHours(6)), (stop.StartTime, stop.EndTime));
+        Assert.DoesNotContain(result.Problems, p => p.Contains("trimmed"));
+    }
+
+    [Fact]
+    public void A_stop_spanning_two_opening_slots_keeps_the_slot_it_overlaps_most()
+    {
+        // Lunch 13-16 and dinner 20-23: a stop from 15:00 to 22:00 overlaps lunch by 1 h and dinner by 2 h.
+        var restaurant = PricedVenue(5, Slot(DayOfWeek.Friday, 13, 16), Slot(DayOfWeek.Friday, 20, 23));
+        var preferences = Preferences() with { StartTime = Start.AddHours(-6), EndTime = End };
+
+        var result = PlanValidator.Validate([Plan(Stop(5, At(15), At(22)))], [restaurant], preferences, new PlanCostService());
+
+        var stop = OnlyStop(result);
+        Assert.Equal((Start, Start.AddHours(2)), (stop.StartTime, stop.EndTime)); // 20:00-22:00
     }
 
     [Fact]

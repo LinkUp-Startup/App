@@ -104,13 +104,17 @@ public static class PlanValidator
                 continue;
             }
 
-            if (!IsOpenDuring(venue, start, end))
+            // A stop must lie inside the venue's opening hours, not just overlap them: trim it to the opening
+            // slot it overlaps most, and drop it when too little of it is left.
+            if (FitToOpeningHours(venue, start, end) is not { } open)
             {
-                problems.Add($"{where}: venue {venue.Id} is closed then");
+                problems.Add($"{where}: venue {venue.Id} is closed for (most of) that time");
                 continue;
             }
+            if (open.Start != start || open.End != end)
+                problems.Add($"{where}: trimmed to venue {venue.Id}'s opening hours");
 
-            parsed.Add(new Stop(venue, start, end));
+            parsed.Add(new Stop(venue, open.Start, open.End));
         }
 
         var valid = new List<Stop>();
@@ -137,9 +141,43 @@ public static class PlanValidator
     private static bool TryParseTime(string? text, out DateTimeOffset time) =>
         DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out time);
 
-    // Same rule as filtering: the stop overlaps an opening slot.
-    private static bool IsOpenDuring(Venue venue, DateTimeOffset start, DateTimeOffset end) =>
-        new[] { venue }.AsQueryable().OpenDuring(start, end).Any();
+    /// <summary>Shorter than this after trimming to the opening hours, a stop isn't worth going to.</summary>
+    public static readonly TimeSpan MinStopDuration = TimeSpan.FromMinutes(30);
+
+    /// <summary>
+    /// The part of the stop that falls inside one opening slot of the venue, using the slot it overlaps most;
+    /// null when that part is shorter than <see cref="MinStopDuration"/>. Opening hours are wall-clock times in
+    /// Madrid; a slot whose closing time isn't after its opening time ends on the next day.
+    /// </summary>
+    internal static (DateTimeOffset Start, DateTimeOffset End)? FitToOpeningHours(
+        Venue venue, DateTimeOffset start, DateTimeOffset end)
+    {
+        var zone = VenueQueries.VenueTimeZone;
+        var localStart = TimeZoneInfo.ConvertTime(start, zone).DateTime;
+        var localEnd = TimeZoneInfo.ConvertTime(end, zone).DateTime;
+
+        (DateTime Start, DateTime End)? best = null;
+        // Yesterday's overnight slots can still be open at the start.
+        for (var date = localStart.Date.AddDays(-1); date <= localEnd.Date; date = date.AddDays(1))
+        {
+            foreach (var slot in venue.OpeningHours.Where(h => h.Day == date.DayOfWeek))
+            {
+                var opens = date + slot.Opens.ToTimeSpan();
+                var closes = (slot.Closes > slot.Opens ? date : date.AddDays(1)) + slot.Closes.ToTimeSpan();
+                var from = opens > localStart ? opens : localStart;
+                var to = closes < localEnd ? closes : localEnd;
+                var bestLength = best is { } current ? current.End - current.Start : TimeSpan.Zero;
+                if (to - from > bestLength)
+                    best = (from, to);
+            }
+        }
+
+        if (best is not { } fit || fit.End - fit.Start < MinStopDuration) return null;
+        // Keep the original instants where nothing was trimmed, so their offset doesn't change.
+        return (fit.Start == localStart ? start : InZone(fit.Start), fit.End == localEnd ? end : InZone(fit.End));
+
+        DateTimeOffset InZone(DateTime local) => new(local, zone.GetUtcOffset(local));
+    }
 
     private static PlanDto ToPlan(
         AiPlan plan, List<Stop> stops, NightPreferencesDto preferences, PlanCostEstimate estimate)

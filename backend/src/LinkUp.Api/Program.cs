@@ -39,12 +39,17 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddOpenApi(options => options.AddBearerSecurity());
 builder.Services.AddHttpLogging(options =>
 {
-    // Log method/path/status plus the request body so submitted forms are visible (issue #26).
-    // Revisit before adding login/register endpoints: bodies there contain passwords.
+    // Method, path and status for every request.
     options.LoggingFields = HttpLoggingFields.RequestMethod | HttpLoggingFields.RequestPath
-        | HttpLoggingFields.RequestBody | HttpLoggingFields.ResponseStatusCode;
-    options.RequestBodyLogLimit = 4096;
-    options.MediaTypeOptions.AddText("application/json");
+        | HttpLoggingFields.ResponseStatusCode;
+    // Request bodies only while developing locally (issue #26: see submitted forms). They contain personal data,
+    // such as the start location and notes, so they are never logged on a server. Auth endpoints opt out anyway.
+    if (builder.Environment.IsDevelopment())
+    {
+        options.LoggingFields |= HttpLoggingFields.RequestBody;
+        options.RequestBodyLogLimit = 4096;
+        options.MediaTypeOptions.AddText("application/json");
+    }
 });
 // Local: appsettings.Development.json, or user-secrets to override it. Server: the ConnectionStrings__Default
 // environment variable. Both Npgsql (Host=...;) and postgres:// URL formats are accepted.
