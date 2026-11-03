@@ -1,1 +1,8 @@
 .env
+
+# Website build output (also in web/.gitignore)
+web/node_modules/
+web/.next/
+web/coverage/
+web/next-env.d.ts
+web/*.tsbuildinfo
