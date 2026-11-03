@@ -255,7 +255,11 @@ describe('PlanResultsScreen', () => {
     it('saves the plan to the account as well and marks the device copy as synced', async () => {
       jest
         .mocked(putSavedPlan)
-        .mockResolvedValue({ plan: tapasPlan, savedAt: '2026-10-30T12:00:00.000Z' });
+        .mockResolvedValue({
+          plan: tapasPlan,
+          savedAt: '2026-10-30T12:00:00.000Z',
+          shareUrl: null,
+        });
       const user = userEvent.setup();
       await render(<PlanResultsScreen />);
 
