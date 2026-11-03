@@ -10,7 +10,7 @@ ICT Project — Universitat de Lleida, 2026. Team: Lei, Andressa, Franjo, Thibo.
 | --------------------- | ---------------------------------------------------------- | -------------------------------------- |
 | [`app/`](app)         | React Native + TypeScript mobile app (Expo), Android + iOS | [app/README.md](app/README.md)         |
 | [`backend/`](backend) | ASP.NET Core API (C#, .NET 10) + EF Core + PostgreSQL      | [backend/README.md](backend/README.md) |
-| [`web/`](web)         | React website (from Sprint 2)                              | —                                      |
+| [`web/`](web)         | Next.js + Tailwind website: home page and shared plans     | [web/README.md](web/README.md)         |
 | [`docs/`](docs)       | Planning, setup guides and quality reports                 | see below                              |
 
 `docker-compose.yml` at the root starts the local PostgreSQL database.
