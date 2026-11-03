@@ -13,7 +13,7 @@
   --color-sodium: #ffc266;
 
   --font-display: var(--font-bricolage);
-  --font-body: var(--font-atkinson);
+  --font-body: var(--font-lexend);
 }
 
 @layer base {
