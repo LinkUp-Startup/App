@@ -66,6 +66,10 @@ builder.Services.AddDbContext<AppDbContext>(options => options
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("database");
 
 builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(DatabaseOptions.SectionName));
+builder.Services.AddOptions<SharingOptions>()
+    .Bind(builder.Configuration.GetSection(SharingOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 builder.Services.AddOptions<PlanGenerationOptions>()
     .Bind(builder.Configuration.GetSection(PlanGenerationOptions.SectionName))
     .ValidateDataAnnotations()

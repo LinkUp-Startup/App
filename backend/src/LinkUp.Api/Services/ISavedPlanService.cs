@@ -15,6 +15,18 @@ public interface ISavedPlanService
 
     /// <summary>Removes the plan from the account. Does nothing when it isn't there.</summary>
     Task DeleteAsync(Guid userId, Guid planId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The plan's public link, created on the first call; later calls return the same link. Null when the account
+    /// has not saved this plan.
+    /// </summary>
+    Task<string?> ShareAsync(Guid userId, Guid planId, CancellationToken cancellationToken);
+
+    /// <summary>Revokes the plan's public link, so it stops working. Does nothing when the plan isn't shared.</summary>
+    Task UnshareAsync(Guid userId, Guid planId, CancellationToken cancellationToken);
+
+    /// <summary>The plan behind a share link, or null when the token is unknown or revoked.</summary>
+    Task<PlanDto?> GetSharedAsync(string token, CancellationToken cancellationToken);
 }
 
 public abstract record SavePlanResult

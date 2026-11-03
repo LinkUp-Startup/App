@@ -14,7 +14,7 @@ const deleteMock = jest.mocked(deleteSavedPlan);
 
 const token = 'token-1';
 const plan = (id: string): Plan => ({ ...tapasPlan, id, title: `Plan ${id}` });
-const remote = (id: string, savedAt: string) => ({ plan: plan(id), savedAt });
+const remote = (id: string, savedAt: string) => ({ plan: plan(id), savedAt, shareUrl: null });
 const ids = async () => (await getSavedPlans()).map((p) => p.id);
 
 beforeEach(() => {
@@ -24,6 +24,7 @@ beforeEach(() => {
   putMock.mockImplementation(async (_token, saved) => ({
     plan: saved,
     savedAt: '2026-11-01T10:00:00.000Z',
+    shareUrl: null,
   }));
   deleteMock.mockResolvedValue(undefined);
 });
@@ -164,7 +165,7 @@ describe('syncSavedPlans', () => {
     await savePlan(plan('a'));
     putMock.mockImplementation(async (_token, saved) => {
       await savePlan(plan('late')); // the user saves another plan mid-sync
-      return { plan: saved, savedAt: '2026-11-01T10:00:00.000Z' };
+      return { plan: saved, savedAt: '2026-11-01T10:00:00.000Z', shareUrl: null };
     });
 
     await syncSavedPlans(token);

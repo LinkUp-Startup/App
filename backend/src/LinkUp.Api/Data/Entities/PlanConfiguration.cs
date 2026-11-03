@@ -7,6 +7,7 @@ public sealed class PlanConfiguration : IEntityTypeConfiguration<Plan>
 {
     public const int TitleMaxLength = 200;
     public const int SummaryMaxLength = 1000;
+    public const int ShareTokenMaxLength = 32;
 
     public void Configure(EntityTypeBuilder<Plan> builder)
     {
@@ -19,9 +20,11 @@ public sealed class PlanConfiguration : IEntityTypeConfiguration<Plan>
         builder.HasKey(p => p.Id);
         builder.HasIndex(p => new { p.UserId, p.SourcePlanId }).IsUnique()
             .HasFilter("\"UserId\" IS NOT NULL AND \"SourcePlanId\" IS NOT NULL");
+        builder.HasIndex(p => p.ShareToken).IsUnique().HasFilter("\"ShareToken\" IS NOT NULL");
 
         builder.Property(p => p.Title).HasMaxLength(TitleMaxLength);
         builder.Property(p => p.Summary).HasMaxLength(SummaryMaxLength);
+        builder.Property(p => p.ShareToken).HasMaxLength(ShareTokenMaxLength);
         builder.Property(p => p.EstimatedCostPerPerson).HasPrecision(8, 2);
         builder.Property(p => p.EstimatedTotalCost).HasPrecision(10, 2);
 

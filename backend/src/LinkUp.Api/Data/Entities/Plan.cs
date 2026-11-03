@@ -21,6 +21,9 @@ public sealed class Plan
     public decimal? EstimatedTotalCost { get; set; }
     public double TotalDistanceKm { get; set; }
 
+    // Random token in the plan's public link (#152). Null until the owner shares the plan.
+    public string? ShareToken { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
 
     // Not ordered by EF: sort by PlanItem.Position when reading

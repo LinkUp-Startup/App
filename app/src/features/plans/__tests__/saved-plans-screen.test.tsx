@@ -83,7 +83,7 @@ describe('SavedPlansScreen', () => {
 
     it('adds the plans saved on other devices and stores them for offline use', async () => {
       jest.mocked(listSavedPlans).mockResolvedValue({
-        plans: [{ plan: tapasPlan, savedAt: '2026-10-30T12:00:00.000Z' }],
+        plans: [{ plan: tapasPlan, savedAt: '2026-10-30T12:00:00.000Z', shareUrl: null }],
       });
       await render(<SavedPlansScreen />);
 
