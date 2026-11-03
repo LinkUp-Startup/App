@@ -358,4 +358,163 @@ public sealed class SavedPlansEndpointTests : IClassFixture<AuthApiFactory>
 
         Assert.Equal(0, await _factory.WithDbAsync(db => db.Plans.CountAsync(p => p.Id == id)));
     }
+
+    // Sharing (#152, #153)
+
+    private static async Task<string> ShareAsync(HttpClient client, Guid id)
+    {
+        using var response = await client.PostAsync($"/api/saved-plans/{id}/share", null);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return (await JsonAsync(response)).GetProperty("url").GetString()!;
+    }
+
+    private static string TokenOf(string url) => url[(url.LastIndexOf('/') + 1)..];
+
+    private async Task<HttpResponseMessage> OpenSharedAsync(string url)
+    {
+        using var anonymous = _factory.CreateClient();
+        return await anonymous.GetAsync($"/api/shared-plans/{TokenOf(url)}");
+    }
+
+    private async Task<(Account Account, Guid Id)> SavedPlanAsync(string title = "Tapas and drinks")
+    {
+        var venues = await VenuesAsync(2);
+        var account = await NewAccountAsync();
+        var id = Guid.NewGuid();
+        using var saved = await SaveAsync(account.Client, id, Plan(id, title,
+            Stop(venues[0].Id, 0, activity: "dinner"), Stop(venues[1].Id, 1, activity: "drinks")));
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        return (account, id);
+    }
+
+    [Fact]
+    public async Task Sharing_needs_a_signed_in_account()
+    {
+        using var anonymous = _factory.CreateClient();
+        var id = Guid.NewGuid();
+
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.PostAsync($"/api/saved-plans/{id}/share", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.DeleteAsync($"/api/saved-plans/{id}/share")).StatusCode);
+    }
+
+    [Fact]
+    public async Task A_shared_plan_opens_without_an_account_and_shows_only_the_plan()
+    {
+        var (account, id) = await SavedPlanAsync();
+
+        var url = await ShareAsync(account.Client, id);
+        Assert.StartsWith("https://linkup.th7bo.dev/plan/", url);
+        Assert.Matches("^[A-Za-z0-9_-]{22}$", TokenOf(url));
+
+        using var response = await OpenSharedAsync(url);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await JsonAsync(response);
+        // Nothing about the account that shared it: just the plan.
+        Assert.Equal(["plan"], body.EnumerateObject().Select(p => p.Name));
+        var plan = body.GetProperty("plan");
+        Assert.Equal("Tapas and drinks", plan.GetProperty("title").GetString());
+        Assert.Equal(2, plan.GetProperty("items").GetArrayLength());
+        Assert.DoesNotContain(account.Email, await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task Sharing_again_returns_the_same_link_and_the_saved_plan_shows_it()
+    {
+        var (account, id) = await SavedPlanAsync();
+
+        var first = await ShareAsync(account.Client, id);
+        var second = await ShareAsync(account.Client, id);
+
+        Assert.Equal(first, second);
+        var saved = Assert.Single((await ListAsync(account.Client)).EnumerateArray());
+        Assert.Equal(first, saved.GetProperty("shareUrl").GetString());
+    }
+
+    [Fact]
+    public async Task A_plan_that_is_not_shared_has_no_link()
+    {
+        var (account, _) = await SavedPlanAsync();
+
+        var saved = Assert.Single((await ListAsync(account.Client)).EnumerateArray());
+        Assert.Equal(JsonValueKind.Null, saved.GetProperty("shareUrl").ValueKind);
+    }
+
+    [Fact]
+    public async Task Saving_a_shared_plan_again_keeps_its_link_and_the_link_shows_the_new_version()
+    {
+        var venues = await VenuesAsync(1);
+        var (account, id) = await SavedPlanAsync("Old title");
+        var url = await ShareAsync(account.Client, id);
+
+        using var resaved = await SaveAsync(account.Client, id, Plan(id, "New title", Stop(venues[0].Id, 0)));
+        Assert.Equal(HttpStatusCode.OK, resaved.StatusCode);
+        Assert.Equal(url, (await JsonAsync(resaved)).GetProperty("shareUrl").GetString());
+
+        using var opened = await OpenSharedAsync(url);
+        Assert.Equal("New title", (await JsonAsync(opened)).GetProperty("plan").GetProperty("title").GetString());
+    }
+
+    [Fact]
+    public async Task Stopping_sharing_breaks_the_link_and_sharing_again_gives_a_new_one()
+    {
+        var (account, id) = await SavedPlanAsync();
+        var url = await ShareAsync(account.Client, id);
+
+        using (var stopped = await account.Client.DeleteAsync($"/api/saved-plans/{id}/share"))
+            Assert.Equal(HttpStatusCode.NoContent, stopped.StatusCode);
+        using (var opened = await OpenSharedAsync(url))
+            Assert.Equal(HttpStatusCode.NotFound, opened.StatusCode);
+        // Stopping again is harmless.
+        using (var again = await account.Client.DeleteAsync($"/api/saved-plans/{id}/share"))
+            Assert.Equal(HttpStatusCode.NoContent, again.StatusCode);
+
+        var newUrl = await ShareAsync(account.Client, id);
+        Assert.NotEqual(url, newUrl);
+        using var reopened = await OpenSharedAsync(newUrl);
+        Assert.Equal(HttpStatusCode.OK, reopened.StatusCode);
+    }
+
+    [Fact]
+    public async Task Deleting_a_shared_plan_breaks_its_link()
+    {
+        var (account, id) = await SavedPlanAsync();
+        var url = await ShareAsync(account.Client, id);
+
+        using (var deleted = await account.Client.DeleteAsync($"/api/saved-plans/{id}"))
+            Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+
+        using var opened = await OpenSharedAsync(url);
+        Assert.Equal(HttpStatusCode.NotFound, opened.StatusCode);
+    }
+
+    [Fact]
+    public async Task An_account_cannot_share_or_unshare_a_plan_it_did_not_save()
+    {
+        var (owner, id) = await SavedPlanAsync();
+        var url = await ShareAsync(owner.Client, id);
+        var other = await NewAccountAsync();
+
+        using (var share = await other.Client.PostAsync($"/api/saved-plans/{id}/share", null))
+            Assert.Equal(HttpStatusCode.NotFound, share.StatusCode);
+        using (var unshare = await other.Client.DeleteAsync($"/api/saved-plans/{id}/share"))
+            Assert.Equal(HttpStatusCode.NoContent, unshare.StatusCode);
+
+        // The owner's link still works.
+        using var opened = await OpenSharedAsync(url);
+        Assert.Equal(HttpStatusCode.OK, opened.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("AAAAAAAAAAAAAAAAAAAAAA")] // the right shape, but no plan has it
+    [InlineData("abc")]
+    [InlineData("AAAAAAAAAAAAAAAAAAAA.A")]
+    [InlineData("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")]
+    public async Task An_unknown_or_malformed_link_is_404(string token)
+    {
+        using var anonymous = _factory.CreateClient();
+
+        using var response = await anonymous.GetAsync($"/api/shared-plans/{token}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
 }

@@ -61,6 +61,35 @@ public sealed class SavedPlansController(ISavedPlanService savedPlans) : Control
         return NoContent();
     }
 
+    [HttpPost("{id:guid}/share")]
+    [EndpointSummary("Share a saved plan")]
+    [EndpointDescription(
+        "Returns the plan's public link, which anyone can open on the website without an account. Sharing an " +
+        "already shared plan returns the same link. 404 when the account has not saved the plan.")]
+    [ProducesResponseType<ShareLinkDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ShareLinkDto>> Share(Guid id, CancellationToken cancellationToken)
+    {
+        if (CurrentUserId() is not { } userId) return Unauthorized();
+
+        return await savedPlans.ShareAsync(userId, id, cancellationToken) is { } url
+            ? Ok(new ShareLinkDto(url))
+            : Problem(statusCode: StatusCodes.Status404NotFound, title: "Save the plan before sharing it.");
+    }
+
+    [HttpDelete("{id:guid}/share")]
+    [EndpointSummary("Stop sharing a saved plan")]
+    [EndpointDescription("The link stops working. Sharing the plan again gives a new link. 204 whether or not the plan was shared.")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Unshare(Guid id, CancellationToken cancellationToken)
+    {
+        if (CurrentUserId() is not { } userId) return Unauthorized();
+        await savedPlans.UnshareAsync(userId, id, cancellationToken);
+        return NoContent();
+    }
+
     private Guid? CurrentUserId() =>
         Guid.TryParse(User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value, out var id) ? id : null;
 }

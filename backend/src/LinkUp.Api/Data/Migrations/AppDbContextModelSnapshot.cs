@@ -42,6 +42,10 @@ namespace LinkUp.Api.Data.Migrations
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)");
 
+                    b.Property<string>("ShareToken")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
                     b.Property<Guid?>("SourcePlanId")
                         .HasColumnType("uuid");
 
@@ -62,6 +66,10 @@ namespace LinkUp.Api.Data.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ShareToken")
+                        .IsUnique()
+                        .HasFilter("\"ShareToken\" IS NOT NULL");
 
                     b.HasIndex("UserId", "SourcePlanId")
                         .IsUnique()
