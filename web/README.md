@@ -31,9 +31,10 @@ analyses `web/` together with the app and the backend.
 
 ## Configuration
 
-| Variable   | Default                    | What                                           |
-| ---------- | -------------------------- | ---------------------------------------------- |
-| `SITE_URL` | `https://linkup.th7bo.dev` | Public URL of the site, used for link previews |
+| Variable         | Default                        | What                                           |
+| ---------------- | ------------------------------ | ---------------------------------------------- |
+| `SITE_URL`       | `https://linkup.th7bo.dev`     | Public URL of the site, used for link previews |
+| `LINKUP_API_URL` | `https://linkup-api.th7bo.dev` | API the shared plan page reads from            |
 
 `.npmrc` sets `legacy-peer-deps`: npm 10 crashes resolving Vitest's optional peer dependencies otherwise.
 
