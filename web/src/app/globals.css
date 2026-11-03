@@ -1,0 +1,36 @@
+@import 'tailwindcss';
+
+/*
+ * LinkUp night palette. Indigo instead of black: the sky over Lleida after sunset, not a void.
+ * Amber is the one loud colour and only marks times, like the sodium streetlights the night runs under.
+ */
+@theme {
+  --color-night: #17133a;
+  --color-dusk: #241e52;
+  --color-haze: #a9a1d8;
+  --color-lavender: #ece8ff;
+  --color-violet: #9b7bff;
+  --color-sodium: #ffc266;
+
+  --font-display: var(--font-bricolage);
+  --font-body: var(--font-atkinson);
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-night);
+    color: var(--color-lavender);
+    font-family: var(--font-body), system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-sodium);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+}

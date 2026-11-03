@@ -41,7 +41,9 @@ jobs:
         with:
           node-version-file: app/.nvmrc
           cache: npm
-          cache-dependency-path: app/package-lock.json
+          cache-dependency-path: |
+            app/package-lock.json
+            web/package-lock.json
 
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
@@ -61,6 +63,25 @@ jobs:
         working-directory: app
         run: npm run test:coverage
 
+      - name: Install website dependencies
+        working-directory: web
+        run: npm ci --ignore-scripts
+
+      - name: Lint and type-check website
+        working-directory: web
+        run: |
+          npm run lint
+          npm run typecheck
+          npm run format:check
+
+      - name: Test website with coverage
+        working-directory: web
+        run: npm run test:coverage
+
+      - name: Build website
+        working-directory: web
+        run: npm run build
+
       - name: Restore .NET tools
         working-directory: backend
         run: dotnet tool restore
@@ -73,7 +94,7 @@ jobs:
           restore-keys: ${{ runner.os }}-sonar
 
       # SonarScanner for .NET analyses the C# build and, through multi-language analysis
-      # (sonar.scanner.scanAll), every other supported file in the repo, including app/ TypeScript.
+      # (sonar.scanner.scanAll), every other supported file in the repo, including app/ and web/ TypeScript.
       - name: Begin SonarQube analysis
         working-directory: backend
         env:
@@ -85,10 +106,10 @@ jobs:
           /d:sonar.host.url="https://sonarcloud.io"
           /d:sonar.token="$SONAR_TOKEN"
           /d:sonar.projectBaseDir="$GITHUB_WORKSPACE"
-          /d:sonar.exclusions="**/node_modules/**,**/bin/**,**/obj/**,app/coverage/**,app/.expo/**,app/assets/**,backend/src/LinkUp.Api/Data/Migrations/**,shared/**"
-          /d:sonar.coverage.exclusions="app/src/app/**/_layout.tsx,app/src/constants/**,**/__tests__/**,app/*.config.js,app/jest.*.ts,backend/tests/**"
+          /d:sonar.exclusions="**/node_modules/**,**/bin/**,**/obj/**,app/coverage/**,app/.expo/**,app/assets/**,web/.next/**,web/coverage/**,backend/src/LinkUp.Api/Data/Migrations/**,shared/**"
+          /d:sonar.coverage.exclusions="app/src/app/**/_layout.tsx,app/src/constants/**,**/__tests__/**,app/*.config.js,app/jest.*.ts,backend/tests/**,web/src/app/layout.tsx,web/*.config.*,web/vitest.setup.ts"
           /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.opencover.xml"
-          /d:sonar.javascript.lcov.reportPaths="app/coverage/lcov.info"
+          /d:sonar.javascript.lcov.reportPaths="app/coverage/lcov.info,web/coverage/lcov.info"
 
       - name: Build backend
         working-directory: backend
