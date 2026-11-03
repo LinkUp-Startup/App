@@ -504,6 +504,33 @@ public sealed class SavedPlansEndpointTests : IClassFixture<AuthApiFactory>
         Assert.Equal(HttpStatusCode.OK, opened.StatusCode);
     }
 
+    [Fact]
+    public async Task Someone_who_got_the_link_can_save_their_own_copy_and_keep_it_after_the_owner_deletes_it()
+    {
+        var (owner, id) = await SavedPlanAsync();
+        var url = await ShareAsync(owner.Client, id);
+        var friend = await NewAccountAsync();
+
+        // The friend opens the link and saves the plan exactly as the shared page returned it.
+        using var opened = await OpenSharedAsync(url);
+        var shared = (await JsonAsync(opened)).GetProperty("plan");
+        using (var saved = await friend.Client.PutAsync(
+            $"/api/saved-plans/{shared.GetProperty("id").GetString()}",
+            new StringContent(shared.GetRawText(), System.Text.Encoding.UTF8, "application/json")))
+            Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+
+        using (var deleted = await owner.Client.DeleteAsync($"/api/saved-plans/{id}"))
+            Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+
+        var copy = Assert.Single((await ListAsync(friend.Client)).EnumerateArray());
+        Assert.Equal("Tapas and drinks", copy.GetProperty("plan").GetProperty("title").GetString());
+        Assert.Equal(2, copy.GetProperty("plan").GetProperty("items").GetArrayLength());
+        // The copy is the friend's own: not shared, and the owner's link is gone.
+        Assert.Equal(JsonValueKind.Null, copy.GetProperty("shareUrl").ValueKind);
+        using var gone = await OpenSharedAsync(url);
+        Assert.Equal(HttpStatusCode.NotFound, gone.StatusCode);
+    }
+
     [Theory]
     [InlineData("AAAAAAAAAAAAAAAAAAAAAA")] // the right shape, but no plan has it
     [InlineData("abc")]
