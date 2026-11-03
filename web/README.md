@@ -40,6 +40,6 @@ analyses `web/` together with the app and the backend.
 ## Design
 
 A night theme: indigo instead of black, lavender text, the app's violet for links and the route line, and
-amber only for times. Headings and times use Bricolage Grotesque; text uses Atkinson Hyperlegible, which stays
-readable on a phone outside at night. The plan is drawn as a route (`src/components/route.tsx`): times on the
+amber only for times. Headings and times use Bricolage Grotesque; text uses Lexend, made for readability, for reading on a
+phone outside at night. The plan is drawn as a route (`src/components/route.tsx`): times on the
 left, a line through the stops, and the walking distance between them.
