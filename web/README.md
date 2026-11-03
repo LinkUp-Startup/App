@@ -31,11 +31,38 @@ analyses `web/` together with the app and the backend.
 
 ## Configuration
 
-| Variable   | Default                    | What                                           |
-| ---------- | -------------------------- | ---------------------------------------------- |
-| `SITE_URL` | `https://linkup.th7bo.dev` | Public URL of the site, used for link previews |
+| Variable         | Default                        | What                                           |
+| ---------------- | ------------------------------ | ---------------------------------------------- |
+| `SITE_URL`       | `https://linkup.th7bo.dev`     | Public URL of the site, used for link previews |
+| `LINKUP_API_URL` | `https://linkup-api.th7bo.dev` | API the shared plan page reads from            |
 
 `.npmrc` sets `legacy-peer-deps`: npm 10 crashes resolving Vitest's optional peer dependencies otherwise.
+
+## Deploy (Dokploy)
+
+`web/Dockerfile` builds a small Node image with the Next.js standalone server. The build context is the repo
+root, because the build type-checks against `shared/api.ts`:
+
+```bash
+docker build -f web/Dockerfile -t linkup-web .
+docker run -p 3000:3000 linkup-web    # http://localhost:3000
+```
+
+Dokploy application settings:
+
+| Setting             | Value                                      |
+| ------------------- | ------------------------------------------ |
+| Source              | GitHub `LinkUp-Startup/App`, branch `main` |
+| Build type          | Dockerfile                                 |
+| Dockerfile path     | `web/Dockerfile`                           |
+| Docker context path | `.` (repo root)                            |
+| Watch paths         | `web/**`, `shared/**`                      |
+| Domain              | `linkup.th7bo.dev`, HTTPS                  |
+| Container port      | `3000`                                     |
+| Environment         | none needed (see Configuration)            |
+
+The container runs as the non-root `node` user and has a health check on `/`. Share links come from the API's
+`Sharing__WebBaseUrl`, which defaults to `https://linkup.th7bo.dev`.
 
 ## Design
 
