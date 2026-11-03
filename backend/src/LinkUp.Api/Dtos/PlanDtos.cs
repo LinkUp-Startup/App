@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace LinkUp.Api.Dtos;
 
 public sealed record GeneratePlansRequest(NightPreferencesDto Preferences);
@@ -13,7 +15,8 @@ public sealed record PlanDto(
     decimal? EstimatedCostPerPerson,
     // For the whole group: the cost per person times the group size. Null like the cost per person.
     decimal? EstimatedTotalCost,
-    double TotalDistanceKm);
+    // Required so a save that leaves it out gets a 400 instead of silently storing 0.
+    [property: JsonRequired] double TotalDistanceKm);
 
 public sealed record PlanItemDto(
     VenueDto Venue,

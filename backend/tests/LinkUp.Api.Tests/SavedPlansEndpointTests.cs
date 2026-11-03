@@ -260,7 +260,7 @@ public sealed class SavedPlansEndpointTests : IClassFixture<AuthApiFactory>
     public static TheoryData<string> InvalidPlans => new()
     {
         "id-mismatch", "no-title", "no-stops", "too-many-stops", "unknown-venue", "malformed-venue",
-        "ends-before-start", "overlap", "negative-cost", "huge-cost", "unknown-activity",
+        "ends-before-start", "overlap", "negative-cost", "huge-cost", "unknown-activity", "no-total-distance",
     };
 
     [Theory]
@@ -284,7 +284,8 @@ public sealed class SavedPlansEndpointTests : IClassFixture<AuthApiFactory>
             "overlap" => Plan(id, "Overlap", Stop(venue, 0), RawStop(venue.ToString(), Evening.AddMinutes(30), Evening.AddHours(2), "drinks")),
             "negative-cost" => Plan(id, "Refund", Stop(venue, 0, cost: -5m)),
             "huge-cost" => Plan(id, "Yacht", Stop(venue, 0, cost: 10_000_000m)), // more than the column holds
-            _ => Plan(id, "Mystery", Stop(venue, 0, activity: "teleport")),
+            "unknown-activity" => Plan(id, "Mystery", Stop(venue, 0, activity: "teleport")),
+            _ => new { id = id.ToString(), title = "No distance", summary = "x", items = new[] { Ok(0) } },
         };
 
         using var response = await SaveAsync(account.Client, id, plan);
