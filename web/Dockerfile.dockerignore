@@ -1,0 +1,10 @@
+# Used by docker build -f web/Dockerfile (context: repo root). Only web/ and shared/ are needed.
+*
+!shared/
+!web/
+web/node_modules/
+web/.next/
+web/coverage/
+web/next-env.d.ts
+web/*.tsbuildinfo
+web/.env*
