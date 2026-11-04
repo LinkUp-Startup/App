@@ -23,6 +23,53 @@ namespace LinkUp.Api.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("LinkUp.Api.Data.Entities.Friendship", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("RequestedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("RespondedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("UserAId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserBId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserBId");
+
+                    b.HasIndex("UserAId", "UserBId")
+                        .IsUnique();
+
+                    b.ToTable("Friendships", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Friendships_OrderedPair", "\"UserAId\" < \"UserBId\"");
+
+                            t.HasCheckConstraint("CK_Friendships_RequestedBy", "\"RequestedById\" = \"UserAId\" OR \"RequestedById\" = \"UserBId\"");
+
+                            t.HasCheckConstraint("CK_Friendships_RespondedAt", "(\"Status\" = 'Pending') = (\"RespondedAt\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_Friendships_Status", "\"Status\" IN ('Pending', 'Accepted', 'Declined')");
+                        });
+                });
+
             modelBuilder.Entity("LinkUp.Api.Data.Entities.Plan", b =>
                 {
                     b.Property<Guid>("Id")
@@ -274,6 +321,21 @@ namespace LinkUp.Api.Data.Migrations
                     b.HasIndex("VenueId");
 
                     b.ToTable("VenueOpeningHours", (string)null);
+                });
+
+            modelBuilder.Entity("LinkUp.Api.Data.Entities.Friendship", b =>
+                {
+                    b.HasOne("LinkUp.Api.Data.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserAId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("LinkUp.Api.Data.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserBId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("LinkUp.Api.Data.Entities.Plan", b =>
