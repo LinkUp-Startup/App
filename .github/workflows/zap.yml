@@ -117,7 +117,7 @@ jobs:
           cp .github/zap/*.tsv zap/
           curl -sf "$API_URL/openapi/v1.json" -o zap/openapi.json
 
-      # -I: report warnings without failing the job; the findings are triaged in docs/security/zap.md.
+      # -I: report warnings without failing the job; the findings are triaged in docs/security-zap.md.
       - name: Full scan of the website
         run: |
           docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" "$ZAP_IMAGE" zap-full-scan.py \

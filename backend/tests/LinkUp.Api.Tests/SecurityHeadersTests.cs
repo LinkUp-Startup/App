@@ -22,7 +22,7 @@ public sealed class SecurityHeadersTests(ApiFactory factory) : IClassFixture<Api
         Assert.Equal("nosniff", Header(response, "X-Content-Type-Options"));
         Assert.Equal("DENY", Header(response, "X-Frame-Options"));
         Assert.Equal("no-referrer", Header(response, "Referrer-Policy"));
-        Assert.Equal("same-site", Header(response, "Cross-Origin-Resource-Policy"));
+        Assert.Equal("same-origin", Header(response, "Cross-Origin-Resource-Policy"));
         Assert.Equal("default-src 'none'; frame-ancestors 'none'", Header(response, "Content-Security-Policy"));
         // Outside development (tests run as "Testing") browsers are told to use HTTPS only.
         Assert.Equal("max-age=31536000; includeSubDomains", Header(response, "Strict-Transport-Security"));

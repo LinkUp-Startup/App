@@ -65,3 +65,4 @@ Every pull request and every push to `main` runs both test suites and a SonarQub
 | [Sprint0_Planning.md](docs/Sprint0_Planning.md) | Sprint 0 project definition and planning    |
 | [android-setup.md](docs/android-setup.md)       | Emulator / device setup and troubleshooting |
 | [code-quality.md](docs/code-quality.md)         | Testing, SonarQube setup and findings       |
+| [security-zap.md](docs/security-zap.md)         | OWASP ZAP scans, findings and fixes         |

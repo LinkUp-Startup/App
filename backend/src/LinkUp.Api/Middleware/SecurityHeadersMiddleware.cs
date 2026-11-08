@@ -17,7 +17,7 @@ public sealed class SecurityHeadersMiddleware(RequestDelegate next, IHostEnviron
             headers.XContentTypeOptions = "nosniff";
             headers.XFrameOptions = "DENY";
             headers["Referrer-Policy"] = "no-referrer";
-            headers["Cross-Origin-Resource-Policy"] = "same-site";
+            headers["Cross-Origin-Resource-Policy"] = "same-origin";
             // Swagger UI (development only) needs its own scripts and styles; everything else is JSON.
             if (!context.Request.Path.StartsWithSegments("/swagger"))
                 headers.ContentSecurityPolicy = "default-src 'none'; frame-ancestors 'none'";
