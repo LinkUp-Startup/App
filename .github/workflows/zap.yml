@@ -66,8 +66,8 @@ jobs:
           Ai__ApiKey: ''
           # The scanner sends many requests from one address; the limits are tested elsewhere.
           RateLimiting__RequestsPerMinute: '100000'
-          RateLimiting__GenerationsPerMinute: '100000'
-          RateLimiting__GenerationsPerHour: '100000'
+          RateLimiting__GenerationsPerMinute: '10000'
+          RateLimiting__GenerationsPerHour: '10000'
           RateLimiting__GenerationsPerDay: '1000000'
         run: |
           export Jwt__SigningKey="$(openssl rand -base64 48)"
