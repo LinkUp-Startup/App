@@ -1,15 +1,15 @@
 import { render, screen, userEvent, waitFor } from '@testing-library/react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Alert } from 'react-native';
+import { Alert, Share } from 'react-native';
 
-import { deleteSavedPlan } from '@/api/saved-plans';
+import { deleteSavedPlan, sharePlan, unsharePlan } from '@/api/saved-plans';
 import SavedPlanScreen from '@/app/saved-plan/[id]';
-import { getSavedPlans, savePlan } from '@/storage/saved-plans';
+import { getSavedPlan, getSavedPlans, savePlan } from '@/storage/saved-plans';
 
 import { tapasPlan } from './fixtures/plans';
 
 jest.mock('expo-router', () => ({
-  router: { back: jest.fn() },
+  router: { back: jest.fn(), push: jest.fn() },
   useLocalSearchParams: jest.fn(),
 }));
 
@@ -73,6 +73,21 @@ describe('SavedPlanScreen', () => {
     expect(router.back).toHaveBeenCalled();
   });
 
+  it('asks a guest to log in before sharing', async () => {
+    await savePlan(tapasPlan);
+    const alert = jest.spyOn(Alert, 'alert');
+    const user = userEvent.setup();
+    await render(<SavedPlanScreen />);
+
+    await user.press(await screen.findByRole('button', { name: 'Share plan' }));
+
+    expect(alert.mock.calls[0][0]).toBe('Log in to share');
+    expect(sharePlan).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Shared: anyone/)).not.toBeOnTheScreen();
+    alert.mock.calls[0][2]!.find((button) => button.text === 'Log in')!.onPress!();
+    expect(router.push).toHaveBeenCalledWith('/login');
+  });
+
   describe('when signed in', () => {
     beforeEach(() => {
       mockAuth.accessToken = 'token-1';
@@ -97,6 +112,75 @@ describe('SavedPlanScreen', () => {
       expect(alert.mock.calls[0][1]).toMatch(/your account and this device/);
       expect(deleteSavedPlan).toHaveBeenCalledWith('token-1', 'p1');
       expect(await getSavedPlans()).toEqual([]);
+    });
+
+    describe('sharing', () => {
+      const url = 'https://linkup.th7bo.dev/plan/tok';
+
+      it('gets a link, opens the share sheet and shows that the plan is shared', async () => {
+        await savePlan(tapasPlan, { synced: true });
+        jest.mocked(sharePlan).mockResolvedValue({ url });
+        const share = jest
+          .spyOn(Share, 'share')
+          .mockResolvedValue({ action: 'sharedAction', activityType: undefined });
+        const user = userEvent.setup();
+        await render(<SavedPlanScreen />);
+
+        await user.press(await screen.findByRole('button', { name: 'Share plan' }));
+
+        await waitFor(() => expect(share).toHaveBeenCalled());
+        expect(JSON.stringify(share.mock.calls[0][0])).toContain(url);
+        expect(sharePlan).toHaveBeenCalledWith('token-1', 'p1');
+        expect(
+          await screen.findByText('Shared: anyone with the link can see this plan.'),
+        ).toBeOnTheScreen();
+      });
+
+      it('says so when no link can be made', async () => {
+        await savePlan(tapasPlan, { synced: true });
+        jest.mocked(sharePlan).mockRejectedValue(new Error('offline'));
+        jest.spyOn(console, 'warn').mockImplementation(() => {});
+        const share = jest.spyOn(Share, 'share');
+        const user = userEvent.setup();
+        await render(<SavedPlanScreen />);
+
+        await user.press(await screen.findByRole('button', { name: 'Share plan' }));
+
+        expect(await screen.findByText(/Couldn't create a share link/)).toBeOnTheScreen();
+        expect(share).not.toHaveBeenCalled();
+      });
+
+      it('stops sharing after confirming', async () => {
+        await savePlan(tapasPlan, { synced: true, shareUrl: url });
+        jest.mocked(unsharePlan).mockResolvedValue(undefined);
+        const alert = jest.spyOn(Alert, 'alert');
+        const user = userEvent.setup();
+        await render(<SavedPlanScreen />);
+
+        await user.press(await screen.findByRole('button', { name: 'Stop sharing' }));
+        alert.mock.calls[0][2]!.find((button) => button.text === 'Stop sharing')!.onPress!();
+
+        await waitFor(() =>
+          expect(screen.queryByRole('button', { name: 'Stop sharing' })).not.toBeOnTheScreen(),
+        );
+        expect(unsharePlan).toHaveBeenCalledWith('token-1', 'p1');
+        expect(await getSavedPlan('p1')).not.toHaveProperty('shareUrl');
+      });
+
+      it('keeps the link and says so when stopping fails', async () => {
+        await savePlan(tapasPlan, { synced: true, shareUrl: url });
+        jest.mocked(unsharePlan).mockRejectedValue(new Error('offline'));
+        jest.spyOn(console, 'warn').mockImplementation(() => {});
+        const alert = jest.spyOn(Alert, 'alert');
+        const user = userEvent.setup();
+        await render(<SavedPlanScreen />);
+
+        await user.press(await screen.findByRole('button', { name: 'Stop sharing' }));
+        alert.mock.calls[0][2]!.find((button) => button.text === 'Stop sharing')!.onPress!();
+
+        expect(await screen.findByText(/Couldn't stop sharing/)).toBeOnTheScreen();
+        expect((await getSavedPlan('p1'))?.shareUrl).toBe(url);
+      });
     });
 
     it('keeps the plan and says so when the account cannot be reached', async () => {
