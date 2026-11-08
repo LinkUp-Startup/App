@@ -8,6 +8,7 @@ import {
   sharePlan,
   unsharePlan,
 } from '@/api/saved-plans';
+import { getSharedPlan } from '@/api/shared-plans';
 import type { NightPreferences } from '@/types/api';
 
 jest.mock('@/api/client', () => ({ apiRequest: jest.fn() }));
@@ -91,5 +92,10 @@ describe('endpoints', () => {
         signal: undefined,
       });
     });
+  });
+
+  it('getSharedPlan opens a shared plan without an account, token escaped for the URL', async () => {
+    await getSharedPlan('a/b');
+    expect(apiRequest).toHaveBeenCalledWith('/api/shared-plans/a%2Fb', { signal: undefined });
   });
 });
