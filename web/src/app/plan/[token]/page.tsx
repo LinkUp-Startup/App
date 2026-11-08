@@ -4,10 +4,11 @@ import { Route } from '@/components/route';
 import { SiteFooter } from '@/components/site-footer';
 import { AccountMenu } from '@/components/account-menu';
 import { SiteHeader } from '@/components/site-header';
-import { getSharedPlan } from '@/lib/api';
+import { getSharedPlan, hasSavedPlan, SessionExpiredError } from '@/lib/api';
 import { formatEuros, formatKm } from '@/lib/format';
 import { describeWhen, toRouteStops } from '@/lib/plan';
-import { getSession } from '@/lib/session';
+import { getSession, type Session } from '@/lib/session';
+import { SavePlan } from './save-plan';
 
 type Props = { params: Promise<{ token: string }> };
 
@@ -29,6 +30,7 @@ export default async function SharedPlanPage({ params }: Props) {
   const plan = await getSharedPlan(token);
   if (!plan) notFound();
   const session = await getSession();
+  const alreadySaved = session ? await isSaved(session, plan.id) : false;
 
   return (
     <>
@@ -70,6 +72,8 @@ export default async function SharedPlanPage({ params }: Props) {
             )}
           </dl>
 
+          <SavePlan shareToken={token} loggedIn={!!session} alreadySaved={alreadySaved} />
+
           <section aria-label="Stops" className="mt-12 rounded-3xl bg-dusk p-5 sm:p-8">
             <Route stops={toRouteStops(plan)} />
           </section>
@@ -87,4 +91,14 @@ export default async function SharedPlanPage({ params }: Props) {
       <SiteFooter />
     </>
   );
+}
+
+// Only to show "already saved"; if the account can't be checked, offering to save again is harmless.
+async function isSaved(session: Session, planId: string) {
+  try {
+    return await hasSavedPlan(session.accessToken, planId);
+  } catch (error) {
+    if (!(error instanceof SessionExpiredError)) console.warn('Could not check saved plans', error);
+    return false;
+  }
 }
