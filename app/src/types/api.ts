@@ -18,6 +18,7 @@ export type PlanItem = Schemas['PlanItemDto'];
 export type SavedPlanDto = Schemas['SavedPlanDto'];
 export type SavedPlansResponse = Schemas['SavedPlansResponse'];
 export type Plan = Schemas['PlanDto'];
+export type ShareLink = Schemas['ShareLinkDto'];
 export type SharedPlan = Schemas['SharedPlanDto'];
 export type GeneratePlansRequest = Schemas['GeneratePlansRequest'];
 export type GeneratePlansResponse = Schemas['GeneratePlansResponse'];

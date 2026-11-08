@@ -1,5 +1,5 @@
 import { apiRequest } from '@/api/client';
-import type { Plan, SavedPlanDto, SavedPlansResponse } from '@/types/api';
+import type { Plan, SavedPlanDto, SavedPlansResponse, ShareLink } from '@/types/api';
 
 /** Plans saved to the signed-in account (#88). Every call needs the account's access token. */
 function authorization(accessToken: string) {
@@ -26,6 +26,27 @@ export function putSavedPlan(accessToken: string, plan: Plan, signal?: AbortSign
 /** Succeeds whether or not the plan was saved, so a retry is harmless. */
 export function deleteSavedPlan(accessToken: string, id: string, signal?: AbortSignal) {
   return apiRequest<void>(`/api/saved-plans/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: authorization(accessToken),
+    signal,
+  });
+}
+
+/**
+ * The plan's public link, which anyone can open on the website (#152). Sharing an already shared plan returns the
+ * same link. 404 when the account has not saved the plan.
+ */
+export function sharePlan(accessToken: string, id: string, signal?: AbortSignal) {
+  return apiRequest<ShareLink>(`/api/saved-plans/${encodeURIComponent(id)}/share`, {
+    method: 'POST',
+    headers: authorization(accessToken),
+    signal,
+  });
+}
+
+/** The link stops working; sharing again gives a new one. Succeeds whether or not the plan was shared. */
+export function unsharePlan(accessToken: string, id: string, signal?: AbortSignal) {
+  return apiRequest<void>(`/api/saved-plans/${encodeURIComponent(id)}/share`, {
     method: 'DELETE',
     headers: authorization(accessToken),
     signal,

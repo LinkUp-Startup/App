@@ -1,8 +1,14 @@
 import { apiRequest } from '@/api/client';
 import { getHealth } from '@/api/health';
 import { generatePlans } from '@/api/plans';
+import {
+  deleteSavedPlan,
+  listSavedPlans,
+  putSavedPlan,
+  sharePlan,
+  unsharePlan,
+} from '@/api/saved-plans';
 import { getSharedPlan } from '@/api/shared-plans';
-import { deleteSavedPlan, listSavedPlans, putSavedPlan } from '@/api/saved-plans';
 import type { NightPreferences } from '@/types/api';
 
 jest.mock('@/api/client', () => ({ apiRequest: jest.fn() }));
@@ -63,6 +69,24 @@ describe('endpoints', () => {
     it('deleteSavedPlan deletes by id, escaped for the URL', async () => {
       await deleteSavedPlan('token-1', 'a b/c');
       expect(apiRequest).toHaveBeenCalledWith('/api/saved-plans/a%20b%2Fc', {
+        method: 'DELETE',
+        headers,
+        signal: undefined,
+      });
+    });
+
+    it("sharePlan posts to the plan's share link", async () => {
+      await sharePlan('token-1', 'a b/c');
+      expect(apiRequest).toHaveBeenCalledWith('/api/saved-plans/a%20b%2Fc/share', {
+        method: 'POST',
+        headers,
+        signal: undefined,
+      });
+    });
+
+    it("unsharePlan deletes the plan's share link", async () => {
+      await unsharePlan('token-1', 'a b/c');
+      expect(apiRequest).toHaveBeenCalledWith('/api/saved-plans/a%20b%2Fc/share', {
         method: 'DELETE',
         headers,
         signal: undefined,
