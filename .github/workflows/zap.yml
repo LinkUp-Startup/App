@@ -113,9 +113,10 @@ jobs:
       - name: Prepare reports folder
         run: |
           mkdir -p zap
-          chmod 777 zap
           cp .github/zap/*.tsv zap/
           curl -sf "$API_URL/openapi/v1.json" -o zap/openapi.json
+          # ZAP runs as the image's "zap" user (uid 1000) and writes its reports here.
+          sudo chown -R 1000:1000 zap
 
       # -I: report warnings without failing the job; the findings are triaged in docs/security-zap.md.
       - name: Full scan of the website
