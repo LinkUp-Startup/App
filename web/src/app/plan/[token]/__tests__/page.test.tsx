@@ -7,6 +7,8 @@ import PlanNotFound from '../not-found';
 import SharedPlanPage, { generateMetadata } from '../page';
 
 vi.mock('@/lib/api', () => ({ getSharedPlan: vi.fn() }));
+vi.mock('@/lib/session', () => ({ getSession: vi.fn().mockResolvedValue(null) }));
+vi.mock('@/app/actions/auth', () => ({ login: vi.fn(), logout: vi.fn() }));
 vi.mock('next/navigation', () => ({
   notFound: () => {
     throw new Error('NEXT_NOT_FOUND');
@@ -33,6 +35,10 @@ describe('shared plan page', () => {
     expect(screen.getByText('About €76')).toBeInTheDocument();
     expect(screen.getByText('3.5 km')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Cantamanyanes' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Log in' })).toHaveAttribute(
+      'href',
+      '/login?next=%2Fplan%2Fabc',
+    );
     expect(
       screen.getByRole('link', { name: 'Directions to Traganits (opens Google Maps)' }),
     ).toBeInTheDocument();

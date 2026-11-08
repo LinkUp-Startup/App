@@ -2,10 +2,12 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Route } from '@/components/route';
 import { SiteFooter } from '@/components/site-footer';
+import { AccountMenu } from '@/components/account-menu';
 import { SiteHeader } from '@/components/site-header';
 import { getSharedPlan } from '@/lib/api';
 import { formatEuros, formatKm } from '@/lib/format';
 import { describeWhen, toRouteStops } from '@/lib/plan';
+import { getSession } from '@/lib/session';
 
 type Props = { params: Promise<{ token: string }> };
 
@@ -23,12 +25,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function SharedPlanPage({ params }: Props) {
-  const plan = await getSharedPlan((await params).token);
+  const { token } = await params;
+  const plan = await getSharedPlan(token);
   if (!plan) notFound();
+  const session = await getSession();
 
   return (
     <>
-      <SiteHeader />
+      <SiteHeader account={<AccountMenu session={session} here={`/plan/${token}`} />} />
       <main className="mx-auto max-w-5xl px-5 pt-12 sm:px-8 sm:pt-16">
         <div className="max-w-3xl">
           <p className="text-haze">{describeWhen(plan)}</p>
