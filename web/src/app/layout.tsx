@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Bricolage_Grotesque, Lexend } from 'next/font/google';
+import { connection } from 'next/server';
 import './globals.css';
 
 // Bricolage for headings and times; Lexend, made for readability, for text read on a phone in a dark street.
@@ -14,7 +15,9 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { themeColor: '#17133a' };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+// Rendered per request: the Content Security Policy nonce (src/proxy.ts) can't be added to a page built ahead of time.
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  await connection();
   return (
     <html lang="en" className={`${bricolage.variable} ${lexend.variable}`}>
       <body className="min-h-dvh">{children}</body>
