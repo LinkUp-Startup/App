@@ -1,0 +1,2 @@
+# ZAP rule overrides for the API scan: <rule id>\t<IGNORE|INFO|WARN|FAIL>\t<reason>.
+# Every override is explained in docs/security/zap.md.

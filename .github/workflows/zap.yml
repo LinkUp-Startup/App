@@ -1,0 +1,152 @@
+name: OWASP ZAP
+
+# Security scan of the website and the API (#185). Runs the full (active) ZAP scans against a copy of the app
+# started in this job, never against the live server: an active scan sends thousands of attack requests and
+# would hit the rate limits and the plan generator. The API runs without an AI key, so it returns stub plans and
+# the scan costs nothing. Reports are uploaded as an artifact.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/zap.yml
+      - .github/zap/**
+  schedule:
+    - cron: '0 6 * * 1' # Mondays 06:00 UTC
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zap
+  cancel-in-progress: true
+
+env:
+  ZAP_IMAGE: ghcr.io/zaproxy/zaproxy:2.17.0
+  API_URL: http://127.0.0.1:5000
+  WEB_URL: http://127.0.0.1:3000
+
+jobs:
+  zap:
+    name: ZAP scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: linkup
+          POSTGRES_PASSWORD: linkup
+          POSTGRES_DB: linkup
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U linkup"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: app/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          # Same exact version as sonarqube.yml (see the note there).
+          dotnet-version: '10.0.403'
+
+      - name: Start the API
+        env:
+          ASPNETCORE_ENVIRONMENT: Development # serves /openapi/v1.json for the API scan
+          ASPNETCORE_URLS: ${{ env.API_URL }}
+          ConnectionStrings__Default: Host=localhost;Port=5432;Username=linkup;Password=linkup;Database=linkup
+          Ai__ApiKey: ''
+          # The scanner sends many requests from one address; the limits are tested elsewhere.
+          RateLimiting__RequestsPerMinute: '100000'
+          RateLimiting__GenerationsPerMinute: '100000'
+          RateLimiting__GenerationsPerHour: '100000'
+          RateLimiting__GenerationsPerDay: '1000000'
+        run: |
+          export Jwt__SigningKey="$(openssl rand -base64 48)"
+          nohup dotnet run --project backend/src/LinkUp.Api --no-launch-profile > api.log 2>&1 &
+          for i in $(seq 1 90); do curl -sf "$API_URL/health" && exit 0; sleep 2; done
+          cat api.log; exit 1
+
+      # An account with a saved, shared plan, so the scans reach the logged-in endpoints and a real shared page.
+      - name: Create a test account and a shared plan
+        run: |
+          curl -sf -X POST "$API_URL/api/auth/register" -H 'Content-Type: application/json' \
+            -d '{"email":"zap@example.com","password":"zap-scan-password","displayName":"ZAP"}' > /dev/null
+          TOKEN=$(curl -sf -X POST "$API_URL/api/auth/login" -H 'Content-Type: application/json' \
+            -d '{"email":"zap@example.com","password":"zap-scan-password"}' | jq -r .accessToken)
+          VENUE=$(curl -sf "$API_URL/api/venues" | jq -r '(.venues // .)[0].id')
+          PLAN=$(cat /proc/sys/kernel/random/uuid)
+          jq -n --arg id "$PLAN" --arg venue "$VENUE" '{id: $id, title: "ZAP plan", summary: "Scan target",
+            items: [{venue: {id: $venue, name: "x", category: "dinner", address: "x", latitude: 0, longitude: 0,
+            priceLevel: null}, startTime: "2026-11-13T19:30:00Z", endTime: "2026-11-13T21:00:00Z",
+            estimatedCostPerPerson: 10, distanceKm: 0}], estimatedCostPerPerson: 10, estimatedTotalCost: 20,
+            totalDistanceKm: 0}' > plan.json
+          curl -sf -X PUT "$API_URL/api/saved-plans/$PLAN" -H "Authorization: Bearer $TOKEN" \
+            -H 'Content-Type: application/json' -d @plan.json > /dev/null
+          SHARE=$(curl -sf -X POST "$API_URL/api/saved-plans/$PLAN/share" -H "Authorization: Bearer $TOKEN" \
+            | jq -r .url | sed 's#.*/plan/##')
+          echo "::add-mask::$TOKEN"
+          echo "TOKEN=$TOKEN" >> "$GITHUB_ENV"
+          echo "SHARE=$SHARE" >> "$GITHUB_ENV"
+
+      - name: Build and start the website
+        working-directory: web
+        env:
+          LINKUP_API_URL: ${{ env.API_URL }}
+        run: |
+          npm ci --ignore-scripts
+          npm run build
+          cp -r .next/static .next/standalone/.next/
+          cd .next/standalone
+          PORT=3000 HOSTNAME=127.0.0.1 nohup node server.js > ../../web.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf "$WEB_URL/" > /dev/null && exit 0; sleep 1; done
+          cat ../../web.log; exit 1
+
+      - name: Prepare reports folder
+        run: |
+          mkdir -p zap
+          chmod 777 zap
+          cp .github/zap/*.tsv zap/
+          curl -sf "$API_URL/openapi/v1.json" -o zap/openapi.json
+
+      # -I: report warnings without failing the job; the findings are triaged in docs/security/zap.md.
+      - name: Full scan of the website
+        run: |
+          docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" "$ZAP_IMAGE" zap-full-scan.py \
+            -t "$WEB_URL/plan/$SHARE" -m 3 -T 20 -c web-rules.tsv -I \
+            -r web-report.html -J web-report.json -w web-report.md
+
+      - name: Full scan of the API
+        run: |
+          # ZAP adds this header to every request to the API, so the logged-in endpoints are scanned too.
+          docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" \
+            -e ZAP_AUTH_HEADER_VALUE="Bearer $TOKEN" -e ZAP_AUTH_HEADER_SITE=127.0.0.1 \
+            "$ZAP_IMAGE" zap-api-scan.py \
+            -t /zap/wrk/openapi.json -f openapi -O "$API_URL" -T 20 -c api-rules.tsv -I \
+            -r api-report.html -J api-report.json -w api-report.md
+
+      - name: Summary
+        if: always()
+        run: |
+          for report in zap/web-report.md zap/api-report.md; do
+            [ -f "$report" ] && cat "$report" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: zap-reports
+          path: |
+            zap/*-report.*
+            api.log
+            web/web.log
+          retention-days: 30
