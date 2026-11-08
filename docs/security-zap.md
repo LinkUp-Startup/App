@@ -93,18 +93,29 @@ responses, so the app and the website (which call the API directly) are not affe
 The active scans found no injection (SQL, XSS, path traversal, command injection), no authentication or
 session problems and no information leaks.
 
+### After: production, 8 November 2026 (fixes deployed)
+
+The same passive baselines as before, against the live website and API:
+
+| Target  | High | Medium | Low | Informational |
+| ------- | ---- | ------ | --- | ------------- |
+| Website | 0    | 0      | 0   | 3             |
+| API     | 0    | 0      | 0   | 5             |
+
+All 9 website findings and all 3 API findings from before are gone.
+
 ### Remaining informational findings (no change needed)
 
-| Finding                                   | Why it stays                                                                                                                                               |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Non-storable / storable content (10049)   | Describes caching. Pages and API answers are personal or change, so they are not cached; Next.js's hashed static files are cached for long. Both intended. |
-| User agent fuzzer (10104)                 | ZAP lists that it tried other user agents; the site answers them all the same.                                                                             |
-| Client error response code (100000)       | The API answers 400, 401 and 404 to the scanner's invalid and unauthenticated requests, as it should.                                                      |
-| Authentication request identified (10111) | ZAP noting that `/api/auth/login` is a login endpoint.                                                                                                     |
+| Finding                                     | Why it stays                                                                                                                                               |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Non-storable / storable content (10049)     | Describes caching. Pages and API answers are personal or change, so they are not cached; Next.js's hashed static files are cached for long. Both intended. |
+| User agent fuzzer (10104)                   | ZAP lists that it tried other user agents; the site answers them all the same.                                                                             |
+| Client error response code (100000)         | The API answers 400, 401 and 404 to the scanner's invalid and unauthenticated requests, as it should.                                                      |
+| Authentication request identified (10111)   | ZAP noting that `/api/auth/login` is a login endpoint.                                                                                                     |
+| Re-examine cache-control directives (10015) | A reminder to check caching on API answers that have no `Cache-Control`; these are public data (the health check and the venue list).                      |
 
 ## Open points
 
-- The production "after" baseline is run again once the fixes are deployed, and the reports are attached to the
-  Sprint 2 delivery.
+- The HTML reports (production before and after, CI full scans) are attached to the Sprint 2 delivery.
 - The website calls the API from its server, so all web users share one IP for the API's per-IP rate limit
   (300 requests per minute). Fine at the current traffic; worth revisiting if the website grows.
