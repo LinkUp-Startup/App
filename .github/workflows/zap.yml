@@ -82,7 +82,7 @@ jobs:
             -d '{"email":"zap@example.com","password":"zap-scan-password","displayName":"ZAP"}' > /dev/null
           TOKEN=$(curl -sf -X POST "$API_URL/api/auth/login" -H 'Content-Type: application/json' \
             -d '{"email":"zap@example.com","password":"zap-scan-password"}' | jq -r .accessToken)
-          VENUE=$(curl -sf "$API_URL/api/venues" | jq -r '(.venues // .)[0].id')
+          VENUE=$(curl -sf "$API_URL/api/venues" | jq -r '.[0].id')
           PLAN=$(cat /proc/sys/kernel/random/uuid)
           jq -n --arg id "$PLAN" --arg venue "$VENUE" '{id: $id, title: "ZAP plan", summary: "Scan target",
             items: [{venue: {id: $venue, name: "x", category: "dinner", address: "x", latitude: 0, longitude: 0,
