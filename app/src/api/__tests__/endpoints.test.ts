@@ -1,6 +1,7 @@
 import { apiRequest } from '@/api/client';
 import { getHealth } from '@/api/health';
 import { generatePlans } from '@/api/plans';
+import { getSharedPlan } from '@/api/shared-plans';
 import { deleteSavedPlan, listSavedPlans, putSavedPlan } from '@/api/saved-plans';
 import type { NightPreferences } from '@/types/api';
 
@@ -67,5 +68,10 @@ describe('endpoints', () => {
         signal: undefined,
       });
     });
+  });
+
+  it('getSharedPlan opens a shared plan without an account, token escaped for the URL', async () => {
+    await getSharedPlan('a/b');
+    expect(apiRequest).toHaveBeenCalledWith('/api/shared-plans/a%2Fb', { signal: undefined });
   });
 });

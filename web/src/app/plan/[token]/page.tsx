@@ -74,6 +74,10 @@ export default async function SharedPlanPage({ params }: Props) {
             Someone shared this plan with you from the LinkUp app. You can see it here, but only
             they can change it. Prices are estimates.
           </p>
+          <p className="mt-3 max-w-prose text-sm text-haze">
+            Have the LinkUp app? Copy this page’s link, then in the app go to Saved and choose “Open
+            a shared link” to keep your own copy.
+          </p>
         </div>
       </main>
       <SiteFooter />
