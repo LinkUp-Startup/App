@@ -6,7 +6,7 @@ import {
   savePlan,
   type SavedPlan,
 } from '@/storage/saved-plans';
-import type { Plan } from '@/types/api';
+import type { Plan, SavedPlanDto } from '@/types/api';
 
 /**
  * Keeps the plans on this device and the signed-in account's plans together (#88).
@@ -45,7 +45,8 @@ async function savePlanNow(plan: Plan, accessToken: string | null): Promise<Save
   if (accessToken) {
     try {
       const saved = await putSavedPlan(accessToken, plan);
-      await savePlan(plan, { savedAt: saved.savedAt, synced: true });
+      // Saving a shared plan again keeps its link.
+      await savePlan(plan, { savedAt: saved.savedAt, synced: true, shareUrl: saved.shareUrl });
       return 'account';
     } catch (error) {
       // Offline, signed out meanwhile, or a server problem: keep it here, the next sync uploads it.
@@ -63,6 +64,14 @@ export function removePlanFor(id: string, accessToken: string | null): Promise<v
     await removePlan(id);
   });
 }
+
+/** The device copy of a plan saved to the account, with its public link while it is shared. */
+const fromAccount = ({ plan, savedAt, shareUrl }: SavedPlanDto): SavedPlan => ({
+  ...plan,
+  savedAt,
+  synced: true,
+  ...(shareUrl && { shareUrl }),
+});
 
 /** Rejects when the account can't be reached; the plans on the device are then left as they were. */
 export function syncSavedPlans(accessToken: string, signal?: AbortSignal): Promise<SavedPlan[]> {
@@ -82,7 +91,7 @@ async function syncNow(accessToken: string, signal?: AbortSignal): Promise<Saved
     if (local.synced) continue; // deleted on another device
     try {
       const saved = await putSavedPlan(accessToken, local, signal);
-      uploaded.push({ ...saved.plan, savedAt: saved.savedAt, synced: true });
+      uploaded.push(fromAccount(saved));
     } catch (error) {
       if (signal?.aborted) throw error;
       console.warn('Could not upload a saved plan', error);
@@ -95,7 +104,7 @@ async function syncNow(accessToken: string, signal?: AbortSignal): Promise<Saved
   const savedMeanwhile = (await getSavedPlans()).filter((plan) => !seen.has(plan.id));
 
   const merged = [
-    ...remote.map(({ plan, savedAt }) => ({ ...plan, savedAt, synced: true })),
+    ...remote.map(fromAccount),
     ...uploaded,
     ...pending,
     ...savedMeanwhile.filter((plan) => !remoteIds.has(plan.id)),
