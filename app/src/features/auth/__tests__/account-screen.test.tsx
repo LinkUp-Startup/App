@@ -25,6 +25,19 @@ function SignedInAsAnn() {
 afterEach(() => jest.mocked(router.push).mockReset());
 
 describe('AccountScreen', () => {
+  it.each([false, true])(
+    'opens default preferences for guest/signed-in users (%s)',
+    async (signedIn) => {
+      await render(
+        <AuthProvider>
+          {signedIn && <SignedInAsAnn />}
+          <AccountScreen />
+        </AuthProvider>,
+      );
+      await userEvent.setup().press(screen.getByRole('button', { name: 'Default preferences' }));
+      expect(router.push).toHaveBeenCalledWith('/default-preferences');
+    },
+  );
   it('tells a guest that everything works without an account', async () => {
     await render(
       <AuthProvider>

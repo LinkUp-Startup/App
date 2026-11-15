@@ -42,6 +42,7 @@ function RootNavigator() {
       <Stack.Screen name="shared-plan" options={{ title: 'Open a shared plan' }} />
       <Stack.Screen name="login" options={{ title: 'Log in' }} />
       <Stack.Screen name="register" options={{ title: 'Create account' }} />
+      <Stack.Screen name="default-preferences" options={{ title: 'Default preferences' }} />
     </Stack>
   );
 }
