@@ -172,6 +172,13 @@ Plans saved to an account, so they show up on every device (#88). Guests keep th
 - Plans belong to the account (`Plans.UserId`) and are deleted with it. Plan ids are per account (`Plans.SourcePlanId`, unique per account): another account saving the same id, e.g. a shared plan, gets its own copy. One account can't see, replace or delete another's plans; `DELETE` answers `204` either way so it doesn't reveal whether a plan exists.
 - Saves for one account run one after the other (a PostgreSQL advisory lock per account), so a double tap or two devices saving at once can't create duplicates, fail, or overshoot the limit.
 
+## Saved default preferences
+
+`GET /api/users/me/preferences` and `PUT /api/users/me/preferences` require a bearer
+token and read/replace only the signed-in user's defaults. PUT replaces all five
+fields; omitted or null values clear them. See [Preferences API](../docs/user-preferences-api.md)
+for examples, shared plan validation, and persistence details.
+
 ## AI
 
 Plans are combined by OpenAI **GPT-6 Luna** (`gpt-6-luna`, Responses API with Structured Outputs), called only from the API (`Ai/OpenAiClient.cs`). The app never sees the key or talks to OpenAI.
