@@ -72,6 +72,11 @@ Keep non-route code out of `src/app/`. Import from `src` with the `@/` alias.
 
 ### Accounts
 
+**Account → Default preferences** lets guests save planning defaults on this phone
+and signed-in users save them to their account. Guest defaults stay separate and
+are never uploaded automatically. See [default preferences](../docs/app-default-preferences.md)
+for optional fields, saving behavior, validation, and verification.
+
 The app works fully as a guest; an account is optional. The **Account** tab opens the login and register screens. Their form rules (`features/auth/form.ts`) mirror the server's limits, and a test fails if they drift apart.
 
 **The session survives closing the app.** After a login or registration the account and access token are kept in the phone's secure storage (iOS Keychain / Android Keystore, via `expo-secure-store`, not backed up or moved to another device); `storage/session.ts` is the only code that touches it. On launch (`features/auth/auth-context.tsx`):
