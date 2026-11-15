@@ -3,7 +3,16 @@ import { router } from 'expo-router';
 
 import PreferencesScreen from '@/app/(tabs)/index';
 
-jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
+jest.mock('expo-router', () => {
+  const { useEffect } = jest.requireActual<typeof import('react')>('react');
+  return {
+    router: { push: jest.fn() },
+    useFocusEffect: (effect: () => void | (() => void)) => useEffect(effect, [effect]),
+  };
+});
+jest.mock('@/features/auth/auth-context', () => ({
+  useAuth: () => ({ status: 'ready', user: null, accessToken: null }),
+}));
 jest.mock('@/components/api-status', () => ({ ApiStatus: () => null }));
 jest.mock('expo-location', () => ({ reverseGeocodeAsync: jest.fn().mockResolvedValue([]) }));
 
