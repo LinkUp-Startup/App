@@ -15,13 +15,19 @@ export default async function LoginPage({ searchParams }: Props) {
   return (
     <>
       <SiteHeader />
-      <main className="mx-auto max-w-6xl px-5 pt-16 sm:px-8">
-        <h1 className="font-display text-4xl font-bold tracking-tight sm:text-5xl">Log in</h1>
-        <p className="mt-4 max-w-prose text-lg text-haze">
-          Use your LinkUp account to save shared plans to your plans. No account yet? Create one in
-          the LinkUp app.
-        </p>
-        <LoginForm next={next} />
+      <main className="mx-auto max-w-6xl px-5 pt-16 sm:px-8 sm:pt-24">
+        <div className="grid gap-10 lg:grid-cols-[1fr_26rem] lg:gap-20">
+          <div>
+            <h1 className="font-display text-7xl leading-none font-black text-butter uppercase sm:text-8xl">
+              Log in
+            </h1>
+            <p className="mt-6 max-w-prose text-lg leading-relaxed text-mauve">
+              Use your LinkUp account to save shared plans to your plans. No account yet? Create one
+              in the LinkUp app.
+            </p>
+          </div>
+          <LoginForm next={next} />
+        </div>
       </main>
     </>
   );

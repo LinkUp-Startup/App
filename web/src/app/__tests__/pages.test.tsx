@@ -8,7 +8,7 @@ describe('home page', () => {
     render(<Home />);
 
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Plan the whole night in one go.' }),
+      screen.getByRole('heading', { level: 1, name: 'Your whole night, planned.' }),
     ).toBeInTheDocument();
     expect(screen.getByText('An example Friday night')).toBeInTheDocument();
     expect(

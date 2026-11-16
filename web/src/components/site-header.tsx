@@ -5,7 +5,9 @@ import type { ReactNode } from 'react';
 export function SiteHeader({ account }: { account?: ReactNode }) {
   return (
     <header className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 pt-6 sm:px-8">
-      <Link href="/" className="font-display text-xl font-extrabold tracking-tight">
+      <Link
+        href="/"
+        className="font-display text-3xl leading-none font-black tracking-wide uppercase">
         LinkUp
       </Link>
       {account}
