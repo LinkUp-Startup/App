@@ -12,6 +12,7 @@ type Schemas = components['schemas'];
 export type Activity = Schemas['Activity'];
 export type Transport = Schemas['Transport'];
 export type NightPreferences = Schemas['NightPreferencesDto'];
+export type UserPreferences = Required<Schemas['UserPreferencesDto']>;
 export type GeoPoint = Schemas['GeoPointDto'];
 export type Venue = Schemas['VenueDto'];
 export type PlanItem = Schemas['PlanItemDto'];

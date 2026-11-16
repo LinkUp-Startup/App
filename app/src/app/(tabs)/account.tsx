@@ -11,6 +11,11 @@ export default function AccountScreen() {
   return (
     <Screen>
       <ThemedText type="subtitle">Account</ThemedText>
+      <Button
+        title="Default preferences"
+        variant="secondary"
+        onPress={() => router.push('/default-preferences')}
+      />
 
       {user ? (
         <>

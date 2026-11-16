@@ -20,12 +20,12 @@ public sealed record GeoPointDto(
 /// body listing the errors per field.
 /// </remarks>
 public sealed record NightPreferencesDto(
-    [property: JsonRequired] [Range(0, 500)] decimal BudgetPerPerson,
-    [property: JsonRequired] [Range(1, 20)] int GroupSize,
+    [property: JsonRequired] [Range(typeof(decimal), PreferenceRules.MinBudget, PreferenceRules.MaxBudget)] decimal BudgetPerPerson,
+    [property: JsonRequired] [Range(PreferenceRules.MinGroupSize, PreferenceRules.MaxGroupSize)] int GroupSize,
     [MinLength(1, ErrorMessage = "Pick at least one activity.")] IReadOnlyList<Activity> Activities,
     [property: JsonRequired] DateTimeOffset StartTime,
     [property: JsonRequired] DateTimeOffset EndTime,
-    [property: JsonRequired] [Range(0.5, 30)] double MaxDistanceKm,
+    [property: JsonRequired] [Range(PreferenceRules.MinDistanceKm, PreferenceRules.MaxDistanceKm)] double MaxDistanceKm,
     [MinLength(1, ErrorMessage = "Pick at least one way to get around.")] IReadOnlyList<Transport> Transport,
     [MaxLength(500)] string? Notes = null,
     // Where the group starts (#53). When set, venues further than MaxDistanceKm from it are left out.
@@ -44,9 +44,7 @@ public sealed record NightPreferencesDto(
             yield return new ValidationResult(
                 $"A night can be at most {MaxDuration.TotalHours:0} hours.", [nameof(EndTime)]);
 
-        if (Activities.Distinct().Count() != Activities.Count)
-            yield return new ValidationResult("Activities must not contain duplicates.", [nameof(Activities)]);
-        if (Transport.Distinct().Count() != Transport.Count)
-            yield return new ValidationResult("Transport must not contain duplicates.", [nameof(Transport)]);
+        foreach (var error in PreferenceRules.ValidateSelections(Activities, Transport))
+            yield return error;
     }
 }

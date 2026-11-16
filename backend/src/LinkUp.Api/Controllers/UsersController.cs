@@ -10,8 +10,35 @@ namespace LinkUp.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/users")]
-public sealed class UsersController(IFriendService friends) : ControllerBase
+public sealed class UsersController(IFriendService friends, IUserPreferencesService preferences) : ControllerBase
 {
+    [HttpGet("me/preferences")]
+    [EndpointSummary("Get the signed-in user's saved planning defaults")]
+    [ProducesResponseType<UserPreferencesDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<UserPreferencesDto>> GetPreferences(CancellationToken cancellationToken)
+    {
+        if (CurrentUserId() is not { } userId) return Unauthorized();
+        return await preferences.GetAsync(userId, cancellationToken) is { } saved
+            ? Ok(saved) : Unauthorized();
+    }
+
+    [HttpPut("me/preferences")]
+    [EndpointSummary("Replace the signed-in user's saved planning defaults")]
+    [EndpointDescription("Replaces all five defaults. Omitted or null fields clear the saved value. " +
+        "Supplied selections must be non-empty, supported and distinct. Budget is EUR per person; distance is kilometres. " +
+        "Returns 401 if the account no longer exists.")]
+    [ProducesResponseType<UserPreferencesDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<UserPreferencesDto>> UpdatePreferences(
+        UpdateUserPreferencesRequest request, CancellationToken cancellationToken)
+    {
+        if (CurrentUserId() is not { } userId) return Unauthorized();
+        return await preferences.UpdateAsync(userId, request, cancellationToken) is { } saved
+            ? Ok(saved) : Unauthorized();
+    }
+
     [HttpGet("search")]
     [EndpointSummary("Search users by display name")]
     [EndpointDescription(

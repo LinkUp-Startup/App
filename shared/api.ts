@@ -959,6 +959,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/users/me/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the signed-in user's saved planning defaults */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["UserPreferencesDto"];
+                        "application/json": components["schemas"]["UserPreferencesDto"];
+                        "text/json": components["schemas"]["UserPreferencesDto"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        /**
+         * Replace the signed-in user's saved planning defaults
+         * @description Replaces all five defaults. Omitted or null fields clear the saved value. Supplied selections must be non-empty, supported and distinct. Budget is EUR per person; distance is kilometres. Returns 401 if the account no longer exists.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateUserPreferencesRequest"];
+                    "text/json": components["schemas"]["UpdateUserPreferencesRequest"];
+                    "application/*+json": components["schemas"]["UpdateUserPreferencesRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["UserPreferencesDto"];
+                        "application/json": components["schemas"]["UserPreferencesDto"];
+                        "text/json": components["schemas"]["UserPreferencesDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/users/search": {
         parameters: {
             query?: never;
@@ -1262,11 +1364,31 @@ export interface components {
         };
         /** @enum {unknown} */
         Transport: "walking" | "bike" | "car" | "publicTransport" | "taxi";
+        UpdateUserPreferencesRequest: {
+            /** Format: double */
+            budgetPerPerson?: null | number;
+            /** Format: int32 */
+            groupSize?: null | number;
+            activities?: null | components["schemas"]["Activity"][];
+            /** Format: double */
+            maxDistanceKm?: null | number;
+            transport?: null | components["schemas"]["Transport"][];
+        };
         UserDto: {
             /** Format: uuid */
             id: string;
             email: string;
             displayName: string;
+        };
+        UserPreferencesDto: {
+            /** Format: double */
+            budgetPerPerson: null | number;
+            /** Format: int32 */
+            groupSize: null | number;
+            activities: null | components["schemas"]["Activity"][];
+            /** Format: double */
+            maxDistanceKm: null | number;
+            transport: null | components["schemas"]["Transport"][];
         };
         UserSearchResponse: {
             users: components["schemas"]["UserSearchResultDto"][];

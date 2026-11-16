@@ -197,6 +197,22 @@ namespace LinkUp.Api.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("now()");
 
+                    b.PrimitiveCollection<int[]>("DefaultActivities")
+                        .HasColumnType("integer[]");
+
+                    b.Property<decimal?>("DefaultBudgetPerPerson")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("numeric(8,2)");
+
+                    b.Property<int?>("DefaultGroupSize")
+                        .HasColumnType("integer");
+
+                    b.Property<double?>("DefaultMaxDistanceKm")
+                        .HasColumnType("double precision");
+
+                    b.PrimitiveCollection<int[]>("DefaultTransport")
+                        .HasColumnType("integer[]");
+
                     b.Property<string>("DisplayName")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -216,7 +232,14 @@ namespace LinkUp.Api.Data.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("users", (string)null);
+                    b.ToTable("users", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_users_DefaultBudgetPerPerson", "CAST(\"DefaultBudgetPerPerson\" AS numeric) BETWEEN 0 AND 500");
+
+                            t.HasCheckConstraint("CK_users_DefaultGroupSize", "\"DefaultGroupSize\" BETWEEN 1 AND 20");
+
+                            t.HasCheckConstraint("CK_users_DefaultMaxDistanceKm", "\"DefaultMaxDistanceKm\" BETWEEN 0.5 AND 30");
+                        });
                 });
 
             modelBuilder.Entity("LinkUp.Api.Data.Entities.Venue", b =>

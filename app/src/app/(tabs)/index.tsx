@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ApiStatus } from '@/components/api-status';
@@ -12,12 +13,39 @@ import { TimeField } from '@/components/form/time-field';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { useAuth } from '@/features/auth/auth-context';
 import { ActivityLabels, Limits, TransportLabels } from '@/features/preferences/form';
 import { StartLocationField } from '@/features/preferences/start-location-field';
 import { toggle, usePreferencesForm } from '@/features/preferences/use-preferences-form';
+import { usePlanPrefill } from '@/features/preferences/use-plan-prefill';
 
 export default function PreferencesScreen() {
-  const { form, errors, setField, submit } = usePreferencesForm();
+  const { status, user, accessToken } = useAuth();
+  const [planNumber, setPlanNumber] = useState(0);
+  if (status === 'loading')
+    return (
+      <Screen>
+        <ThemedText>Loading your session…</ThemedText>
+      </Screen>
+    );
+  return (
+    <PlanForm
+      key={`${user?.id ?? 'guest'}:${planNumber}`}
+      accessToken={accessToken}
+      onNewPlan={() => setPlanNumber((value) => value + 1)}
+    />
+  );
+}
+
+function PlanForm({
+  accessToken,
+  onNewPlan,
+}: {
+  accessToken: string | null;
+  onNewPlan: () => void;
+}) {
+  const { form, errors, setField, submit, applyDefaults, hasDraft } = usePreferencesForm();
+  const { loading, message } = usePlanPrefill(accessToken, applyDefaults, hasDraft);
   const hasErrors = Object.keys(errors).length > 0;
 
   const onSubmit = () =>
@@ -33,6 +61,19 @@ export default function PreferencesScreen() {
         Tell us your budget, group and what you feel like. We&apos;ll put together 2-3 complete
         plans in Lleida.
       </ThemedText>
+      <ThemedText type="small" themeColor="textSecondary">
+        Changes here only affect this plan. Your saved defaults stay the same.
+      </ThemedText>
+      {loading && (
+        <ThemedText type="small" accessibilityLiveRegion="polite">
+          Loading saved defaults… You can edit while they load.
+        </ThemedText>
+      )}
+      {message !== '' && (
+        <ThemedText type="small" themeColor="textSecondary" accessibilityLiveRegion="polite">
+          {message}
+        </ThemedText>
+      )}
 
       <FormField label="What do you feel like?" hint="Pick one or more" error={errors.activities}>
         <ChipGroup
@@ -145,6 +186,7 @@ export default function PreferencesScreen() {
         </ThemedText>
       )}
       <Button title="Generate plans" onPress={onSubmit} />
+      <Button title="Start a new plan" variant="secondary" onPress={onNewPlan} />
 
       {__DEV__ && <ApiStatus />}
     </Screen>
