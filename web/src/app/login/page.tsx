@@ -15,7 +15,7 @@ export default async function LoginPage({ searchParams }: Props) {
   return (
     <>
       <SiteHeader />
-      <main className="mx-auto max-w-5xl px-5 pt-16 sm:px-8">
+      <main className="mx-auto max-w-6xl px-5 pt-16 sm:px-8">
         <h1 className="font-display text-4xl font-bold tracking-tight sm:text-5xl">Log in</h1>
         <p className="mt-4 max-w-prose text-lg text-haze">
           Use your LinkUp account to save shared plans to your plans. No account yet? Create one in

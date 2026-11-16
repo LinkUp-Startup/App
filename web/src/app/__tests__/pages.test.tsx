@@ -11,6 +11,9 @@ describe('home page', () => {
       screen.getByRole('heading', { level: 1, name: 'Plan the whole night in one go.' }),
     ).toBeInTheDocument();
     expect(screen.getByText('An example Friday night')).toBeInTheDocument();
+    expect(
+      screen.getAllByRole('listitem').filter((item) => item.textContent === '€40 each'),
+    ).toHaveLength(1);
     expect(screen.getByRole('heading', { name: 'La Casa del Vermut' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Send it to your friends' })).toBeInTheDocument();
   });

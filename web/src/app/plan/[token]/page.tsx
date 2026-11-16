@@ -35,7 +35,7 @@ export default async function SharedPlanPage({ params }: Props) {
   return (
     <>
       <SiteHeader account={<AccountMenu session={session} here={`/plan/${token}`} />} />
-      <main className="mx-auto max-w-5xl px-5 pt-12 sm:px-8 sm:pt-16">
+      <main className="mx-auto max-w-6xl px-5 pt-12 sm:px-8 sm:pt-16">
         <div className="max-w-3xl">
           <p className="text-haze">{describeWhen(plan)}</p>
           <h1 className="mt-2 font-display text-4xl leading-none font-bold tracking-tight text-balance sm:text-6xl">
