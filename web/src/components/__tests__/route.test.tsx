@@ -66,4 +66,11 @@ describe('Route', () => {
 
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
+
+  it('shows no distance between stops at the same place', () => {
+    render(<Route stops={[stop({}), stop({ name: 'Next door', distanceKm: 0 })]} tilted />);
+
+    expect(screen.queryByText(/to here/)).not.toBeInTheDocument();
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+  });
 });
