@@ -28,3 +28,6 @@ export type RegisterRequest = Schemas['RegisterRequest'];
 export type LoginRequest = Schemas['LoginRequest'];
 export type User = Schemas['UserDto'];
 export type AuthResponse = Schemas['AuthResponse'];
+export type FriendRelation = Schemas['FriendRelation'];
+export type UserSearchResult = Schemas['UserSearchResultDto'];
+export type UserSearchResponse = Schemas['UserSearchResponse'];

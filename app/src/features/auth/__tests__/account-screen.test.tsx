@@ -78,4 +78,18 @@ describe('AccountScreen', () => {
     expect(screen.getByText(/everything works without an account/i)).toBeOnTheScreen();
     expect(screen.queryByText('Signed in as Ann')).not.toBeOnTheScreen();
   });
+
+  it('opens the add friends screen when signed in', async () => {
+    const user = userEvent.setup();
+    await render(
+      <AuthProvider>
+        <SignedInAsAnn />
+        <AccountScreen />
+      </AuthProvider>,
+    );
+
+    await user.press(await screen.findByRole('button', { name: 'Add friends' }));
+
+    expect(router.push).toHaveBeenCalledWith('/friends');
+  });
 });
