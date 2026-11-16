@@ -92,7 +92,7 @@ describe('AccountScreen', () => {
     expect(screen.queryByText('Signed in as Ann')).not.toBeOnTheScreen();
   });
 
-  it('opens the add friends screen when signed in', async () => {
+  it('opens the friends screen when signed in', async () => {
     const user = userEvent.setup();
     await render(
       <AuthProvider>
@@ -101,8 +101,8 @@ describe('AccountScreen', () => {
       </AuthProvider>,
     );
 
-    await user.press(await screen.findByRole('button', { name: 'Add friends' }));
+    await user.press(await screen.findByRole('button', { name: 'Friends' }));
 
-    expect(router.push).toHaveBeenCalledWith('/friends');
+    expect(router.push).toHaveBeenCalledWith('/my-friends');
   });
 });
