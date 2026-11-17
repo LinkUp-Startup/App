@@ -70,6 +70,63 @@ namespace LinkUp.Api.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("LinkUp.Api.Data.Entities.Group", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Groups", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Groups_Name", "length(trim(\"Name\")) > 0");
+                        });
+                });
+
+            modelBuilder.Entity("LinkUp.Api.Data.Entities.GroupMember", b =>
+                {
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("JoinedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("GroupId", "UserId");
+
+                    b.HasIndex("GroupId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_GroupMembers_GroupId_Owner")
+                        .HasFilter("\"Role\" = 'Owner'");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("GroupMembers", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_GroupMembers_Role", "\"Role\" IN ('Owner', 'Member')");
+                        });
+                });
+
             modelBuilder.Entity("LinkUp.Api.Data.Entities.Plan", b =>
                 {
                     b.Property<Guid>("Id")
@@ -361,6 +418,21 @@ namespace LinkUp.Api.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("LinkUp.Api.Data.Entities.GroupMember", b =>
+                {
+                    b.HasOne("LinkUp.Api.Data.Entities.Group", null)
+                        .WithMany("Members")
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("LinkUp.Api.Data.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("LinkUp.Api.Data.Entities.Plan", b =>
                 {
                     b.HasOne("LinkUp.Api.Data.Entities.User", null)
@@ -393,6 +465,11 @@ namespace LinkUp.Api.Data.Migrations
                         .HasForeignKey("VenueId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("LinkUp.Api.Data.Entities.Group", b =>
+                {
+                    b.Navigation("Members");
                 });
 
             modelBuilder.Entity("LinkUp.Api.Data.Entities.Plan", b =>
