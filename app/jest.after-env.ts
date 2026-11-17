@@ -2,6 +2,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type * as SecureStore from 'expo-secure-store';
 
+type FakeNotifications = { __scheduled: Map<string, unknown>; __granted: object };
+
 type FakeSecureStore = typeof SecureStore & {
   __store: Map<string, string>;
   __implementation: Pick<typeof SecureStore, 'getItemAsync' | 'setItemAsync' | 'deleteItemAsync'>;
@@ -25,4 +27,16 @@ beforeEach(async () => {
     .mocked(secureStore.deleteItemAsync)
     .mockReset()
     .mockImplementation(secureStore.__implementation.deleteItemAsync);
+
+  const notifications = jest.requireMock<FakeNotifications>('expo-notifications');
+  notifications.__scheduled.clear();
+  const notificationsModule =
+    jest.requireMock<typeof import('expo-notifications')>('expo-notifications');
+  jest
+    .mocked(notificationsModule.getPermissionsAsync)
+    .mockImplementation(async () => notifications.__granted as never);
+  jest
+    .mocked(notificationsModule.requestPermissionsAsync)
+    .mockImplementation(async () => notifications.__granted as never);
+  jest.mocked(notificationsModule.useLastNotificationResponse).mockImplementation(() => undefined);
 });
