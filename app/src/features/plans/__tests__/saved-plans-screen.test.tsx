@@ -66,6 +66,14 @@ describe('SavedPlansScreen', () => {
     });
   });
 
+  it('opens a shared link from the saved plans', async () => {
+    const user = userEvent.setup();
+    await render(<SavedPlansScreen />);
+
+    await user.press(await screen.findByRole('button', { name: 'Open a shared link' }));
+    expect(router.push).toHaveBeenCalledWith('/shared-plan');
+  });
+
   it('offers guests to log in so their plans are kept on the account', async () => {
     const user = userEvent.setup();
     await render(<SavedPlansScreen />);

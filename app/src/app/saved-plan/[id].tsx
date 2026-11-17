@@ -1,23 +1,37 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Linking } from 'react-native';
 
 import { Button } from '@/components/button';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/features/auth/auth-context';
+import { addPlanToCalendar } from '@/features/plans/add-to-calendar';
 import { formatNightDate } from '@/features/plans/format';
 import { PlanCard } from '@/features/plans/plan-card';
 import { removePlanFor } from '@/features/plans/saved-plans-sync';
+import { getShareLink, openShareSheet, stopSharing } from '@/features/plans/share-plan';
 import { getSavedPlan, type SavedPlan } from '@/storage/saved-plans';
 
-/** One saved plan, opened from the Saved tab. Opens offline; deleting it also needs the account when signed in. */
+/**
+ * One saved plan, opened from the Saved tab. Opens offline; deleting it also needs the account when signed in.
+ * Sharing (#154) needs an account, because the link points at the plan on the server.
+ */
 export default function SavedPlanScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   // undefined while loading, null when the plan isn't saved (anymore).
   const [plan, setPlan] = useState<SavedPlan | null>();
   const { accessToken } = useAuth();
   const [deleteFailed, setDeleteFailed] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [shareFailed, setShareFailed] = useState<string | null>(null);
+  const [addingToCalendar, setAddingToCalendar] = useState(false);
+  const [calendarMessage, setCalendarMessage] = useState<string | null>(null);
+
+  const reload = () =>
+    getSavedPlan(id)
+      .then((found) => setPlan(found ?? null))
+      .catch((error: unknown) => console.warn('Could not reload saved plan', error));
 
   useEffect(() => {
     getSavedPlan(id)
@@ -27,6 +41,80 @@ export default function SavedPlanScreen() {
         setPlan(null);
       });
   }, [id]);
+
+  function share(saved: SavedPlan) {
+    if (!accessToken) {
+      Alert.alert(
+        'Log in to share',
+        'A share link opens your plan on the LinkUp website, so the plan needs to be in your account. Your saved plans move to your account when you log in.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log in', onPress: () => router.push('/login') },
+        ],
+      );
+      return;
+    }
+    setShareFailed(null);
+    setSharing(true);
+    getShareLink(saved, accessToken)
+      .then(async (url) => {
+        await reload();
+        await openShareSheet(saved, url);
+      })
+      .catch((error: unknown) => {
+        console.warn('Could not share plan', error);
+        setShareFailed("Couldn't create a share link. Check your connection and try again.");
+      })
+      .finally(() => setSharing(false));
+  }
+
+  function addToCalendar(saved: SavedPlan) {
+    setCalendarMessage(null);
+    setAddingToCalendar(true);
+    addPlanToCalendar(saved)
+      .then((result) => {
+        if (result.status === 'added')
+          setCalendarMessage(
+            `Added ${result.count} ${result.count === 1 ? 'event' : 'events'} to your calendar.`,
+          );
+        else if (result.status === 'no-calendar')
+          setCalendarMessage('No calendar on this phone can take new events.');
+        else
+          Alert.alert(
+            'Calendar access is off',
+            'To add plans to your calendar, allow LinkUp to use your calendar in Settings.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => void Linking.openSettings() },
+            ],
+          );
+      })
+      .catch((error: unknown) => {
+        console.warn('Could not add plan to calendar', error);
+        setCalendarMessage("Couldn't add the plan to your calendar. Try again.");
+      })
+      .finally(() => setAddingToCalendar(false));
+  }
+
+  function confirmStopSharing(saved: SavedPlan) {
+    if (!accessToken) return;
+    Alert.alert('Stop sharing this plan?', 'The link stops working for everyone who has it.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Stop sharing',
+        style: 'destructive',
+        onPress: () => {
+          setShareFailed(null);
+          stopSharing(saved.id, accessToken)
+            .then(reload)
+            .catch((error: unknown) => {
+              console.warn('Could not stop sharing plan', error);
+              setShareFailed("Couldn't stop sharing. Check your connection and try again.");
+            });
+        },
+      },
+    ]);
+  }
 
   function confirmDelete(saved: SavedPlan) {
     const where = accessToken ? 'your account and this device' : 'this device';
@@ -68,6 +156,39 @@ export default function SavedPlanScreen() {
         plan={plan}
         footer={
           <>
+            <Button
+              title={sharing ? 'Getting link…' : 'Share plan'}
+              disabled={sharing}
+              onPress={() => share(plan)}
+            />
+            {plan.shareUrl && accessToken && (
+              <>
+                <ThemedText type="small" themeColor="textSecondary">
+                  Shared: anyone with the link can see this plan.
+                </ThemedText>
+                <Button
+                  title="Stop sharing"
+                  variant="secondary"
+                  onPress={() => confirmStopSharing(plan)}
+                />
+              </>
+            )}
+            {shareFailed && (
+              <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">
+                {shareFailed}
+              </ThemedText>
+            )}
+            <Button
+              title={addingToCalendar ? 'Adding to calendar…' : 'Add to calendar'}
+              variant="secondary"
+              disabled={addingToCalendar}
+              onPress={() => addToCalendar(plan)}
+            />
+            {calendarMessage && (
+              <ThemedText type="small" themeColor="textSecondary" accessibilityLiveRegion="polite">
+                {calendarMessage}
+              </ThemedText>
+            )}
             <Button title="Delete plan" variant="secondary" onPress={() => confirmDelete(plan)} />
             {deleteFailed && (
               <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">

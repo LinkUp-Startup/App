@@ -28,6 +28,8 @@ public sealed class OpenApiDocumentTests(ApiFactory factory) : IClassFixture<Api
 
     [Theory]
     [InlineData("/api/auth/me", "get", true)]
+    [InlineData("/api/users/me/preferences", "get", true)]
+    [InlineData("/api/users/me/preferences", "put", true)]
     [InlineData("/api/auth/login", "post", false)]
     [InlineData("/api/auth/register", "post", false)]
     [InlineData("/api/plans/generate", "post", false)] // guest mode: no account needed

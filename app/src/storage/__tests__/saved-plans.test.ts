@@ -7,6 +7,7 @@ import {
   removePlan,
   replaceSavedPlans,
   savePlan,
+  setShareUrl,
 } from '@/storage/saved-plans';
 import type { Plan } from '@/types/api';
 
@@ -96,5 +97,30 @@ describe('saved plans', () => {
     await AsyncStorage.setItem('linkup.savedPlans.v1', '{not json');
 
     await expect(getSavedPlans()).resolves.toEqual([]);
+  });
+
+  it('records a share link and forgets it again', async () => {
+    await savePlan(plan('a'), { savedAt: '2026-10-01T10:00:00.000Z', synced: true });
+    await savePlan(plan('b'), { savedAt: '2026-10-01T09:00:00.000Z' });
+
+    await setShareUrl('a', 'https://linkup.th7bo.dev/plan/tok');
+    expect(await getSavedPlan('a')).toEqual({
+      ...plan('a'),
+      savedAt: '2026-10-01T10:00:00.000Z',
+      synced: true,
+      shareUrl: 'https://linkup.th7bo.dev/plan/tok',
+    });
+    expect((await getSavedPlan('b'))?.shareUrl).toBeUndefined();
+
+    await setShareUrl('a', null);
+    expect(await getSavedPlan('a')).not.toHaveProperty('shareUrl');
+  });
+
+  it('keeps a share link given when saving', async () => {
+    await savePlan(plan('a'), { shareUrl: 'https://linkup.th7bo.dev/plan/tok' });
+    expect((await getSavedPlan('a'))?.shareUrl).toBe('https://linkup.th7bo.dev/plan/tok');
+
+    await savePlan(plan('a'), { shareUrl: null });
+    expect(await getSavedPlan('a')).not.toHaveProperty('shareUrl');
   });
 });

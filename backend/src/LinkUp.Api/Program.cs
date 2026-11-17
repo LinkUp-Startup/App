@@ -84,6 +84,8 @@ else
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ISavedPlanService, SavedPlanService>();
+builder.Services.AddScoped<IFriendService, FriendService>();
+builder.Services.AddScoped<IUserPreferencesService, UserPreferencesService>();
 builder.Services.AddScoped<IVenueService, VenueService>();
 builder.Services.AddScoped<IVenueFilteringService, VenueFilteringService>();
 builder.Services.AddSingleton<IPlanCostService, PlanCostService>();
@@ -117,6 +119,8 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
         };
     });
 builder.Services.AddAuthorization();
+// Don't announce the web server ("Server: Kestrel") to scanners.
+builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 builder.Services.AddApiRateLimiting(builder.Configuration);
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
 {
@@ -129,6 +133,7 @@ var app = builder.Build();
 
 // First, so everything after it (logs, rate limits) sees the real client IP behind the proxy.
 app.UseForwardedHeaders();
+app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseHttpLogging();
 app.UseCors();

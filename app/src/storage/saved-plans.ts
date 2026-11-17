@@ -6,9 +6,10 @@ const KEY = 'linkup.savedPlans.v1';
 
 /**
  * A plan kept on this device. `synced` means it is also saved to the signed-in account; plans without it
- * were saved as a guest (or while offline) and are uploaded the next time the account syncs.
+ * were saved as a guest (or while offline) and are uploaded the next time the account syncs. `shareUrl` is
+ * the plan's public link while the account shares it.
  */
-export type SavedPlan = Plan & { savedAt: string; synced?: boolean };
+export type SavedPlan = Plan & { savedAt: string; synced?: boolean; shareUrl?: string };
 
 // Every read and write goes through this queue, so they happen in the order they were called: a read right
 // after a write (or after clearing on sign-out) always sees it, and two writes never overwrite each other.
@@ -41,15 +42,32 @@ export async function getSavedPlan(id: string): Promise<SavedPlan | undefined> {
 
 export function savePlan(
   plan: Plan,
-  { savedAt = new Date().toISOString(), synced }: { savedAt?: string; synced?: boolean } = {},
+  {
+    savedAt = new Date().toISOString(),
+    synced,
+    shareUrl,
+  }: { savedAt?: string; synced?: boolean; shareUrl?: string | null } = {},
 ) {
   return inOrder(async () => {
     const plans = await read();
     await write([
-      { ...plan, savedAt, ...(synced && { synced }) },
+      { ...plan, savedAt, ...(synced && { synced }), ...(shareUrl && { shareUrl }) },
       ...plans.filter((p) => p.id !== plan.id),
     ]);
   });
+}
+
+/** Records the plan's public link, or that it is no longer shared (null). Does nothing for an unknown plan. */
+export function setShareUrl(id: string, shareUrl: string | null) {
+  return inOrder(async () =>
+    write(
+      (await read()).map((plan) => {
+        if (plan.id !== id) return plan;
+        const { shareUrl: _previous, ...rest } = plan;
+        return shareUrl ? { ...rest, shareUrl } : rest;
+      }),
+    ),
+  );
 }
 
 export function removePlan(id: string) {

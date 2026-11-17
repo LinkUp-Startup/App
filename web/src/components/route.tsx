@@ -13,59 +13,68 @@ export type RouteStop = {
   distanceKm: number;
 };
 
+// Ticket colours alternate so neighbouring stops stay apart.
+const paper = ['bg-butter', 'bg-coral'];
+// On the home page the tickets lie a little scattered, as if just handed out.
+const scattered = ['', 'sm:ml-10', 'sm:ml-4'];
+
 /**
- * The night as a route: times on the left, a line connecting the stops, and how far it is to walk between them.
+ * The night as a stack of tickets: the time on the stub, the place on the ticket, and how far it is to the next.
  * This is the one visual idea of the site, used for shared plans and the example on the home page.
  */
 export function Route({
   stops,
   withDirections = true,
+  tilted = false,
 }: {
   stops: RouteStop[];
   withDirections?: boolean;
+  tilted?: boolean;
 }) {
   return (
-    <ol className="relative">
-      {stops.map((stop, index) => {
-        const last = index === stops.length - 1;
-        return (
-          <li
-            key={`${stop.name}-${stop.startTime}`}
-            className="grid grid-cols-[4.5rem_1.75rem_1fr] sm:grid-cols-[6rem_2rem_1fr]">
-            {index > 0 && stop.distanceKm > 0 && (
-              <>
-                <span />
-                <span className="flex justify-center">
-                  <span className="w-0.5 bg-violet/40" />
-                </span>
-                <p className="pb-4 text-sm text-haze">{formatKm(stop.distanceKm)} to here</p>
-              </>
-            )}
+    <ol className={tilted ? 'deal sm:-rotate-2' : undefined}>
+      {stops.map((stop, index) => (
+        <li
+          key={`${stop.name}-${stop.startTime}`}
+          className={tilted ? scattered[index % scattered.length] : undefined}>
+          {index > 0 && stop.distanceKm > 0 && (
+            <p className="py-2 pl-24 text-sm text-mauve sm:pl-32">
+              {formatKm(stop.distanceKm)} to here
+            </p>
+          )}
+          {index > 0 && stop.distanceKm <= 0 && <div className="h-3" />}
 
-            <div className="pt-0.5 text-right">
+          <article
+            className={`relative grid grid-cols-[5.5rem_1fr] rounded-xl text-wine sm:grid-cols-[7.5rem_1fr] ${paper[index % paper.length]}`}>
+            {/* The perforation: a dashed line with a notch bitten out at each end. */}
+            <span
+              aria-hidden="true"
+              className="absolute -top-2.5 left-[calc(5.5rem-0.625rem)] size-5 rounded-full bg-wine sm:left-[calc(7.5rem-0.625rem)]"
+            />
+            <span
+              aria-hidden="true"
+              className="absolute -bottom-2.5 left-[calc(5.5rem-0.625rem)] size-5 rounded-full bg-wine sm:left-[calc(7.5rem-0.625rem)]"
+            />
+
+            <div className="border-r-[3px] border-dashed border-wine/60 px-2 py-5 text-center">
               <time
                 dateTime={stop.startTime}
-                className="font-display text-2xl font-semibold tabular-nums leading-none text-sodium sm:text-3xl">
+                className="block font-display text-3xl leading-none font-black tabular-nums sm:text-4xl">
                 {formatTime(stop.startTime)}
               </time>
-              <p className="mt-1.5 font-display text-xs text-haze tabular-nums">
+              <p className="mt-1.5 text-xs font-bold tabular-nums opacity-75">
                 until {formatTime(stop.endTime)}
               </p>
             </div>
 
-            <span className="relative flex justify-center" aria-hidden="true">
-              <span className="relative z-10 mt-1.5 size-3.5 rounded-full border-[3px] border-violet bg-night" />
-              {!last && <span className="absolute top-1.5 bottom-0 w-0.5 bg-violet/40" />}
-            </span>
-
-            <div className={last ? 'pb-0' : 'pb-6'}>
-              <h3 className="font-display text-xl font-semibold leading-tight sm:text-2xl">
+            <div className="min-w-0 px-4 py-4 sm:px-5">
+              <h3 className="font-display text-2xl leading-none font-black uppercase sm:text-3xl">
                 {stop.name}
               </h3>
-              <p className="mt-1 text-sm text-haze">
+              <p className="mt-1.5 text-sm font-medium">
                 {activityLabel(stop.activity)}, {stop.address}
               </p>
-              <p className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm">
+              <p className="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm font-bold">
                 <span>
                   {stop.costPerPerson === null
                     ? 'Price not known'
@@ -77,15 +86,15 @@ export function Route({
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={`Directions to ${stop.name} (opens Google Maps)`}
-                    className="font-bold text-violet underline decoration-violet/40 underline-offset-4 hover:decoration-violet">
+                    className="underline decoration-2 underline-offset-4 hover:decoration-wine/50 focus-visible:outline-wine">
                     Directions
                   </a>
                 )}
               </p>
             </div>
-          </li>
-        );
-      })}
+          </article>
+        </li>
+      ))}
     </ol>
   );
 }

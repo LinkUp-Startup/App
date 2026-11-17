@@ -215,3 +215,42 @@ describe('running one at a time', () => {
     expect(await ids()).toEqual([]);
   });
 });
+
+describe('share links', () => {
+  // Earlier tests can leave unused mockResolvedValueOnce answers queued; clearAllMocks keeps them.
+  beforeEach(() => {
+    listMock.mockReset();
+    putMock.mockReset();
+  });
+
+  it('keeps the link of a plan the account shares', async () => {
+    listMock.mockResolvedValue({
+      plans: [
+        {
+          ...remote('a', '2026-11-01T10:00:00.000Z'),
+          shareUrl: 'https://linkup.th7bo.dev/plan/tok',
+        },
+      ],
+    });
+
+    await syncSavedPlans(token);
+
+    expect((await getSavedPlans()).find((p) => p.id === 'a')?.shareUrl).toBe(
+      'https://linkup.th7bo.dev/plan/tok',
+    );
+  });
+
+  it('keeps the link when a shared plan is saved again', async () => {
+    putMock.mockResolvedValue({
+      plan: plan('a'),
+      savedAt: '2026-11-01T10:00:00.000Z',
+      shareUrl: 'https://linkup.th7bo.dev/plan/tok',
+    });
+
+    await savePlanFor(plan('a'), token);
+
+    expect((await getSavedPlans()).find((p) => p.id === 'a')?.shareUrl).toBe(
+      'https://linkup.th7bo.dev/plan/tok',
+    );
+  });
+});

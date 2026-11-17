@@ -23,6 +23,110 @@ namespace LinkUp.Api.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("LinkUp.Api.Data.Entities.Friendship", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("RequestedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("RespondedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("UserAId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserBId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserBId");
+
+                    b.HasIndex("UserAId", "UserBId")
+                        .IsUnique();
+
+                    b.ToTable("Friendships", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Friendships_OrderedPair", "\"UserAId\" < \"UserBId\"");
+
+                            t.HasCheckConstraint("CK_Friendships_RequestedBy", "\"RequestedById\" = \"UserAId\" OR \"RequestedById\" = \"UserBId\"");
+
+                            t.HasCheckConstraint("CK_Friendships_RespondedAt", "(\"Status\" = 'Pending') = (\"RespondedAt\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_Friendships_Status", "\"Status\" IN ('Pending', 'Accepted', 'Declined')");
+                        });
+                });
+
+            modelBuilder.Entity("LinkUp.Api.Data.Entities.Group", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Groups", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Groups_Name", "length(trim(\"Name\")) > 0");
+                        });
+                });
+
+            modelBuilder.Entity("LinkUp.Api.Data.Entities.GroupMember", b =>
+                {
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("JoinedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("GroupId", "UserId");
+
+                    b.HasIndex("GroupId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_GroupMembers_GroupId_Owner")
+                        .HasFilter("\"Role\" = 'Owner'");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("GroupMembers", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_GroupMembers_Role", "\"Role\" IN ('Owner', 'Member')");
+                        });
+                });
+
             modelBuilder.Entity("LinkUp.Api.Data.Entities.Plan", b =>
                 {
                     b.Property<Guid>("Id")
@@ -150,6 +254,22 @@ namespace LinkUp.Api.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("now()");
 
+                    b.PrimitiveCollection<int[]>("DefaultActivities")
+                        .HasColumnType("integer[]");
+
+                    b.Property<decimal?>("DefaultBudgetPerPerson")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("numeric(8,2)");
+
+                    b.Property<int?>("DefaultGroupSize")
+                        .HasColumnType("integer");
+
+                    b.Property<double?>("DefaultMaxDistanceKm")
+                        .HasColumnType("double precision");
+
+                    b.PrimitiveCollection<int[]>("DefaultTransport")
+                        .HasColumnType("integer[]");
+
                     b.Property<string>("DisplayName")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -169,7 +289,14 @@ namespace LinkUp.Api.Data.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("users", (string)null);
+                    b.ToTable("users", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_users_DefaultBudgetPerPerson", "CAST(\"DefaultBudgetPerPerson\" AS numeric) BETWEEN 0 AND 500");
+
+                            t.HasCheckConstraint("CK_users_DefaultGroupSize", "\"DefaultGroupSize\" BETWEEN 1 AND 20");
+
+                            t.HasCheckConstraint("CK_users_DefaultMaxDistanceKm", "\"DefaultMaxDistanceKm\" BETWEEN 0.5 AND 30");
+                        });
                 });
 
             modelBuilder.Entity("LinkUp.Api.Data.Entities.Venue", b =>
@@ -276,6 +403,36 @@ namespace LinkUp.Api.Data.Migrations
                     b.ToTable("VenueOpeningHours", (string)null);
                 });
 
+            modelBuilder.Entity("LinkUp.Api.Data.Entities.Friendship", b =>
+                {
+                    b.HasOne("LinkUp.Api.Data.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserAId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("LinkUp.Api.Data.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserBId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LinkUp.Api.Data.Entities.GroupMember", b =>
+                {
+                    b.HasOne("LinkUp.Api.Data.Entities.Group", null)
+                        .WithMany("Members")
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("LinkUp.Api.Data.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("LinkUp.Api.Data.Entities.Plan", b =>
                 {
                     b.HasOne("LinkUp.Api.Data.Entities.User", null)
@@ -308,6 +465,11 @@ namespace LinkUp.Api.Data.Migrations
                         .HasForeignKey("VenueId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("LinkUp.Api.Data.Entities.Group", b =>
+                {
+                    b.Navigation("Members");
                 });
 
             modelBuilder.Entity("LinkUp.Api.Data.Entities.Plan", b =>

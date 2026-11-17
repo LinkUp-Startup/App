@@ -102,6 +102,8 @@ To apply to another database (e.g. `project_dev`), set `ConnectionStrings__Defau
 | `users` | Accounts | has many `Plans` |
 | `Plans` | A night plan: title, summary, cost per person, total distance | optional owner (`UserId`, deleted with the account), has many `PlanItems` |
 | `PlanItems` | One stop: venue, `Position` (0-based, unique per plan), times, cost, distance from the previous stop (the first from the start location) | deleted with its plan; a venue used in a plan can't be deleted (set `IsActive = false` instead) |
+| `Groups` | Friends who plan together: a name | has many `GroupMembers` |
+| `GroupMembers` | One user in one group, with a `Role` (`Owner` or `Member`); exactly one owner, the creator | deleted with the group or the account; a user can be in several groups |
 
 Plan item times are stored in UTC; EF converts any offset on write. Read items sorted by `Position`.
 
@@ -171,6 +173,13 @@ Plans saved to an account, so they show up on every device (#88). Guests keep th
 - A plan has 1 to 10 stops in order without overlap, each ending after it starts; costs and distances must be non-negative and fit their columns (at most €999,999.99 per person, 1000 km). A price that was unknown stays unknown (`null`).
 - Plans belong to the account (`Plans.UserId`) and are deleted with it. Plan ids are per account (`Plans.SourcePlanId`, unique per account): another account saving the same id, e.g. a shared plan, gets its own copy. One account can't see, replace or delete another's plans; `DELETE` answers `204` either way so it doesn't reveal whether a plan exists.
 - Saves for one account run one after the other (a PostgreSQL advisory lock per account), so a double tap or two devices saving at once can't create duplicates, fail, or overshoot the limit.
+
+## Saved default preferences
+
+`GET /api/users/me/preferences` and `PUT /api/users/me/preferences` require a bearer
+token and read/replace only the signed-in user's defaults. PUT replaces all five
+fields; omitted or null values clear them. See [Preferences API](../docs/user-preferences-api.md)
+for examples, shared plan validation, and persistence details.
 
 ## AI
 

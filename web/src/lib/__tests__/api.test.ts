@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { apiUrl, getSharedPlan } from '../api';
+import { apiUrl, getSharedPlan, hasSavedPlan, savePlan, SessionExpiredError } from '../api';
 import { samplePlan } from './sample-plan';
 
+// A fresh Response per call: a body can only be read once.
 const respond = (status: number, body?: unknown) =>
-  vi
-    .fn()
-    .mockResolvedValue(new Response(body === undefined ? null : JSON.stringify(body), { status }));
+  vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(
+    async () => new Response(body === undefined ? null : JSON.stringify(body), { status }),
+  );
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -52,5 +53,52 @@ describe('getSharedPlan', () => {
     vi.stubGlobal('fetch', respond(503));
 
     await expect(getSharedPlan('abc')).rejects.toThrow('503');
+  });
+});
+
+describe('hasSavedPlan', () => {
+  it('checks the account’s saved plans with its token', async () => {
+    const fetchMock = respond(200, { plans: [{ plan: samplePlan, savedAt: 'x', shareUrl: null }] });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(hasSavedPlan('jwt', samplePlan.id)).resolves.toBe(true);
+    await expect(hasSavedPlan('jwt', 'other')).resolves.toBe(false);
+    expect(fetchMock.mock.calls[0][0]).toBe('https://linkup-api.th7bo.dev/api/saved-plans');
+    expect(fetchMock.mock.calls[0][1]?.headers).toMatchObject({ Authorization: 'Bearer jwt' });
+  });
+
+  it('reports an expired session', async () => {
+    vi.stubGlobal('fetch', respond(401));
+    await expect(hasSavedPlan('jwt', 'x')).rejects.toBeInstanceOf(SessionExpiredError);
+  });
+
+  it('throws on other failures', async () => {
+    vi.stubGlobal('fetch', respond(500));
+    await expect(hasSavedPlan('jwt', 'x')).rejects.toThrow('500');
+  });
+});
+
+describe('savePlan', () => {
+  it('puts the plan under its id with the account’s token', async () => {
+    const fetchMock = respond(200, {});
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(savePlan('jwt', samplePlan)).resolves.toBe('saved');
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`https://linkup-api.th7bo.dev/api/saved-plans/${samplePlan.id}`);
+    expect(init).toMatchObject({ method: 'PUT', body: JSON.stringify(samplePlan) });
+    expect(init?.headers).toMatchObject({
+      Authorization: 'Bearer jwt',
+      'Content-Type': 'application/json',
+    });
+  });
+
+  it('reports a full account, an expired session and other failures', async () => {
+    vi.stubGlobal('fetch', respond(409));
+    await expect(savePlan('jwt', samplePlan)).resolves.toBe('limit');
+    vi.stubGlobal('fetch', respond(401));
+    await expect(savePlan('jwt', samplePlan)).rejects.toBeInstanceOf(SessionExpiredError);
+    vi.stubGlobal('fetch', respond(500));
+    await expect(savePlan('jwt', samplePlan)).rejects.toThrow('500');
   });
 });

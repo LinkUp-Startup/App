@@ -1,0 +1,3 @@
+# ZAP rule overrides for the website scan: <rule id>\t<IGNORE|INFO|WARN|FAIL>\t<reason>.
+# Every override is explained in docs/security-zap.md.
+# None needed so far: the scans report no warnings.

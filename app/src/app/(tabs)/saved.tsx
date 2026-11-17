@@ -61,6 +61,11 @@ export default function SavedPlansScreen() {
   return (
     <Screen>
       <ThemedText type="subtitle">Saved plans</ThemedText>
+      <Button
+        title="Open a shared link"
+        variant="secondary"
+        onPress={() => router.push('/shared-plan')}
+      />
       {syncFailed && (
         <ThemedText type="small" themeColor="textSecondary" accessibilityLiveRegion="polite">
           Couldn&apos;t reach your account. Showing the plans on this device.
