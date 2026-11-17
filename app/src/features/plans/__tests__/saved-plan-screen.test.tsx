@@ -1,9 +1,10 @@
 import { render, screen, userEvent, waitFor } from '@testing-library/react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Alert, Share } from 'react-native';
+import { Alert, Linking, Share } from 'react-native';
 
 import { deleteSavedPlan, sharePlan, unsharePlan } from '@/api/saved-plans';
 import SavedPlanScreen from '@/app/saved-plan/[id]';
+import { addPlanToCalendar } from '@/features/plans/add-to-calendar';
 import { getSavedPlan, getSavedPlans, savePlan } from '@/storage/saved-plans';
 
 import { tapasPlan } from './fixtures/plans';
@@ -14,6 +15,7 @@ jest.mock('expo-router', () => ({
 }));
 
 jest.mock('@/api/saved-plans');
+jest.mock('@/features/plans/add-to-calendar');
 // Guest by default; the signed-in tests set a token.
 const mockAuth = { accessToken: null as string | null };
 jest.mock('@/features/auth/auth-context', () => ({
@@ -71,6 +73,66 @@ describe('SavedPlanScreen', () => {
     expect(await screen.findByText('This plan is no longer saved.')).toBeOnTheScreen();
     await user.press(screen.getByRole('button', { name: 'Back to saved plans' }));
     expect(router.back).toHaveBeenCalled();
+  });
+
+  describe('add to calendar', () => {
+    async function pressAddToCalendar() {
+      await savePlan(tapasPlan);
+      const user = userEvent.setup();
+      await render(<SavedPlanScreen />);
+      await user.press(await screen.findByRole('button', { name: 'Add to calendar' }));
+    }
+
+    it('adds the stops and says how many', async () => {
+      jest.mocked(addPlanToCalendar).mockResolvedValue({ status: 'added', count: 2 });
+
+      await pressAddToCalendar();
+
+      expect(await screen.findByText('Added 2 events to your calendar.')).toBeOnTheScreen();
+      expect(jest.mocked(addPlanToCalendar).mock.calls[0][0].id).toBe(tapasPlan.id);
+    });
+
+    it('says "1 event" for one stop', async () => {
+      jest.mocked(addPlanToCalendar).mockResolvedValue({ status: 'added', count: 1 });
+
+      await pressAddToCalendar();
+
+      expect(await screen.findByText('Added 1 event to your calendar.')).toBeOnTheScreen();
+    });
+
+    it('says so when no calendar can take events', async () => {
+      jest.mocked(addPlanToCalendar).mockResolvedValue({ status: 'no-calendar' });
+
+      await pressAddToCalendar();
+
+      expect(
+        await screen.findByText('No calendar on this phone can take new events.'),
+      ).toBeOnTheScreen();
+    });
+
+    it('offers the settings when calendar access is off', async () => {
+      jest.mocked(addPlanToCalendar).mockResolvedValue({ status: 'denied' });
+      const alert = jest.spyOn(Alert, 'alert');
+      const openSettings = jest.spyOn(Linking, 'openSettings').mockResolvedValue();
+
+      await pressAddToCalendar();
+
+      await waitFor(() => expect(alert).toHaveBeenCalled());
+      expect(alert.mock.calls[0][0]).toBe('Calendar access is off');
+      alert.mock.calls[0][2]!.find((button) => button.text === 'Open Settings')!.onPress!();
+      expect(openSettings).toHaveBeenCalled();
+    });
+
+    it('says so when adding fails', async () => {
+      jest.mocked(addPlanToCalendar).mockRejectedValue(new Error('boom'));
+      jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      await pressAddToCalendar();
+
+      expect(
+        await screen.findByText("Couldn't add the plan to your calendar. Try again."),
+      ).toBeOnTheScreen();
+    });
   });
 
   it('asks a guest to log in before sharing', async () => {

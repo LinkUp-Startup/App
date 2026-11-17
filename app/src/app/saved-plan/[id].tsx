@@ -1,11 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Linking } from 'react-native';
 
 import { Button } from '@/components/button';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/features/auth/auth-context';
+import { addPlanToCalendar } from '@/features/plans/add-to-calendar';
 import { formatNightDate } from '@/features/plans/format';
 import { PlanCard } from '@/features/plans/plan-card';
 import { removePlanFor } from '@/features/plans/saved-plans-sync';
@@ -24,6 +25,8 @@ export default function SavedPlanScreen() {
   const [deleteFailed, setDeleteFailed] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [shareFailed, setShareFailed] = useState<string | null>(null);
+  const [addingToCalendar, setAddingToCalendar] = useState(false);
+  const [calendarMessage, setCalendarMessage] = useState<string | null>(null);
 
   const reload = () =>
     getSavedPlan(id)
@@ -63,6 +66,34 @@ export default function SavedPlanScreen() {
         setShareFailed("Couldn't create a share link. Check your connection and try again.");
       })
       .finally(() => setSharing(false));
+  }
+
+  function addToCalendar(saved: SavedPlan) {
+    setCalendarMessage(null);
+    setAddingToCalendar(true);
+    addPlanToCalendar(saved)
+      .then((result) => {
+        if (result.status === 'added')
+          setCalendarMessage(
+            `Added ${result.count} ${result.count === 1 ? 'event' : 'events'} to your calendar.`,
+          );
+        else if (result.status === 'no-calendar')
+          setCalendarMessage('No calendar on this phone can take new events.');
+        else
+          Alert.alert(
+            'Calendar access is off',
+            'To add plans to your calendar, allow LinkUp to use your calendar in Settings.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => void Linking.openSettings() },
+            ],
+          );
+      })
+      .catch((error: unknown) => {
+        console.warn('Could not add plan to calendar', error);
+        setCalendarMessage("Couldn't add the plan to your calendar. Try again.");
+      })
+      .finally(() => setAddingToCalendar(false));
   }
 
   function confirmStopSharing(saved: SavedPlan) {
@@ -145,6 +176,17 @@ export default function SavedPlanScreen() {
             {shareFailed && (
               <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">
                 {shareFailed}
+              </ThemedText>
+            )}
+            <Button
+              title={addingToCalendar ? 'Adding to calendar…' : 'Add to calendar'}
+              variant="secondary"
+              disabled={addingToCalendar}
+              onPress={() => addToCalendar(plan)}
+            />
+            {calendarMessage && (
+              <ThemedText type="small" themeColor="textSecondary" accessibilityLiveRegion="polite">
+                {calendarMessage}
               </ThemedText>
             )}
             <Button title="Delete plan" variant="secondary" onPress={() => confirmDelete(plan)} />

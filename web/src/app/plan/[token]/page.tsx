@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { Route } from '@/components/route';
 import { SiteFooter } from '@/components/site-footer';
 import { AccountMenu } from '@/components/account-menu';
+import { secondaryButtonClass } from '@/components/button';
 import { SiteHeader } from '@/components/site-header';
 import { getSharedPlan, hasSavedPlan, SessionExpiredError } from '@/lib/api';
 import { formatEuros, formatKm } from '@/lib/format';
@@ -74,6 +75,10 @@ export default async function SharedPlanPage({ params }: Props) {
             </dl>
 
             <SavePlan shareToken={token} loggedIn={!!session} alreadySaved={alreadySaved} />
+
+            <a href={`/plan/${token}/calendar`} download className={`mt-4 ${secondaryButtonClass}`}>
+              Add to calendar
+            </a>
 
             <div className="mt-10 max-w-prose space-y-3 border-t-[3px] border-dashed border-plum pt-6 text-sm leading-relaxed text-mauve">
               <p>

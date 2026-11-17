@@ -39,6 +39,12 @@
         {
           "locationWhenInUsePermission": "LinkUp uses your location to plan a night that starts where you are."
         }
+      ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "LinkUp adds the stops of your plan to your calendar."
+        }
       ]
     ],
     "experiments": {
