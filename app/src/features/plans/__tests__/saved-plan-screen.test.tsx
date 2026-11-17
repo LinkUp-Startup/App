@@ -75,6 +75,32 @@ describe('SavedPlanScreen', () => {
     expect(router.back).toHaveBeenCalled();
   });
 
+  describe('Tonight mode', () => {
+    afterEach(() => jest.useRealTimers());
+
+    it('opens Tonight mode on the night of the plan', async () => {
+      jest.useFakeTimers({
+        now: new Date('2026-10-30T20:00:00Z'),
+        doNotFake: ['nextTick', 'setImmediate'],
+      });
+      await savePlan(tapasPlan);
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+      await render(<SavedPlanScreen />);
+
+      await user.press(await screen.findByRole('button', { name: 'Open Tonight mode' }));
+
+      expect(router.push).toHaveBeenCalledWith({ pathname: '/tonight/[id]', params: { id: 'p1' } });
+    });
+
+    it('does not offer it on another day', async () => {
+      await savePlan(tapasPlan);
+      await render(<SavedPlanScreen />);
+
+      expect(await screen.findByRole('button', { name: 'Delete plan' })).toBeOnTheScreen();
+      expect(screen.queryByRole('button', { name: 'Open Tonight mode' })).not.toBeOnTheScreen();
+    });
+  });
+
   describe('add to calendar', () => {
     async function pressAddToCalendar() {
       await savePlan(tapasPlan);

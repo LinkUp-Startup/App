@@ -41,6 +41,38 @@ afterEach(() => {
 });
 
 describe('SavedPlansScreen', () => {
+  describe('Tonight mode', () => {
+    afterEach(() => jest.useRealTimers());
+
+    it('offers Tonight mode for a plan that is on tonight', async () => {
+      jest.useFakeTimers({
+        now: new Date('2026-10-30T18:00:00Z'),
+        doNotFake: ['nextTick', 'setImmediate'],
+      });
+      await savePlan(tapasPlan);
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+      await render(<SavedPlansScreen />);
+
+      await user.press(await screen.findByRole('button', { name: 'Tonight: Tapas and drinks' }));
+
+      expect(router.push).toHaveBeenCalledWith({ pathname: '/tonight/[id]', params: { id: 'p1' } });
+    });
+
+    it('does not offer it on another day', async () => {
+      jest.useFakeTimers({
+        now: new Date('2026-11-05T18:00:00Z'),
+        doNotFake: ['nextTick', 'setImmediate'],
+      });
+      await savePlan(tapasPlan);
+      await render(<SavedPlansScreen />);
+
+      expect(
+        await screen.findByRole('button', { name: 'Open Tapas and drinks' }),
+      ).toBeOnTheScreen();
+      expect(screen.queryByRole('button', { name: /^Tonight:/ })).not.toBeOnTheScreen();
+    });
+  });
+
   it('explains how to save a plan when there are none', async () => {
     const user = userEvent.setup();
     await render(<SavedPlansScreen />);

@@ -11,6 +11,8 @@ import { formatNightDate } from '@/features/plans/format';
 import { PlanCard } from '@/features/plans/plan-card';
 import { removePlanFor } from '@/features/plans/saved-plans-sync';
 import { getShareLink, openShareSheet, stopSharing } from '@/features/plans/share-plan';
+import { isTonight } from '@/features/tonight/night';
+import { useNow } from '@/features/tonight/use-now';
 import { getSavedPlan, type SavedPlan } from '@/storage/saved-plans';
 
 /**
@@ -27,6 +29,7 @@ export default function SavedPlanScreen() {
   const [shareFailed, setShareFailed] = useState<string | null>(null);
   const [addingToCalendar, setAddingToCalendar] = useState(false);
   const [calendarMessage, setCalendarMessage] = useState<string | null>(null);
+  const now = useNow(60_000);
 
   const reload = () =>
     getSavedPlan(id)
@@ -156,6 +159,12 @@ export default function SavedPlanScreen() {
         plan={plan}
         footer={
           <>
+            {isTonight(plan, now) && (
+              <Button
+                title="Open Tonight mode"
+                onPress={() => router.push({ pathname: '/tonight/[id]', params: { id: plan.id } })}
+              />
+            )}
             <Button
               title={sharing ? 'Getting link…' : 'Share plan'}
               disabled={sharing}
