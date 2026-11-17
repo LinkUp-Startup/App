@@ -35,6 +35,10 @@ describe('shared plan page', () => {
     render(await SharedPlanPage({ params }));
 
     expect(getSharedPlan).toHaveBeenCalledWith('abc');
+    expect(screen.getByRole('link', { name: 'Add to calendar' })).toHaveAttribute(
+      'href',
+      '/plan/abc/calendar',
+    );
     expect(
       screen.getByRole('heading', { level: 1, name: 'Tapas and a late club' }),
     ).toBeInTheDocument();
