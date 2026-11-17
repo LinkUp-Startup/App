@@ -28,6 +28,40 @@ public abstract class UserPreferencesPersistenceContract
         Assert.Null(user.DefaultActivities);
     }
 
+    [Theory]
+    [InlineData(nameof(User.DefaultBudgetPerPerson))]
+    [InlineData(nameof(User.DefaultGroupSize))]
+    [InlineData(nameof(User.DefaultMaxDistanceKm))]
+    [InlineData(nameof(User.DefaultTransport))]
+    [InlineData(nameof(User.DefaultActivities))]
+    public Task Each_default_can_be_saved_and_cleared_without_setting_other_defaults(string field) => WithDb(async db =>
+    {
+        var user = NewUser();
+        object value = field switch
+        {
+            nameof(User.DefaultBudgetPerPerson) => 12.34m,
+            nameof(User.DefaultGroupSize) => 3,
+            nameof(User.DefaultMaxDistanceKm) => 2.75,
+            nameof(User.DefaultTransport) => new[] { Transport.Bike, Transport.Taxi },
+            nameof(User.DefaultActivities) => new[] { Activity.Dinner, Activity.Cinema },
+            _ => throw new ArgumentOutOfRangeException(nameof(field)),
+        };
+        var property = typeof(User).GetProperty(field)!;
+        property.SetValue(user, value);
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var saved = await db.Users.SingleAsync(u => u.Id == user.Id);
+        Assert.Equal(value, property.GetValue(saved));
+        property.SetValue(saved, null);
+        // Every other field must still be unspecified after independently saving this one.
+        AssertUnspecified(saved);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        AssertUnspecified(await db.Users.SingleAsync(u => u.Id == user.Id));
+    });
+
     [Fact]
     public Task User_without_preferences_remains_valid() => WithDb(async db =>
     {
