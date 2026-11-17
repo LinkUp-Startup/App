@@ -121,6 +121,91 @@ describe('FriendsScreen', () => {
     expect(screen.queryByText(/session has expired/)).not.toBeOnTheScreen();
   });
 
+  it('shows Loading… until the list arrives', async () => {
+    let finish: (value: FriendsResponse) => void = () => {};
+    jest.mocked(listFriends).mockReturnValue(new Promise((resolve) => (finish = resolve)));
+    await render(<FriendsScreen />);
+
+    expect(screen.getByText('Loading…')).toBeOnTheScreen();
+    finish(none);
+
+    expect(await screen.findByText(/haven.t added any friends yet/)).toBeOnTheScreen();
+    expect(screen.queryByText('Loading…')).not.toBeOnTheScreen();
+  });
+
+  it('disables both buttons of a request while it is being answered', async () => {
+    let finish: () => void = () => {};
+    jest
+      .mocked(listFriends)
+      .mockResolvedValueOnce({ ...none, incoming: [fromBob] })
+      .mockResolvedValueOnce(none);
+    jest
+      .mocked(acceptFriendRequest)
+      .mockReturnValue(new Promise<void>((resolve) => (finish = resolve)));
+    const user = userEvent.setup();
+    await render(<FriendsScreen />);
+
+    await user.press(await screen.findByRole('button', { name: 'Accept friend request from Bob' }));
+
+    expect(screen.getByRole('button', { name: 'Accept friend request from Bob' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Decline friend request from Bob' })).toBeDisabled();
+    finish();
+    await waitFor(() => expect(screen.queryByText('Bob')).not.toBeOnTheScreen());
+  });
+
+  it('explains other failures when answering and still reloads', async () => {
+    jest
+      .mocked(listFriends)
+      .mockResolvedValueOnce({ ...none, incoming: [fromBob] })
+      .mockResolvedValueOnce({ ...none, incoming: [fromBob] });
+    jest.mocked(declineFriendRequest).mockRejectedValue(new ApiError(500, ''));
+    const user = userEvent.setup();
+    await render(<FriendsScreen />);
+
+    await user.press(
+      await screen.findByRole('button', { name: 'Decline friend request from Bob' }),
+    );
+
+    expect(await screen.findByText(/went wrong on our side/)).toBeOnTheScreen();
+    await waitFor(() => expect(listFriends).toHaveBeenCalledTimes(2));
+    // The request is still there and can be answered again
+    expect(screen.getByRole('button', { name: 'Decline friend request from Bob' })).toBeEnabled();
+  });
+
+  it('clears an earlier answer error on the next answer', async () => {
+    jest.mocked(listFriends).mockResolvedValue({ ...none, incoming: [fromBob] });
+    jest
+      .mocked(acceptFriendRequest)
+      .mockRejectedValueOnce(new ApiError(500, ''))
+      .mockResolvedValueOnce(undefined);
+    const user = userEvent.setup();
+    await render(<FriendsScreen />);
+
+    await user.press(await screen.findByRole('button', { name: 'Accept friend request from Bob' }));
+    expect(await screen.findByText(/went wrong on our side/)).toBeOnTheScreen();
+    await user.press(screen.getByRole('button', { name: 'Accept friend request from Bob' }));
+
+    await waitFor(() => expect(acceptFriendRequest).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByText(/went wrong on our side/)).not.toBeOnTheScreen());
+  });
+
+  it('stops loading when the screen is left, without showing an error', async () => {
+    jest
+      .mocked(listFriends)
+      .mockImplementation(
+        (_token, signal) =>
+          new Promise((_resolve, reject) =>
+            signal?.addEventListener('abort', () => reject(new Error('aborted'))),
+          ),
+      );
+    await render(<FriendsScreen />);
+    const signal = jest.mocked(listFriends).mock.calls[0][1];
+
+    await screen.unmount();
+
+    expect(signal?.aborted).toBe(true);
+  });
+
   it('opens the add friends screen', async () => {
     jest.mocked(listFriends).mockResolvedValue(none);
     const user = userEvent.setup();
