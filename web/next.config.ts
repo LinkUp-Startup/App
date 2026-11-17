@@ -24,6 +24,11 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   // Don't announce "X-Powered-By: Next.js" to scanners.
   poweredByHeader: false,
+  // The link preview images (#226) read their fonts from disk; the standalone server must get them too.
+  outputFileTracingIncludes: {
+    '/opengraph-image': ['./assets/fonts/*'],
+    '/plan/\\[token\\]/opengraph-image': ['./assets/fonts/*'],
+  },
   headers: async () => [{ source: '/:path*', headers: securityHeaders }],
 };
 

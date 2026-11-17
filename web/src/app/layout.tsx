@@ -15,6 +15,8 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.SITE_URL ?? 'https://linkup.th7bo.dev'),
   title: { default: 'LinkUp', template: '%s – LinkUp' },
   description: 'Plan a whole night out in Lleida: real places, times and prices, in one go.',
+  // Big preview images when a link is shared (#226).
+  twitter: { card: 'summary_large_image' },
 };
 
 export const viewport: Viewport = { themeColor: '#2b0d1e' };
