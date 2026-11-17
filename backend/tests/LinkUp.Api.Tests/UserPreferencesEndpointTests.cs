@@ -7,7 +7,12 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using LinkUp.Api.Data;
 using LinkUp.Api.Dtos;
+using LinkUp.Api.Data.Entities;
+using LinkUp.Api.Services;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 
@@ -16,6 +21,93 @@ namespace LinkUp.Api.Tests;
 public sealed class UserPreferencesEndpointTests(AuthApiFactory factory) : IClassFixture<AuthApiFactory>
 {
     private const string Route = "/api/users/me/preferences";
+
+    private sealed class RecordingFilter : IVenueFilteringService
+    {
+        public NightPreferencesDto? Received { get; private set; }
+
+        public Task<IReadOnlyList<Venue>> FilterAsync(NightPreferencesDto preferences, CancellationToken cancellationToken)
+        {
+            Received = preferences;
+            return Task.FromResult<IReadOnlyList<Venue>>([
+                new() { Id = 1, Name = "One", Address = "a", EntranceFee = 0, MinSpend = 5, MaxSpend = 5 },
+                new() { Id = 2, Name = "Two", Address = "b", EntranceFee = 0, MinSpend = 5, MaxSpend = 5 },
+            ]);
+        }
+
+        public Task<IReadOnlyList<Venue>> FilterAsync(NightPreferencesDto preferences, double latitude, double longitude,
+            CancellationToken cancellationToken) => FilterAsync(preferences, cancellationToken);
+    }
+
+    [Fact]
+    public async Task Saved_defaults_can_be_overridden_for_generation_without_updating_either_account()
+    {
+        var (client, auth) = await Account();
+        var (other, _) = await Account();
+        using (client)
+        using (other)
+        {
+            using var save = await client.PutAsJsonAsync(Route, Values());
+            EqualValues(Values(), await Body(save));
+            using var read = await client.GetAsync(Route);
+            var plan = (JsonObject)(await Body(read)).DeepClone();
+            plan["budgetPerPerson"] = 100;
+            plan["groupSize"] = 5;
+            plan["maxDistanceKm"] = 10;
+            plan["activities"] = new JsonArray("cinema", "games");
+            plan["transport"] = new JsonArray("bike", "taxi");
+            plan["startTime"] = "2026-11-20T20:00:00Z";
+            plan["endTime"] = "2026-11-20T23:00:00Z";
+
+            // Keep the real HTTP pipeline, validation, auth, persistence and stub generator;
+            // only candidate discovery is controlled to avoid depending on seeded venues.
+            var filter = new RecordingFilter();
+            using var api = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IVenueFilteringService>();
+                services.AddSingleton<IVenueFilteringService>(filter);
+            }));
+            using var planning = api.CreateClient();
+            planning.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
+            using var generated = await planning.PostAsJsonAsync("/api/plans/generate", new JsonObject { ["preferences"] = plan });
+            Assert.Equal(HttpStatusCode.OK, generated.StatusCode);
+            var result = await Body(generated);
+            Assert.NotEmpty(result["plans"]!.AsArray());
+            Assert.NotNull(filter.Received);
+            Assert.Equal(100m, filter.Received.BudgetPerPerson);
+            Assert.Equal(5, filter.Received.GroupSize);
+            Assert.Equal(10, filter.Received.MaxDistanceKm);
+            Assert.Equal([Activity.Cinema, Activity.Games], filter.Received.Activities);
+            Assert.Equal([Transport.Bike, Transport.Taxi], filter.Received.Transport);
+
+            using var unchanged = await client.GetAsync(Route);
+            EqualValues(Values(), await Body(unchanged));
+            using var independent = await other.GetAsync(Route);
+            EqualValues(Unspecified(), await Body(independent));
+        }
+    }
+
+    [Theory]
+    [InlineData("PATCH")]
+    [InlineData("POST")]
+    [InlineData("DELETE")]
+    public async Task Unsupported_write_methods_do_not_change_saved_preferences(string method)
+    {
+        var (client, _) = await Account();
+        using (client)
+        {
+            using var saved = await client.PutAsJsonAsync(Route, Values());
+            saved.EnsureSuccessStatusCode();
+            using var request = new HttpRequestMessage(new HttpMethod(method), Route)
+            {
+                Content = JsonContent.Create(new { budgetPerPerson = 0 }),
+            };
+            using var response = await client.SendAsync(request);
+            Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
+            using var unchanged = await client.GetAsync(Route);
+            EqualValues(Values(), await Body(unchanged));
+        }
+    }
 
     private static JsonObject Values() => new()
     {

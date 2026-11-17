@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, userEvent } from '@testing-library/reac
 import { router } from 'expo-router';
 
 import PreferencesScreen from '@/app/(tabs)/index';
+import DefaultPreferencesScreen from '@/app/default-preferences';
 import { emptyDefaults } from '@/features/preferences/defaults-form';
 import { loadGuestPreferences, saveGuestPreferences } from '@/storage/guest-preferences';
 import type { NightPreferences, User, UserPreferences } from '@/types/api';
@@ -89,6 +90,78 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
   jest.restoreAllMocks();
 });
+
+it.each(['guest', 'account'])(
+  'saves through the %s editor, restores both screens and submits overrides without changing saved defaults',
+  async (kind) => {
+    let accountValues = emptyDefaults();
+    if (kind === 'account') {
+      signIn();
+      mockFetch.mockImplementation(async (_url: string, request: RequestInit) => {
+        expect(request.headers).toEqual(
+          expect.objectContaining({ Authorization: 'Bearer token-a' }),
+        );
+        if (request.method === 'PUT') accountValues = JSON.parse(request.body as string);
+        return reply(accountValues);
+      });
+    }
+    const editor = await render(<DefaultPreferencesScreen />);
+    await screen.findByLabelText('Default budget per person in euros');
+    await fireEvent.changeText(screen.getByLabelText('Default budget per person in euros'), '0');
+    await fireEvent.changeText(screen.getByLabelText('Default group size'), '4');
+    await fireEvent.changeText(
+      screen.getByLabelText('Default maximum distance in kilometres'),
+      '5.25',
+    );
+    const user = userEvent.setup();
+    for (const name of ['Dinner', 'Drinks', 'Bike', 'Car'])
+      await user.press(screen.getByRole('checkbox', { name }));
+    await user.press(screen.getByRole('button', { name: 'Save preferences' }));
+    await screen.findByText(
+      kind === 'guest' ? 'Preferences saved on this phone.' : 'Preferences saved to your account.',
+    );
+    await editor.unmount();
+
+    const plan = await render(<PreferencesScreen />);
+    await loaded();
+    expect(budget()).toHaveDisplayValue('0');
+    expect(screen.getByLabelText('Group size')).toHaveAccessibilityValue({ now: 4 });
+    expect(screen.getByLabelText('Maximum distance')).toHaveAccessibilityValue({ now: 5.25 });
+    for (const name of ['Dinner', 'Drinks', 'Bike', 'Car'])
+      expect(screen.getByRole('checkbox', { name })).toBeChecked();
+    await overrideAll();
+    await generate();
+    expect(submitted()).toMatchObject({
+      budgetPerPerson: 100,
+      groupSize: 5,
+      maxDistanceKm: 5.75,
+      activities: ['drinks', 'cinema'],
+      transport: ['car', 'taxi'],
+    });
+    await plan.unmount();
+
+    await render(<DefaultPreferencesScreen />);
+    expect(await screen.findByLabelText('Default budget per person in euros')).toHaveDisplayValue(
+      '0',
+    );
+    expect(screen.getByLabelText('Default group size')).toHaveDisplayValue('4');
+    expect(screen.getByLabelText('Default maximum distance in kilometres')).toHaveDisplayValue(
+      '5.25',
+    );
+    for (const name of ['Dinner', 'Drinks', 'Bike', 'Car'])
+      expect(screen.getByRole('checkbox', { name })).toBeChecked();
+    if (kind === 'guest') {
+      expect(await loadGuestPreferences()).toEqual(saved);
+      expect(mockFetch).not.toHaveBeenCalled();
+    } else {
+      expect(accountValues).toEqual(saved);
+      expect(mockFetch.mock.calls.filter(([, request]) => request.method === 'PUT')).toHaveLength(
+        1,
+      );
+      expect(await loadGuestPreferences()).toEqual(emptyDefaults());
+    }
+  },
+);
 
 it('waits for authentication restoration before loading any preferences', async () => {
   mockAuth.status = 'loading';
