@@ -6,6 +6,7 @@ import { useColorScheme } from 'react-native';
 
 import { AuthProvider, useAuth } from '@/features/auth/auth-context';
 import { useSyncSavedPlans } from '@/features/plans/use-sync-saved-plans';
+import { useOpenReminders } from '@/features/tonight/use-open-reminders';
 
 // Rejects if the splash screen was already hidden (e.g. after a fast refresh); safe to ignore.
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -26,6 +27,7 @@ export default function RootLayout() {
 function RootNavigator() {
   const { status, accessToken } = useAuth();
   useSyncSavedPlans(accessToken);
+  useOpenReminders();
 
   // Keep the splash screen up until the saved session has been read, so a signed-in user never sees the
   // app flash as a guest first.

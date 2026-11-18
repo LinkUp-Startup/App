@@ -1,10 +1,12 @@
 import { render, screen, userEvent, waitFor } from '@testing-library/react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 import { Alert, Linking, Share } from 'react-native';
 
 import { deleteSavedPlan, sharePlan, unsharePlan } from '@/api/saved-plans';
 import SavedPlanScreen from '@/app/saved-plan/[id]';
 import { addPlanToCalendar } from '@/features/plans/add-to-calendar';
+import { remindersOn, turnOnReminders } from '@/features/tonight/reminders';
 import { getSavedPlan, getSavedPlans, savePlan } from '@/storage/saved-plans';
 
 import { tapasPlan } from './fixtures/plans';
@@ -40,6 +42,7 @@ describe('SavedPlanScreen', () => {
 
   it('deletes the plan after confirming', async () => {
     await savePlan(tapasPlan);
+    await turnOnReminders(tapasPlan, new Date('2026-10-30T12:00:00Z'));
     const alert = jest.spyOn(Alert, 'alert');
     const user = userEvent.setup();
     await render(<SavedPlanScreen />);
@@ -50,6 +53,27 @@ describe('SavedPlanScreen', () => {
 
     await waitFor(() => expect(router.back).toHaveBeenCalled());
     expect(await getSavedPlans()).toEqual([]);
+    await waitFor(async () => expect(await remindersOn('p1')).toBe(false));
+  });
+
+  it('still deletes the plan when its reminders cannot be cancelled', async () => {
+    await savePlan(tapasPlan);
+    const alert = jest.spyOn(Alert, 'alert');
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const user = userEvent.setup();
+    await render(<SavedPlanScreen />);
+    await screen.findByRole('switch', { name: 'Remind me before each stop' }).catch(() => null);
+    jest
+      .mocked(Notifications.getAllScheduledNotificationsAsync)
+      .mockRejectedValueOnce(new Error('boom'));
+
+    await user.press(await screen.findByRole('button', { name: 'Delete plan' }));
+    alert.mock.calls[0][2]!.find((button) => button.text === 'Delete')!.onPress!();
+
+    await waitFor(() => expect(router.back).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(warn).toHaveBeenCalledWith('Could not cancel reminders', expect.any(Error)),
+    );
   });
 
   it('keeps the plan when deleting is cancelled', async () => {

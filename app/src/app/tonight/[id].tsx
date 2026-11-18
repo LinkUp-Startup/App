@@ -15,6 +15,7 @@ import {
   type NightMoment,
   type Stop,
 } from '@/features/tonight/night';
+import { ReminderSwitch } from '@/features/tonight/reminder-switch';
 import { useNow } from '@/features/tonight/use-now';
 import { getSavedPlan, type SavedPlan } from '@/storage/saved-plans';
 
@@ -51,6 +52,7 @@ export default function TonightScreen() {
     <Screen edges={['bottom']}>
       <ThemedText type="subtitle">{plan.title}</ThemedText>
       <MomentCard moment={moment} />
+      <ReminderSwitch plan={plan} now={now} />
       {moment.phase !== 'over' && <StopList stops={plan.items} moment={moment} />}
     </Screen>
   );

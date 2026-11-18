@@ -42,3 +42,30 @@ jest.mock('react-native-maps', () => {
   const Circle = (props: object) => React.createElement(View, { testID: 'map-circle', ...props });
   return { __esModule: true, default: MapView, Marker, Circle, __animateToRegion: animateToRegion };
 });
+
+// Local notifications are native code. This stand-in keeps the schedule in memory so tests can read it back,
+// and grants permission unless a test says otherwise; `jest.after-env.ts` resets it per test.
+jest.mock('expo-notifications', () => {
+  const scheduled = new Map<string, { identifier: string; content: object; trigger: object }>();
+  const granted = { granted: true, canAskAgain: true, status: 'granted' };
+  return {
+    SchedulableTriggerInputTypes: { DATE: 'date' },
+    setNotificationHandler: jest.fn(),
+    useLastNotificationResponse: jest.fn(() => undefined),
+    clearLastNotificationResponse: jest.fn(),
+    getPermissionsAsync: jest.fn(async () => granted),
+    requestPermissionsAsync: jest.fn(async () => granted),
+    getAllScheduledNotificationsAsync: jest.fn(async () => [...scheduled.values()]),
+    scheduleNotificationAsync: jest.fn(
+      async (request: { identifier: string; content: object; trigger: object }) => {
+        scheduled.set(request.identifier, request);
+        return request.identifier;
+      },
+    ),
+    cancelScheduledNotificationAsync: jest.fn(async (identifier: string) => {
+      scheduled.delete(identifier);
+    }),
+    __scheduled: scheduled,
+    __granted: granted,
+  };
+});

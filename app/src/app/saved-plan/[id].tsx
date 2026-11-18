@@ -12,6 +12,8 @@ import { PlanCard } from '@/features/plans/plan-card';
 import { removePlanFor } from '@/features/plans/saved-plans-sync';
 import { getShareLink, openShareSheet, stopSharing } from '@/features/plans/share-plan';
 import { isTonight } from '@/features/tonight/night';
+import { ReminderSwitch } from '@/features/tonight/reminder-switch';
+import { turnOffReminders } from '@/features/tonight/reminders';
 import { useNow } from '@/features/tonight/use-now';
 import { getSavedPlan, type SavedPlan } from '@/storage/saved-plans';
 
@@ -129,7 +131,13 @@ export default function SavedPlanScreen() {
         onPress: () => {
           setDeleteFailed(false);
           removePlanFor(saved.id, accessToken)
-            .then(() => router.back())
+            .then(() => {
+              // The reminders of a deleted plan would point at nothing.
+              turnOffReminders(saved.id).catch((error: unknown) =>
+                console.warn('Could not cancel reminders', error),
+              );
+              router.back();
+            })
             .catch((error: unknown) => {
               console.warn('Could not delete saved plan', error);
               setDeleteFailed(true);
@@ -187,6 +195,7 @@ export default function SavedPlanScreen() {
                 {shareFailed}
               </ThemedText>
             )}
+            <ReminderSwitch plan={plan} now={now} />
             <Button
               title={addingToCalendar ? 'Adding to calendar…' : 'Add to calendar'}
               variant="secondary"
