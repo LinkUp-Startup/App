@@ -974,6 +974,73 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/plans/swap-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Alternatives for one stop of a plan
+         * @description Swap a stop (#229): returns up to 5 copies of the plan with one stop replaced by another venue of the same activity that is open at that time, fits the budget (or costs no more than the stop it replaces when no budget is sent) and is at most 2 km further out of the way. Costs and distances are recalculated from the database. No AI call. 400 when the plan can't be read or a place in it no longer exists.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SwapOptionsRequest"];
+                    "text/json": components["schemas"]["SwapOptionsRequest"];
+                    "application/*+json": components["schemas"]["SwapOptionsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["SwapOptionsResponse"];
+                        "application/json": components["schemas"]["SwapOptionsResponse"];
+                        "text/json": components["schemas"]["SwapOptionsResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/saved-plans": {
         parameters: {
             query?: never;
@@ -1730,6 +1797,19 @@ export interface components {
         };
         ShareLinkDto: {
             url: string;
+        };
+        SwapOptionsRequest: {
+            plan: components["schemas"]["PlanDto"];
+            /** Format: int32 */
+            stopIndex: number;
+            /** Format: double */
+            budgetPerPerson?: null | number;
+            /** Format: int32 */
+            groupSize?: null | number;
+            startLocation?: null | components["schemas"]["GeoPointDto"];
+        };
+        SwapOptionsResponse: {
+            options: components["schemas"]["PlanDto"][];
         };
         /** @enum {unknown} */
         Transport: "walking" | "bike" | "car" | "publicTransport" | "taxi";

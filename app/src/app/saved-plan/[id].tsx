@@ -9,13 +9,15 @@ import { useAuth } from '@/features/auth/auth-context';
 import { addPlanToCalendar } from '@/features/plans/add-to-calendar';
 import { formatNightDate } from '@/features/plans/format';
 import { PlanCard } from '@/features/plans/plan-card';
-import { removePlanFor } from '@/features/plans/saved-plans-sync';
+import { removePlanFor, savePlanFor } from '@/features/plans/saved-plans-sync';
 import { getShareLink, openShareSheet, stopSharing } from '@/features/plans/share-plan';
+import { SwapStopSheet } from '@/features/plans/swap-stop';
 import { isTonight } from '@/features/tonight/night';
 import { ReminderSwitch } from '@/features/tonight/reminder-switch';
-import { turnOffReminders } from '@/features/tonight/reminders';
+import { remindersOn, turnOffReminders, turnOnReminders } from '@/features/tonight/reminders';
 import { useNow } from '@/features/tonight/use-now';
 import { getSavedPlan, type SavedPlan } from '@/storage/saved-plans';
+import type { Plan } from '@/types/api';
 
 /**
  * One saved plan, opened from the Saved tab. Opens offline; deleting it also needs the account when signed in.
@@ -32,6 +34,8 @@ export default function SavedPlanScreen() {
   const [addingToCalendar, setAddingToCalendar] = useState(false);
   const [calendarMessage, setCalendarMessage] = useState<string | null>(null);
   const now = useNow(60_000);
+  const [swapIndex, setSwapIndex] = useState<number | null>(null);
+  const [swapMessage, setSwapMessage] = useState<{ text: string; failed: boolean } | null>(null);
 
   const reload = () =>
     getSavedPlan(id)
@@ -101,6 +105,27 @@ export default function SavedPlanScreen() {
       .finally(() => setAddingToCalendar(false));
   }
 
+  /** Keeps the swapped plan where the plan was saved, and moves its reminders to the new times. */
+  function chooseSwap(saved: SavedPlan, option: Plan) {
+    const index = swapIndex;
+    setSwapIndex(null);
+    setSwapMessage(null);
+    savePlanFor(option, accessToken)
+      .then(async () => {
+        if (await remindersOn(option.id)) await turnOnReminders(option);
+        await reload();
+        const name = index === null ? undefined : option.items[index]?.venue.name;
+        setSwapMessage({ text: name ? `Swapped to ${name}.` : 'Stop swapped.', failed: false });
+      })
+      .catch((error: unknown) => {
+        console.warn('Could not save the swapped plan', error);
+        setSwapMessage({
+          text: `Couldn't save the change to "${saved.title}". Try again.`,
+          failed: true,
+        });
+      });
+  }
+
   function confirmStopSharing(saved: SavedPlan) {
     if (!accessToken) return;
     Alert.alert('Stop sharing this plan?', 'The link stops working for everyone who has it.', [
@@ -165,6 +190,7 @@ export default function SavedPlanScreen() {
       </ThemedText>
       <PlanCard
         plan={plan}
+        onSwapStop={setSwapIndex}
         footer={
           <>
             {isTonight(plan, now) && (
@@ -207,6 +233,14 @@ export default function SavedPlanScreen() {
                 {calendarMessage}
               </ThemedText>
             )}
+            {swapMessage && (
+              <ThemedText
+                type="small"
+                themeColor={swapMessage.failed ? 'danger' : 'textSecondary'}
+                accessibilityLiveRegion="polite">
+                {swapMessage.text}
+              </ThemedText>
+            )}
             <Button title="Delete plan" variant="secondary" onPress={() => confirmDelete(plan)} />
             {deleteFailed && (
               <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">
@@ -215,6 +249,13 @@ export default function SavedPlanScreen() {
             )}
           </>
         }
+      />
+      <SwapStopSheet
+        key={swapIndex ?? 'closed'}
+        plan={plan}
+        stopIndex={swapIndex}
+        onChoose={(option) => chooseSwap(plan, option)}
+        onClose={() => setSwapIndex(null)}
       />
     </Screen>
   );

@@ -79,4 +79,28 @@ public sealed class PlansController(
                 detail: "The plan generator is unavailable or returned no usable plan. Try again in a moment.");
         }
     }
+
+    [HttpPost("swap-options")]
+    [EndpointSummary("Alternatives for one stop of a plan")]
+    [EndpointDescription(
+        "Swap a stop (#229): returns up to 5 copies of the plan with one stop replaced by another venue of the " +
+        "same activity that is open at that time, fits the budget (or costs no more than the stop it replaces when " +
+        "no budget is sent) and is at most 2 km further out of the way. Costs and distances are recalculated from " +
+        "the database. No AI call. 400 when the plan can't be read or a place in it no longer exists.")]
+    [ProducesResponseType<SwapOptionsResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests, "application/problem+json")]
+    public async Task<ActionResult<SwapOptionsResponse>> SwapOptions(
+        SwapOptionsRequest request, [FromServices] IPlanSwapService swaps, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(new SwapOptionsResponse(await swaps.GetOptionsAsync(request, cancellationToken)));
+        }
+        catch (InvalidSwapException ex)
+        {
+            ModelState.AddModelError(ex.Field, ex.Message);
+            return ValidationProblem(ModelState);
+        }
+    }
 }

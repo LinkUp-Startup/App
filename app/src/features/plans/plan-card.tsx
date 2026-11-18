@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -18,10 +18,12 @@ type PlanCardProps = {
   plan: Plan;
   /** Actions under the stops, e.g. a save button. */
   footer?: ReactNode;
+  /** Shows a "Swap" button on every stop (#229). */
+  onSwapStop?: (index: number) => void;
 };
 
 /** A plan with its stops in order: times, venue, price and the distance from the previous stop. */
-export function PlanCard({ plan, footer }: PlanCardProps) {
+export function PlanCard({ plan, footer, onSwapStop }: PlanCardProps) {
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
       <View style={styles.header}>
@@ -42,7 +44,12 @@ export function PlanCard({ plan, footer }: PlanCardProps) {
       </View>
 
       {plan.items.map((item, index) => (
-        <Stop key={`${item.venue.id}-${item.startTime}`} item={item} number={index + 1} />
+        <Stop
+          key={`${item.venue.id}-${item.startTime}`}
+          item={item}
+          number={index + 1}
+          onSwap={onSwapStop && (() => onSwapStop(index))}
+        />
       ))}
 
       {footer}
@@ -50,7 +57,7 @@ export function PlanCard({ plan, footer }: PlanCardProps) {
   );
 }
 
-function Stop({ item, number }: { item: PlanItem; number: number }) {
+function Stop({ item, number, onSwap }: { item: PlanItem; number: number; onSwap?: () => void }) {
   const theme = useTheme();
   const time = formatTimeRange(item.startTime, item.endTime);
   const price =
@@ -59,28 +66,39 @@ function Stop({ item, number }: { item: PlanItem; number: number }) {
       : `Estimated ${formatEuros(item.estimatedCostPerPerson)} per person`;
 
   return (
-    <View
-      style={styles.stop}
-      accessible
-      accessibilityLabel={`Stop ${number}: ${item.venue.name}, ${activityName(item.venue.category)}, ${time}, ${price}`}>
-      <View style={[styles.number, { backgroundColor: theme.tint }]}>
-        <ThemedText type="smallBold" style={styles.numberLabel}>
-          {number}
-        </ThemedText>
+    <View style={styles.stop}>
+      <View
+        style={styles.stopDetails}
+        accessible
+        accessibilityLabel={`Stop ${number}: ${item.venue.name}, ${activityName(item.venue.category)}, ${time}, ${price}`}>
+        <View style={[styles.number, { backgroundColor: theme.tint }]}>
+          <ThemedText type="smallBold" style={styles.numberLabel}>
+            {number}
+          </ThemedText>
+        </View>
+        <View style={styles.stopText}>
+          <ThemedText type="smallBold">{item.venue.name}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {activityName(item.venue.category)} · {time}
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {item.venue.address}
+          </ThemedText>
+          <ThemedText type="small">
+            {price}
+            {legLabel(item, number)}
+          </ThemedText>
+        </View>
       </View>
-      <View style={styles.stopText}>
-        <ThemedText type="smallBold">{item.venue.name}</ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          {activityName(item.venue.category)} · {time}
-        </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          {item.venue.address}
-        </ThemedText>
-        <ThemedText type="small">
-          {price}
-          {legLabel(item, number)}
-        </ThemedText>
-      </View>
+      {onSwap && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Swap ${item.venue.name}`}
+          hitSlop={8}
+          onPress={onSwap}>
+          <ThemedText type="linkPrimary">Swap</ThemedText>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -106,6 +124,12 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   stop: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: Spacing.two,
+  },
+  stopDetails: {
+    flex: 1,
     flexDirection: 'row',
     gap: Spacing.two,
   },
