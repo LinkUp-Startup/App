@@ -47,6 +47,9 @@ function RootNavigator() {
       <Stack.Screen name="register" options={{ title: 'Create account' }} />
       <Stack.Screen name="my-friends" options={{ title: 'Friends' }} />
       <Stack.Screen name="friends" options={{ title: 'Add friends' }} />
+      <Stack.Screen name="groups" options={{ title: 'Groups' }} />
+      <Stack.Screen name="new-group" options={{ title: 'New group' }} />
+      <Stack.Screen name="group/[id]" options={{ title: 'Group' }} />
       <Stack.Screen name="default-preferences" options={{ title: 'Default preferences' }} />
     </Stack>
   );
