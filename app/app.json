@@ -46,7 +46,9 @@
           "calendarPermission": "LinkUp adds the stops of your plan to your calendar."
         }
       ],
-      "expo-notifications"
+      "expo-notifications",
+      "expo-image",
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true,
