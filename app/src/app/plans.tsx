@@ -9,6 +9,7 @@ import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-context';
 import { PlanCard } from '@/features/plans/plan-card';
 import { savePlanFor } from '@/features/plans/saved-plans-sync';
+import { SwapStopSheet, type SwapContext } from '@/features/plans/swap-stop';
 import { useGeneratePlans } from '@/features/plans/use-generate-plans';
 import { useTheme } from '@/hooks/use-theme';
 import { getSavedPlans } from '@/storage/saved-plans';
@@ -70,7 +71,7 @@ function Results({ preferences }: { preferences: NightPreferences }) {
           activities.
         </ThemedText>
       ) : (
-        <SaveablePlans plans={state.plans} />
+        <SaveablePlans plans={state.plans} preferences={preferences} />
       );
   }
 }
@@ -79,8 +80,30 @@ function Results({ preferences }: { preferences: NightPreferences }) {
  * The plans, each with a button to keep it: on this device for a guest (#73), and in the account too when
  * signed in (#88).
  */
-function SaveablePlans({ plans }: { plans: Plan[] }) {
+function SaveablePlans({ plans, preferences }: { plans: Plan[]; preferences: NightPreferences }) {
   const { accessToken } = useAuth();
+  // Plans with a stop swapped (#229), by id; they replace the generated ones.
+  const [swapped, setSwapped] = useState<Readonly<Record<string, Plan>>>({});
+  const [swapping, setSwapping] = useState<{ plan: Plan; index: number } | null>(null);
+  const swapContext = useMemo<SwapContext>(
+    () => ({
+      budgetPerPerson: preferences.budgetPerPerson,
+      groupSize: preferences.groupSize,
+      startLocation: preferences.startLocation ?? undefined,
+    }),
+    [preferences],
+  );
+
+  function choose(option: Plan) {
+    setSwapped((current) => ({ ...current, [option.id]: option }));
+    // A copy saved before the swap is the old version: offer to save the new one.
+    setSaved((ids) => {
+      const next = new Set(ids);
+      next.delete(option.id);
+      return next;
+    });
+    setSwapping(null);
+  }
   const [saved, setSaved] = useState<ReadonlySet<string>>(new Set());
   // Saved while signed in, but the account couldn't be reached: only on this device until the next sync.
   const [deviceOnly, setDeviceOnly] = useState<ReadonlySet<string>>(new Set());
@@ -104,12 +127,14 @@ function SaveablePlans({ plans }: { plans: Plan[] }) {
     }
   }
 
-  return plans.map((plan) => {
+  const cards = plans.map((generated) => {
+    const plan = swapped[generated.id] ?? generated;
     const isSaved = saved.has(plan.id);
     return (
       <PlanCard
         key={plan.id}
         plan={plan}
+        onSwapStop={(index) => setSwapping({ plan, index })}
         footer={
           <>
             <Button
@@ -135,6 +160,22 @@ function SaveablePlans({ plans }: { plans: Plan[] }) {
       />
     );
   });
+
+  return (
+    <>
+      {cards}
+      {swapping && (
+        <SwapStopSheet
+          key={`${swapping.plan.id}-${swapping.index}`}
+          plan={swapping.plan}
+          stopIndex={swapping.index}
+          context={swapContext}
+          onChoose={choose}
+          onClose={() => setSwapping(null)}
+        />
+      )}
+    </>
+  );
 }
 
 function parsePreferences(value: string | undefined): NightPreferences | undefined {

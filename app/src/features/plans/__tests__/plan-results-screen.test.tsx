@@ -2,7 +2,7 @@ import { render, screen, userEvent } from '@testing-library/react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { ApiError, NetworkError } from '@/api/client';
-import { generatePlans } from '@/api/plans';
+import { generatePlans, swapOptions } from '@/api/plans';
 import { putSavedPlan } from '@/api/saved-plans';
 import PlanResultsScreen from '@/app/plans';
 import { getSavedPlans, savePlan } from '@/storage/saved-plans';
@@ -14,7 +14,7 @@ jest.mock('expo-router', () => ({
   router: { back: jest.fn(), navigate: jest.fn() },
   useLocalSearchParams: jest.fn(),
 }));
-jest.mock('@/api/plans', () => ({ generatePlans: jest.fn() }));
+jest.mock('@/api/plans', () => ({ generatePlans: jest.fn(), swapOptions: jest.fn() }));
 jest.mock('@/api/saved-plans');
 // Guest by default; the signed-in tests set a token.
 const mockAuth = { accessToken: null as string | null };
@@ -203,6 +203,57 @@ describe('PlanResultsScreen', () => {
     await unmount();
 
     expect(signal.aborted).toBe(true);
+  });
+
+  it('swaps a stop with what the screen knows about the night, and lets the new version be saved', async () => {
+    const withStart = { ...preferences, startLocation: { latitude: 41.6, longitude: 0.6 } };
+    withParams({ preferences: JSON.stringify(withStart) });
+    generatePlansMock.mockResolvedValue({ plans: [tapasPlan] });
+    const swapped: Plan = {
+      ...tapasPlan,
+      items: [
+        {
+          ...tapasPlan.items[0],
+          venue: { ...tapasPlan.items[0].venue, id: '30', name: 'Casa Pepe' },
+        },
+        tapasPlan.items[1],
+      ],
+    };
+    jest.mocked(swapOptions).mockResolvedValue({ options: [swapped] });
+    const user = userEvent.setup();
+    await render(<PlanResultsScreen />);
+
+    await user.press(await screen.findByRole('button', { name: 'Save Tapas and drinks' }));
+    await screen.findByRole('button', { name: 'Tapas and drinks saved' });
+    await user.press(screen.getByRole('button', { name: 'Swap Teresa Carles' }));
+    await user.press(await screen.findByRole('button', { name: 'Swap to Casa Pepe' }));
+
+    expect(swapOptions).toHaveBeenCalledWith(
+      {
+        plan: tapasPlan,
+        stopIndex: 0,
+        budgetPerPerson: 30,
+        groupSize: 4,
+        startLocation: { latitude: 41.6, longitude: 0.6 },
+      },
+      expect.any(AbortSignal),
+    );
+    expect(await screen.findByLabelText(/^Stop 1: Casa Pepe,/)).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Save Tapas and drinks' })).toBeEnabled();
+  });
+
+  it('closes the swap without changing the plan', async () => {
+    withParams({ preferences: JSON.stringify(preferences) });
+    generatePlansMock.mockResolvedValue({ plans: [tapasPlan] });
+    jest.mocked(swapOptions).mockResolvedValue({ options: [] });
+    const user = userEvent.setup();
+    await render(<PlanResultsScreen />);
+
+    await user.press(await screen.findByRole('button', { name: 'Swap Teresa Carles' }));
+    await user.press(await screen.findByRole('button', { name: 'Keep this stop' }));
+
+    expect(screen.queryByRole('button', { name: 'Keep this stop' })).not.toBeOnTheScreen();
+    expect(screen.getByLabelText(/^Stop 1: Teresa Carles,/)).toBeOnTheScreen();
   });
 
   it('saves a plan on the device and marks it saved', async () => {

@@ -90,6 +90,7 @@ builder.Services.AddScoped<IUserPreferencesService, UserPreferencesService>();
 builder.Services.AddScoped<IVenueService, VenueService>();
 builder.Services.AddScoped<IVenueFilteringService, VenueFilteringService>();
 builder.Services.AddSingleton<IPlanCostService, PlanCostService>();
+builder.Services.AddScoped<IPlanSwapService, PlanSwapService>();
 
 // JWT access tokens (#84). The signing key comes from configuration (Jwt__SigningKey on the server) and is
 // validated at startup, so a deploy without it fails loudly instead of running with no or a weak key.

@@ -5,9 +5,12 @@ import { Alert, Linking, Share } from 'react-native';
 
 import { deleteSavedPlan, sharePlan, unsharePlan } from '@/api/saved-plans';
 import SavedPlanScreen from '@/app/saved-plan/[id]';
+import { swapOptions } from '@/api/plans';
 import { addPlanToCalendar } from '@/features/plans/add-to-calendar';
 import { remindersOn, turnOnReminders } from '@/features/tonight/reminders';
+import * as storage from '@/storage/saved-plans';
 import { getSavedPlan, getSavedPlans, savePlan } from '@/storage/saved-plans';
+import type { Plan } from '@/types/api';
 
 import { tapasPlan } from './fixtures/plans';
 
@@ -18,6 +21,7 @@ jest.mock('expo-router', () => ({
 
 jest.mock('@/api/saved-plans');
 jest.mock('@/features/plans/add-to-calendar');
+jest.mock('@/api/plans', () => ({ swapOptions: jest.fn() }));
 // Guest by default; the signed-in tests set a token.
 const mockAuth = { accessToken: null as string | null };
 jest.mock('@/features/auth/auth-context', () => ({
@@ -97,6 +101,81 @@ describe('SavedPlanScreen', () => {
     expect(await screen.findByText('This plan is no longer saved.')).toBeOnTheScreen();
     await user.press(screen.getByRole('button', { name: 'Back to saved plans' }));
     expect(router.back).toHaveBeenCalled();
+  });
+
+  describe('swap a stop', () => {
+    const swapped: Plan = {
+      ...tapasPlan,
+      items: [
+        {
+          ...tapasPlan.items[0],
+          venue: { ...tapasPlan.items[0].venue, id: '30', name: 'Casa Pepe' },
+        },
+        tapasPlan.items[1],
+      ],
+    };
+
+    async function swapToCasaPepe() {
+      jest.mocked(swapOptions).mockResolvedValue({ options: [swapped] });
+      const user = userEvent.setup({ advanceTimers: (ms) => jest.advanceTimersByTime(ms) });
+      await render(<SavedPlanScreen />);
+      await user.press(await screen.findByRole('button', { name: 'Swap Teresa Carles' }));
+      await user.press(await screen.findByRole('button', { name: 'Swap to Casa Pepe' }));
+    }
+
+    afterEach(() => jest.useRealTimers());
+
+    it('saves the swapped plan and says so', async () => {
+      await savePlan(tapasPlan);
+
+      await swapToCasaPepe();
+
+      expect(await screen.findByText('Swapped to Casa Pepe.')).toBeOnTheScreen();
+      expect((await getSavedPlan('p1'))?.items[0].venue.name).toBe('Casa Pepe');
+      expect(screen.getByLabelText(/^Stop 1: Casa Pepe,/)).toBeOnTheScreen();
+    });
+
+    it('moves the reminders to the swapped plan', async () => {
+      jest.useFakeTimers({
+        now: new Date('2026-10-30T12:00:00Z'),
+        doNotFake: ['nextTick', 'setImmediate'],
+      });
+      await savePlan(tapasPlan);
+      await turnOnReminders(tapasPlan, new Date('2026-10-30T12:00:00Z'));
+
+      await swapToCasaPepe();
+
+      await screen.findByText('Swapped to Casa Pepe.');
+      const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+      expect(scheduled.map((request) => request.content.title)).toContainEqual(
+        expect.stringMatching(/^Casa Pepe at /),
+      );
+    });
+
+    it('keeps the plan when the swap is closed', async () => {
+      await savePlan(tapasPlan);
+      jest.mocked(swapOptions).mockResolvedValue({ options: [] });
+      const user = userEvent.setup();
+      await render(<SavedPlanScreen />);
+
+      await user.press(await screen.findByRole('button', { name: 'Swap Teresa Carles' }));
+      await user.press(await screen.findByRole('button', { name: 'Keep this stop' }));
+
+      expect(screen.queryByRole('button', { name: 'Keep this stop' })).not.toBeOnTheScreen();
+      expect((await getSavedPlan('p1'))?.items[0].venue.name).toBe('Teresa Carles');
+    });
+
+    it('says so when the swapped plan cannot be saved', async () => {
+      await savePlan(tapasPlan);
+      jest.spyOn(storage, 'savePlan').mockRejectedValueOnce(new Error('disk full'));
+      jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      await swapToCasaPepe();
+
+      expect(
+        await screen.findByText('Couldn\'t save the change to "Tapas and drinks". Try again.'),
+      ).toBeOnTheScreen();
+    });
   });
 
   describe('Tonight mode', () => {

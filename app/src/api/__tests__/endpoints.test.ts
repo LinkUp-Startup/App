@@ -1,6 +1,6 @@
 import { apiRequest } from '@/api/client';
 import { getHealth } from '@/api/health';
-import { generatePlans } from '@/api/plans';
+import { generatePlans, swapOptions } from '@/api/plans';
 import {
   deleteSavedPlan,
   listSavedPlans,
@@ -36,6 +36,28 @@ describe('endpoints', () => {
       body: { preferences },
       signal: undefined,
       timeoutMs: 60000,
+    });
+  });
+
+  it('swapOptions posts the plan and the stop to swap', async () => {
+    const request = {
+      plan: {
+        id: 'p1',
+        title: 'Night',
+        summary: '',
+        items: [],
+        estimatedCostPerPerson: null,
+        estimatedTotalCost: null,
+        totalDistanceKm: 0,
+      },
+      stopIndex: 1,
+      budgetPerPerson: 30,
+    };
+    await swapOptions(request);
+    expect(apiRequest).toHaveBeenCalledWith('/api/plans/swap-options', {
+      method: 'POST',
+      body: request,
+      signal: undefined,
     });
   });
 

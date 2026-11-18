@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+using LinkUp.Api.Planning;
 using System.Text.Json.Serialization;
 
 namespace LinkUp.Api.Dtos;
@@ -35,3 +37,18 @@ public sealed record VenueDto(
     double Latitude,
     double Longitude,
     int? PriceLevel);
+
+/// <summary>Replace one stop of a plan (#229). The plan comes from the app; everything else from the database.</summary>
+public sealed record SwapOptionsRequest(
+    [property: JsonRequired] PlanDto Plan,
+    [property: JsonRequired] [Range(0, PlanValidator.MaxStops - 1)] int StopIndex,
+    // Known on the results screen: the whole plan must then stay within it. Without it, an alternative
+    // costs at most what the stop it replaces costs.
+    [Range(typeof(decimal), PreferenceRules.MinBudget, PreferenceRules.MaxBudget)] decimal? BudgetPerPerson = null,
+    // For the group total; without it the group size is worked out from the plan's own totals.
+    [Range(PreferenceRules.MinGroupSize, PreferenceRules.MaxGroupSize)] int? GroupSize = null,
+    // Where the group starts, for the distance to the first stop.
+    GeoPointDto? StartLocation = null);
+
+/// <summary>The plan with the stop replaced, once per alternative venue, closest first.</summary>
+public sealed record SwapOptionsResponse(IReadOnlyList<PlanDto> Options);
