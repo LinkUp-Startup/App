@@ -22,6 +22,7 @@ export default function AccountScreen() {
           <ThemedText>Signed in as {user.displayName}</ThemedText>
           <ThemedText themeColor="textSecondary">{user.email}</ThemedText>
           <Button title="Friends" onPress={() => router.push('/my-friends')} />
+          <Button title="Groups" onPress={() => router.push('/groups')} />
           <Button title="Log out" variant="secondary" onPress={signOut} />
         </>
       ) : (
