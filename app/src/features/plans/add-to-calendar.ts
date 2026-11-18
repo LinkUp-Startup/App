@@ -1,7 +1,7 @@
 import * as Calendar from 'expo-calendar/legacy';
 import { Platform } from 'react-native';
 
-import { activityName, formatEuros } from '@/features/plans/format';
+import { activityName, directionsUrl, formatEuros } from '@/features/plans/format';
 import type { Plan } from '@/types/api';
 
 // Add to calendar (#227): every stop of a plan becomes an event in the phone's own calendar.
@@ -9,9 +9,6 @@ import type { Plan } from '@/types/api';
 
 export type AddToCalendarResult =
   { status: 'added'; count: number } | { status: 'denied' } | { status: 'no-calendar' };
-
-const directionsUrl = (latitude: number, longitude: number) =>
-  `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
 
 /** The calendar new events go to: the default one on iOS, the primary writable one on Android. */
 async function pickCalendar(): Promise<string | null> {

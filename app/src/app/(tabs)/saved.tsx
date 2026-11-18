@@ -9,6 +9,8 @@ import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-context';
 import { formatNightDate, planSummaryLine } from '@/features/plans/format';
 import { syncSavedPlans } from '@/features/plans/saved-plans-sync';
+import { isTonight } from '@/features/tonight/night';
+import { useNow } from '@/features/tonight/use-now';
 import { useTheme } from '@/hooks/use-theme';
 import { getSavedPlans, type SavedPlan } from '@/storage/saved-plans';
 
@@ -20,6 +22,8 @@ export default function SavedPlansScreen() {
   const { accessToken } = useAuth();
   const [plans, setPlans] = useState<SavedPlan[]>();
   const [syncFailed, setSyncFailed] = useState(false);
+  const now = useNow(60_000);
+  const tonight = plans?.find((plan) => isTonight(plan, now));
 
   // Reload whenever the tab is shown, so plans saved or deleted elsewhere appear.
   useFocusEffect(
@@ -61,6 +65,13 @@ export default function SavedPlansScreen() {
   return (
     <Screen>
       <ThemedText type="subtitle">Saved plans</ThemedText>
+      {tonight && (
+        <Button
+          title={`Tonight: ${tonight.title}`}
+          accessibilityHint="Opens Tonight mode for this plan"
+          onPress={() => router.push({ pathname: '/tonight/[id]', params: { id: tonight.id } })}
+        />
+      )}
       <Button
         title="Open a shared link"
         variant="secondary"

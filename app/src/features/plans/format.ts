@@ -48,3 +48,8 @@ export function planSummaryLine(plan: Plan) {
       : `estimated ${formatEuros(plan.estimatedCostPerPerson)} per person`;
   return `${stops} · ${cost} · ${formatDistance(plan.totalDistanceKm)}`;
 }
+
+/** Google Maps directions to a stop; opens the Maps app when installed. */
+export function directionsUrl(latitude: number, longitude: number) {
+  return `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+}
