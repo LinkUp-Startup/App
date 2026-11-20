@@ -15,6 +15,8 @@ import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-context';
 import { describeGroupError } from '@/features/groups/errors';
 import { turnout, voteCount } from '@/features/groups/format';
+import { OutcomeCard } from '@/features/groups/outcome-card';
+import { standingOf, voteOutcome } from '@/features/groups/vote-outcome';
 import { PlanCard } from '@/features/plans/plan-card';
 import type { Group, GroupPlanRound, GroupVoteResults, Plan } from '@/types/api';
 
@@ -124,6 +126,11 @@ export default function GroupVoteScreen() {
   }
 
   const { group, round, results } = loaded;
+  const planNight = () =>
+    router.push({
+      pathname: '/group-plan',
+      params: { groupId: group.id, groupSize: String(group.members.length) },
+    });
 
   if (!round || !results) {
     return (
@@ -131,16 +138,7 @@ export default function GroupVoteScreen() {
         <Message icon="sparkles-outline">
           No plans to vote on yet. Plan a night together first, then everyone can vote.
         </Message>
-        <Button
-          title="Plan a night together"
-          icon="sparkles-outline"
-          onPress={() =>
-            router.push({
-              pathname: '/group-plan',
-              params: { groupId: group.id, groupSize: String(group.members.length) },
-            })
-          }
-        />
+        <Button title="Plan a night together" icon="sparkles-outline" onPress={planNight} />
       </Screen>
     );
   }
@@ -148,6 +146,7 @@ export default function GroupVoteScreen() {
   const closed = results.closedAt != null;
   const isOwner = group.myRole === 'owner';
   const hasVoted = results.myVotePlanId != null;
+  const outcome = voteOutcome(results, round.plans);
 
   return (
     <Screen edges={['bottom']}>
@@ -170,6 +169,8 @@ export default function GroupVoteScreen() {
         </View>
       </Card>
 
+      <OutcomeCard outcome={outcome} closed={closed} onPlanAgain={planNight} />
+
       {actionError && <ErrorNote>{actionError}</ErrorNote>}
 
       {round.plans.map((plan) => (
@@ -181,6 +182,7 @@ export default function GroupVoteScreen() {
               plan={plan}
               votes={results.plans.find((p) => p.planId === plan.id)?.votes ?? 0}
               mine={results.myVotePlanId === plan.id}
+              standing={standingOf(outcome, plan.id, closed)}
               hasVoted={hasVoted}
               closed={closed}
               busy={busy}
@@ -236,19 +238,31 @@ type VoteFooterProps = {
   plan: Plan;
   votes: number;
   mine: boolean;
+  /** "Winner", "Leading" or "Tied for first" for a plan that leads; nothing for the others. */
+  standing?: string;
   hasVoted: boolean;
   closed: boolean;
   busy: boolean;
   onVote: () => void;
 };
 
-/** Under a plan: its votes, whether it is yours, and the button to vote for it while the vote is open. */
-function VoteFooter({ plan, votes, mine, hasVoted, closed, busy, onVote }: VoteFooterProps) {
+/** Under a plan: its votes, whether it leads or is yours, and the button to vote for it while the vote is open. */
+function VoteFooter({
+  plan,
+  votes,
+  mine,
+  standing,
+  hasVoted,
+  closed,
+  busy,
+  onVote,
+}: VoteFooterProps) {
   return (
     <View style={styles.footer}>
       <View style={styles.tally}>
         <Icon name="people-outline" size={18} color="accent" />
         <ThemedText type="smallBold">{voteCount(votes)}</ThemedText>
+        {standing && <Pill icon="trophy" tone="highlight" label={standing} />}
         {mine && <Pill icon="checkmark-circle" tone="success" label="Your vote" />}
       </View>
       {!closed &&
