@@ -98,6 +98,22 @@ public sealed class GroupsController(IGroupService groups, PlanGenerator generat
         return ToResponse(await groups.RemoveMemberAsync(currentUserId, groupId, userId, cancellationToken));
     }
 
+    [HttpGet("{groupId:guid}/plans")]
+    [EndpointSummary("The group's plans")]
+    [EndpointDescription(
+        "Every member sees every plan generated for the group, newest round first. 404 when the group doesn't " +
+        "exist or you are not a member.")]
+    [ProducesResponseType<GroupPlansResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<GroupPlansResponse>> ListPlans(Guid groupId, CancellationToken cancellationToken)
+    {
+        if (CurrentUserId() is not { } userId) return Unauthorized();
+        return await groups.ListPlansAsync(userId, groupId, cancellationToken) is { } rounds
+            ? Ok(new GroupPlansResponse(rounds))
+            : GroupNotFound();
+    }
+
     [HttpPost("{groupId:guid}/plans/generate")]
     [AiGeneration]
     [EndpointSummary("Generate plans for the group")]

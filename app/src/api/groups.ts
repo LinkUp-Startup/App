@@ -4,6 +4,7 @@ import type {
   CreateGroupRequest,
   Group,
   GroupPlanRound,
+  GroupPlansResponse,
   GroupsResponse,
   NightPreferences,
 } from '@/types/api';
@@ -35,6 +36,14 @@ export function createGroup(
 /* The group and its members. 404 when it doesn't exist or you are not a member */
 export function getGroup(accessToken: string, groupId: string, signal?: AbortSignal) {
   return apiRequest<Group>(`/api/groups/${encodeURIComponent(groupId)}`, {
+    headers: authorization(accessToken),
+    signal,
+  });
+}
+
+/* The group's plans, newest round first. 404 when you are not a member */
+export function listGroupPlans(accessToken: string, groupId: string, signal?: AbortSignal) {
+  return apiRequest<GroupPlansResponse>(`/api/groups/${encodeURIComponent(groupId)}/plans`, {
     headers: authorization(accessToken),
     signal,
   });

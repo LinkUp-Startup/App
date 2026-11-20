@@ -1,5 +1,4 @@
 using System.Buffers.Text;
-using System.Globalization;
 using System.Security.Cryptography;
 using LinkUp.Api.Data;
 using LinkUp.Api.Data.Entities;
@@ -193,21 +192,6 @@ public sealed class SavedPlanService(AppDbContext db, TimeProvider clock, IOptio
         return errors;
     }
 
-    private static SavedPlanDto ToDto(Plan plan, Func<PlanItem, Venue> venueOf, string? shareUrl) => new(
-        new PlanDto(
-            (plan.SourcePlanId ?? plan.Id).ToString(),
-            plan.Title,
-            plan.Summary,
-            plan.Items.OrderBy(i => i.Position).Select(i => ToDto(i, venueOf(i))).ToList(),
-            plan.EstimatedCostPerPerson,
-            plan.EstimatedTotalCost,
-            plan.TotalDistanceKm),
-        plan.CreatedAt,
-        shareUrl);
-
-    private static PlanItemDto ToDto(PlanItem item, Venue venue) => new(
-        new VenueDto(
-            venue.Id.ToString(CultureInfo.InvariantCulture), venue.Name, item.Activity, venue.Address,
-            venue.Latitude, venue.Longitude, venue.PriceLevel),
-        item.StartTime, item.EndTime, item.EstimatedCostPerPerson, item.DistanceKm);
+    private static SavedPlanDto ToDto(Plan plan, Func<PlanItem, Venue> venueOf, string? shareUrl) =>
+        new(PlanMapping.ToDto(plan, venueOf), plan.CreatedAt, shareUrl);
 }

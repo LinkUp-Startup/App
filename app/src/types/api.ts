@@ -44,3 +44,4 @@ export type GroupSummary = Schemas['GroupSummaryDto'];
 export type GroupsResponse = Schemas['GroupsResponse'];
 export type CreateGroupRequest = Schemas['CreateGroupRequest'];
 export type GroupPlanRound = Schemas['GroupPlanRoundDto'];
+export type GroupPlansResponse = Schemas['GroupPlansResponse'];
