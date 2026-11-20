@@ -15,5 +15,8 @@ public sealed class GroupPlanRound
 
     public DateTimeOffset CreatedAt { get; set; }
 
+    // When the owner closed the vote (#174). Null while members can still vote.
+    public DateTimeOffset? ClosedAt { get; set; }
+
     public List<Plan> Plans { get; set; } = [];
 }
