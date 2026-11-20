@@ -3,9 +3,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
+import { Icon } from '@/components/icon';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-context';
 import { PlanCard } from '@/features/plans/plan-card';
 import { savePlanFor } from '@/features/plans/saved-plans-sync';
@@ -20,7 +21,7 @@ export default function PlanResultsScreen() {
   const preferences = useMemo(() => parsePreferences(params.preferences), [params.preferences]);
 
   return (
-    <Screen edges={['bottom']}>
+    <Screen edges={['bottom']} gap={Spacing.four}>
       {preferences ? (
         <Results preferences={preferences} />
       ) : (
@@ -29,9 +30,15 @@ export default function PlanResultsScreen() {
         </ThemedText>
       )}
 
-      <Button title="Change preferences" variant="secondary" onPress={() => router.back()} />
+      <Button
+        title="Change preferences"
+        icon="options-outline"
+        variant="secondary"
+        onPress={() => router.back()}
+      />
       <Button
         title="View saved plans"
+        icon="bookmark-outline"
         variant="secondary"
         onPress={() => router.navigate('/saved')}
       />
@@ -104,6 +111,7 @@ function SaveablePlans({ plans, preferences }: { plans: Plan[]; preferences: Nig
     });
     setSwapping(null);
   }
+  const theme = useTheme();
   const [saved, setSaved] = useState<ReadonlySet<string>>(new Set());
   // Saved while signed in, but the account couldn't be reached: only on this device until the next sync.
   const [deviceOnly, setDeviceOnly] = useState<ReadonlySet<string>>(new Set());
@@ -139,6 +147,7 @@ function SaveablePlans({ plans, preferences }: { plans: Plan[]; preferences: Nig
           <>
             <Button
               title={isSaved ? 'Saved' : 'Save plan'}
+              icon={isSaved ? 'heart' : 'heart-outline'}
               accessibilityLabel={isSaved ? `${plan.title} saved` : `Save ${plan.title}`}
               accessibilityState={{ disabled: isSaved }}
               variant={isSaved ? 'secondary' : 'primary'}
@@ -163,6 +172,29 @@ function SaveablePlans({ plans, preferences }: { plans: Plan[]; preferences: Nig
 
   return (
     <>
+      <View style={styles.resultsHeader}>
+        <View style={styles.headingRow}>
+          <View style={[styles.headingIcon, { backgroundColor: theme.inputFill }]}>
+            <Icon name="options-outline" size={16} color="tint" />
+          </View>
+          <ThemedText type="heading" accessibilityRole="header">
+            Tonight&apos;s Curated Routes
+          </ThemedText>
+        </View>
+        {/* One pill: how many plans, for how many people, and the budget they were made for. */}
+        <View style={[styles.summaryPill, { backgroundColor: theme.inputFill }]}>
+          <Icon name="people-outline" size={14} color="highlight" />
+          <ThemedText type="label" themeColor="textSecondary">
+            {`${plans.length} ${plans.length === 1 ? 'plan' : 'plans'} found for a group of ${preferences.groupSize}`}
+          </ThemedText>
+          <ThemedText type="label" themeColor="textSecondary">
+            •
+          </ThemedText>
+          <ThemedText type="label" style={{ color: theme.highlight }}>
+            {`Budget / person: €${preferences.budgetPerPerson}`}
+          </ThemedText>
+        </View>
+      </View>
       {cards}
       {swapping && (
         <SwapStopSheet
@@ -195,5 +227,30 @@ const styles = StyleSheet.create({
   },
   error: {
     gap: Spacing.two,
+  },
+  resultsHeader: {
+    gap: Spacing.two,
+  },
+  headingRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: Spacing.one,
+  },
+  headingIcon: {
+    alignItems: 'center',
+    borderRadius: Radius.full,
+    height: 24,
+    justifyContent: 'center',
+    width: 24,
+  },
+  summaryPill: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    borderRadius: Radius.full,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.one + Spacing.half,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one,
   },
 });

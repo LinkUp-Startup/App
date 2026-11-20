@@ -1,10 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Linking } from 'react-native';
+import { Alert, Linking, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
+import { Icon } from '@/components/icon';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
+import { Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-context';
 import { addPlanToCalendar } from '@/features/plans/add-to-calendar';
 import { formatNightDate } from '@/features/plans/format';
@@ -16,6 +18,7 @@ import { isTonight } from '@/features/tonight/night';
 import { ReminderSwitch } from '@/features/tonight/reminder-switch';
 import { remindersOn, turnOffReminders, turnOnReminders } from '@/features/tonight/reminders';
 import { useNow } from '@/features/tonight/use-now';
+import { useTheme } from '@/hooks/use-theme';
 import { getSavedPlan, type SavedPlan } from '@/storage/saved-plans';
 import type { Plan } from '@/types/api';
 
@@ -28,6 +31,7 @@ export default function SavedPlanScreen() {
   // undefined while loading, null when the plan isn't saved (anymore).
   const [plan, setPlan] = useState<SavedPlan | null>();
   const { accessToken } = useAuth();
+  const theme = useTheme();
   const [deleteFailed, setDeleteFailed] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [shareFailed, setShareFailed] = useState<string | null>(null);
@@ -184,10 +188,13 @@ export default function SavedPlanScreen() {
   }
 
   return (
-    <Screen edges={['bottom']}>
-      <ThemedText type="small" themeColor="textSecondary">
-        Saved on {formatNightDate(plan.savedAt)}
-      </ThemedText>
+    <Screen edges={['bottom']} gap={Spacing.four}>
+      <View style={[styles.savedPill, { backgroundColor: theme.inputFill }]}>
+        <Icon name="bookmark" size={14} color="tint" />
+        <ThemedText type="label" themeColor="textSecondary">
+          Saved on {formatNightDate(plan.savedAt)}
+        </ThemedText>
+      </View>
       <PlanCard
         plan={plan}
         onSwapStop={setSwapIndex}
@@ -201,16 +208,25 @@ export default function SavedPlanScreen() {
             )}
             <Button
               title={sharing ? 'Getting link…' : 'Share plan'}
+              icon="share-outline"
               disabled={sharing}
               onPress={() => share(plan)}
             />
             {plan.shareUrl && accessToken && (
               <>
-                <ThemedText type="small" themeColor="textSecondary">
-                  Shared: anyone with the link can see this plan.
-                </ThemedText>
+                <View
+                  style={[
+                    styles.sharedNote,
+                    { backgroundColor: theme.inputFill, borderColor: theme.border },
+                  ]}>
+                  <Icon name="link-outline" size={18} color="accent" />
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.flex}>
+                    Shared: anyone with the link can see this plan.
+                  </ThemedText>
+                </View>
                 <Button
                   title="Stop sharing"
+                  icon="close-circle-outline"
                   variant="secondary"
                   onPress={() => confirmStopSharing(plan)}
                 />
@@ -224,6 +240,7 @@ export default function SavedPlanScreen() {
             <ReminderSwitch plan={plan} now={now} />
             <Button
               title={addingToCalendar ? 'Adding to calendar…' : 'Add to calendar'}
+              icon="calendar-outline"
               variant="secondary"
               disabled={addingToCalendar}
               onPress={() => addToCalendar(plan)}
@@ -241,7 +258,13 @@ export default function SavedPlanScreen() {
                 {swapMessage.text}
               </ThemedText>
             )}
-            <Button title="Delete plan" variant="secondary" onPress={() => confirmDelete(plan)} />
+            <Button
+              title="Delete plan"
+              icon="trash-outline"
+              variant="secondary"
+              destructive
+              onPress={() => confirmDelete(plan)}
+            />
             {deleteFailed && (
               <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">
                 Couldn&apos;t delete this plan. Check your connection and try again.
@@ -260,3 +283,26 @@ export default function SavedPlanScreen() {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  savedPill: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    borderRadius: Radius.full,
+    flexDirection: 'row',
+    gap: Spacing.one,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.one,
+  },
+  sharedNote: {
+    alignItems: 'center',
+    borderRadius: Radius.default,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: Spacing.two,
+    padding: Spacing.three,
+  },
+  flex: {
+    flex: 1,
+  },
+});

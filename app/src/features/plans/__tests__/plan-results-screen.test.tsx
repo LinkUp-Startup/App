@@ -71,8 +71,14 @@ describe('PlanResultsScreen', () => {
     await render(<PlanResultsScreen />);
 
     expect(await screen.findAllByText('Tapas and drinks')).toHaveLength(2);
-    expect(screen.getAllByText('0 stops · estimated €27.40 per person · 1.3 km')).toHaveLength(2);
+    expect(screen.getAllByText('0 stops')).toHaveLength(2);
+    expect(screen.getAllByText('1.3 km total')).toHaveLength(2);
+    expect(screen.getAllByText('Estimated per person: €27.40')).toHaveLength(2);
     expect(screen.getAllByText('Estimated total for the group: €109.60')).toHaveLength(2);
+    // The heading names how many plans were found, and for how many people.
+    expect(screen.getByText("Tonight's Curated Routes")).toBeOnTheScreen();
+    expect(screen.getByText('Budget / person: €30')).toBeOnTheScreen();
+    expect(screen.getByText(/^2 plans found for a group of /)).toBeOnTheScreen();
   });
 
   it('shows each generated plan with its own venue prices and backend total', async () => {
@@ -94,9 +100,8 @@ describe('PlanResultsScreen', () => {
     expect(await screen.findByText('Estimated total for the group: €102.00')).toBeOnTheScreen();
     expect(screen.getByText('Estimated total for the group: €0.00')).toBeOnTheScreen();
     expect(screen.getByText('Estimated €20.00 per person')).toBeOnTheScreen();
-    expect(
-      screen.getByText('Estimated €5.50 per person · 910 m from the previous stop'),
-    ).toBeOnTheScreen();
+    expect(screen.getByText('Estimated €5.50 per person')).toBeOnTheScreen();
+    expect(screen.getByText('910 m from the previous stop')).toBeOnTheScreen();
     expect(screen.getByText('Estimated €0.00 per person')).toBeOnTheScreen();
   });
 
