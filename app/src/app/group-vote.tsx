@@ -63,7 +63,8 @@ export default function GroupVoteScreen() {
   useFocusEffect(
     useCallback(() => {
       const controller = new AbortController();
-      load(controller.signal);
+      // Not awaited on purpose: load shows its own failures
+      void load(controller.signal);
       return () => controller.abort();
     }, [load]),
   );

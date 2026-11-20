@@ -54,7 +54,8 @@ export default function AddGroupMembersScreen() {
   useFocusEffect(
     useCallback(() => {
       const controller = new AbortController();
-      load(controller.signal);
+      // Not awaited on purpose: load shows its own failures
+      void load(controller.signal);
       return () => controller.abort();
     }, [load]),
   );
@@ -100,7 +101,7 @@ export default function AddGroupMembersScreen() {
           variant="secondary"
           onPress={() => {
             setError(undefined);
-            load();
+            void load();
           }}
         />
       </Screen>
