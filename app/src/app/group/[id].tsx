@@ -85,6 +85,12 @@ export default function GroupScreen() {
         }
       />
 
+      <Button
+        title="Vote on the plans"
+        variant="secondary"
+        onPress={() => router.push({ pathname: '/group-vote', params: { groupId: group.id } })}
+      />
+
       <Section title="Members">
         {group.members.map((member) => (
           <Row
