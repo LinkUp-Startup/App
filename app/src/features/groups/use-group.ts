@@ -47,7 +47,8 @@ export function useGroup(accessToken: string | null, groupId: string | undefined
   useFocusEffect(
     useCallback(() => {
       const controller = new AbortController();
-      load(controller.signal);
+      // Not awaited on purpose: load keeps what is shown and warns when a refresh fails
+      void load(controller.signal);
       const timer = setInterval(() => load(controller.signal), GroupRefreshIntervalMs);
       return () => {
         clearInterval(timer);
@@ -63,5 +64,8 @@ export function useGroup(accessToken: string | null, groupId: string | undefined
     return load();
   }, [load]);
 
-  return { ...state, reload };
+  // After a change (a member removed): load again and swap the new data in, without going back to "Loading…"
+  const refresh = useCallback(() => load(), [load]);
+
+  return { ...state, reload, refresh };
 }

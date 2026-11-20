@@ -92,6 +92,7 @@ function RootNavigator() {
       <Stack.Screen name="group/[id]" options={{ title: 'Group' }} />
       <Stack.Screen name="group-plan" options={{ title: 'Plan for the group' }} />
       <Stack.Screen name="group-vote" options={{ title: 'Vote on the plans' }} />
+      <Stack.Screen name="add-group-members" options={{ title: 'Add friends' }} />
       <Stack.Screen name="default-preferences" options={{ title: 'Default preferences' }} />
     </Stack>
   );

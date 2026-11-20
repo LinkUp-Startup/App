@@ -1,10 +1,12 @@
 import { apiRequest } from '@/api/client';
 import {
+  addGroupMember,
   createGroup,
   generateGroupPlans,
   getGroup,
   listGroupPlans,
   listGroups,
+  removeGroupMember,
 } from '@/api/groups';
 import { GeneratePlansTimeoutMs } from '@/api/plans';
 import type { NightPreferences } from '@/types/api';
@@ -40,6 +42,26 @@ describe('groups endpoints', () => {
     await getGroup('token-1', 'g/1');
 
     expect(apiRequest).toHaveBeenCalledWith('/api/groups/g%2F1', { headers, signal: undefined });
+  });
+
+  it('addGroupMember posts the friend to the group, both ids escaped', async () => {
+    await addGroupMember('token-1', 'g/1', 'u 2');
+
+    expect(apiRequest).toHaveBeenCalledWith('/api/groups/g%2F1/members/u%202', {
+      method: 'POST',
+      headers,
+      signal: undefined,
+    });
+  });
+
+  it('removeGroupMember deletes the member from the group, both ids escaped', async () => {
+    await removeGroupMember('token-1', 'g/1', 'u 2');
+
+    expect(apiRequest).toHaveBeenCalledWith('/api/groups/g%2F1/members/u%202', {
+      method: 'DELETE',
+      headers,
+      signal: undefined,
+    });
   });
 
   it('listGroupPlans gets the group plans', async () => {
