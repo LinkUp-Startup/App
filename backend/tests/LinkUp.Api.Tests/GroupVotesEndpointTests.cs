@@ -129,7 +129,7 @@ public sealed class GroupVotesEndpointTests(AuthApiFactory factory) : IClassFixt
         await AssertStatusAsync(HttpStatusCode.Unauthorized, client.GetAsync(Url(round, "votes")));
         await AssertStatusAsync(HttpStatusCode.Unauthorized, client.PutAsJsonAsync(Url(round, "votes/me"), new { planId = round.PlanA }));
         await AssertStatusAsync(HttpStatusCode.Unauthorized, client.PostAsync(Url(round, "close"), null));
-        await AssertStatusAsync(HttpStatusCode.Unauthorized, client.GetAsync($"/api/groups/{round.GroupId}/rounds"));
+        await AssertStatusAsync(HttpStatusCode.Unauthorized, client.GetAsync($"/api/groups/{round.GroupId}/plans"));
         // Nothing was changed by the refused requests
         Assert.Equal(0, (await ResultsAsync(owner, round)).GetProperty("votesCast").GetInt32());
         Assert.Equal(JsonValueKind.Null, (await ResultsAsync(owner, round)).GetProperty("closedAt").ValueKind);
@@ -347,7 +347,7 @@ public sealed class GroupVotesEndpointTests(AuthApiFactory factory) : IClassFixt
     {
         var (owner, ann) = (await NewAccountAsync(), await NewAccountAsync());
         var round = await NewRoundAsync(owner, ann);
-        using var listed = await ann.Client.GetAsync($"/api/groups/{round.GroupId}/rounds");
+        using var listed = await ann.Client.GetAsync($"/api/groups/{round.GroupId}/plans");
         var listedRound = (await ReadAsync(listed)).GetProperty("rounds").EnumerateArray().Single();
         var listedPlanIds = listedRound.GetProperty("plans").EnumerateArray()
             .Select(p => Guid.Parse(p.GetProperty("id").GetString()!)).ToArray();

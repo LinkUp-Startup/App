@@ -471,7 +471,7 @@ describe('GroupVoteScreen', () => {
         fail = reject;
       }),
     );
-    jest.mocked(listGroupRounds).mockResolvedValue({ rounds: [round] });
+    jest.mocked(listGroupPlans).mockResolvedValue({ rounds: [round] });
     const view = await render(<GroupVoteScreen />);
     const signal = jest.mocked(getGroup).mock.calls[0][2];
     expect(signal?.aborted).toBe(false);
