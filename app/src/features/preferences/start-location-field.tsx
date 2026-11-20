@@ -3,8 +3,10 @@ import { StyleSheet, View } from 'react-native';
 import MapView, { Circle, Marker } from 'react-native-maps';
 
 import { Button } from '@/components/button';
+import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Colors, Radius, Spacing } from '@/constants/theme';
+import { DarkMapStyle } from '@/features/preferences/map-style';
 import {
   describePlace,
   distanceKm,
@@ -26,6 +28,7 @@ type StartLocationFieldProps = {
 /** Where the group starts (#53): tap the map or use the phone's location. The circle shows the max distance. */
 export function StartLocationField({ value, onChange, radiusKm }: StartLocationFieldProps) {
   const theme = useTheme();
+  const dark = theme === Colors.dark;
   const map = useRef<MapView>(null);
   // The street name of a point; only shown while that point is still the start.
   const [named, setNamed] = useState<{ point: GeoPoint; name: string | undefined }>();
@@ -72,39 +75,56 @@ export function StartLocationField({ value, onChange, radiusKm }: StartLocationF
 
   return (
     <View style={styles.field}>
-      <MapView
-        ref={map}
-        testID="start-location-map"
-        style={styles.map}
-        initialRegion={regionFor(value ?? LleidaCentre, radiusKm)}
-        onPress={(event) => choose(event.nativeEvent.coordinate)}
-        // On Android a tap on a place icon (a museum, a restaurant) is a POI click, not a map press.
-        onPoiClick={(event) => choose(event.nativeEvent.coordinate)}
-        accessibilityLabel="Map. Tap to choose where you start.">
+      <View style={styles.mapFrame}>
+        <MapView
+          ref={map}
+          testID="start-location-map"
+          style={styles.map}
+          userInterfaceStyle={dark ? 'dark' : 'light'}
+          customMapStyle={dark ? DarkMapStyle : undefined}
+          initialRegion={regionFor(value ?? LleidaCentre, radiusKm)}
+          onPress={(event) => choose(event.nativeEvent.coordinate)}
+          // On Android a tap on a place icon (a museum, a restaurant) is a POI click, not a map press.
+          onPoiClick={(event) => choose(event.nativeEvent.coordinate)}
+          accessibilityLabel="Map. Tap to choose where you start.">
+          {value && (
+            <>
+              <Marker
+                coordinate={value}
+                title="Start"
+                pinColor={theme.tint}
+                draggable
+                onDragEnd={(event) => choose(event.nativeEvent.coordinate)}
+              />
+              <Circle
+                // Android's circle doesn't reliably apply a new center or radius (and comes back with its first
+                // values after the map is redrawn), so a new key draws a fresh one whenever either changes.
+                key={`${value.latitude},${value.longitude},${radiusKm}`}
+                center={value}
+                radius={radiusKm * 1000}
+                strokeColor={theme.tint}
+                strokeWidth={2}
+                fillColor={`${theme.tint}22`}
+              />
+            </>
+          )}
+        </MapView>
         {value && (
-          <>
-            <Marker
-              coordinate={value}
-              title="Start"
-              pinColor={theme.tint}
-              draggable
-              onDragEnd={(event) => choose(event.nativeEvent.coordinate)}
-            />
-            <Circle
-              // Android's circle doesn't reliably apply a new center or radius (and comes back with its first
-              // values after the map is redrawn), so a new key draws a fresh one whenever either changes.
-              key={`${value.latitude},${value.longitude},${radiusKm}`}
-              center={value}
-              radius={radiusKm * 1000}
-              strokeColor={theme.tint}
-              strokeWidth={2}
-              fillColor={`${theme.tint}22`}
-            />
-          </>
+          // Names the start on the map itself, like the design's location tag. Taps pass through to the map.
+          <View
+            pointerEvents="none"
+            importantForAccessibility="no-hide-descendants"
+            accessibilityElementsHidden
+            style={[styles.tag, { backgroundColor: theme.glass, borderColor: theme.border }]}>
+            <Icon name="compass-outline" size={12} color="accent" />
+            <ThemedText type="micro" numberOfLines={1} style={styles.tagText}>
+              {place ?? 'Start point'}
+            </ThemedText>
+          </View>
         )}
-      </MapView>
+      </View>
 
-      <ThemedText type="small" themeColor="textSecondary" accessibilityLiveRegion="polite">
+      <ThemedText type="caption" themeColor="textSecondary" accessibilityLiveRegion="polite">
         {value
           ? `Starting at ${place ?? `${value.latitude.toFixed(4)}, ${value.longitude.toFixed(4)}`}. Venues within ${radiusKm} km.`
           : "Tap the map to set where you start, or use your location. Without a start point, distance isn't used."}
@@ -123,6 +143,7 @@ export function StartLocationField({ value, onChange, radiusKm }: StartLocationF
       <View style={styles.actions}>
         <Button
           title={locating ? 'Finding you…' : 'Use my location'}
+          icon="navigate-outline"
           variant="secondary"
           disabled={locating}
           onPress={locateMe}
@@ -145,9 +166,31 @@ const styles = StyleSheet.create({
   field: {
     gap: Spacing.two,
   },
+  mapFrame: {
+    borderRadius: Radius.md,
+    overflow: 'hidden',
+  },
+  // A small tag in the corner of the map, like the design's.
+  tag: {
+    alignItems: 'center',
+    borderRadius: 6,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: Spacing.one,
+    left: Spacing.two,
+    maxWidth: '80%',
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one,
+    position: 'absolute',
+    top: Spacing.two,
+  },
+  tagText: {
+    flexShrink: 1,
+  },
+  // 176px tall, as in the design.
   map: {
-    borderRadius: 12,
-    height: 260,
+    borderRadius: Radius.md,
+    height: 176,
     overflow: 'hidden',
   },
   actions: {

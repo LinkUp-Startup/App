@@ -330,6 +330,10 @@ it('preserves edits made during loading and prefills only untouched fields', asy
   await render(<PreferencesScreen />);
   expect(screen.getByText(loading)).toBeOnTheScreen();
   await fireEvent.changeText(budget(), '77');
+  // The optional notes start folded away; unfold them to type.
+  await fireEvent.press(
+    screen.getByRole('button', { name: 'Special vibe and dietary preferences' }),
+  );
   await fireEvent.changeText(screen.getByLabelText('Additional preferences'), 'quiet places');
   await userEvent.setup().press(screen.getByRole('checkbox', { name: 'Cinema' }));
   await userEvent.setup().press(screen.getByRole('checkbox', { name: 'Walking' }));
