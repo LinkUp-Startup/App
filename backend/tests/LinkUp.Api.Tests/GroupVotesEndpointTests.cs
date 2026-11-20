@@ -118,6 +118,123 @@ public sealed class GroupVotesEndpointTests(AuthApiFactory factory) : IClassFixt
             [round.PlanA, round.PlanB],
             results.GetProperty("plans").EnumerateArray().Select(p => p.GetProperty("planId").GetGuid()));
         Assert.Equal([0, 0], VotesPerPlan(results));
+        Assert.Empty(Winners(results));
+    }
+
+    private static Guid[] Winners(JsonElement results) =>
+        [.. results.GetProperty("winnerPlanIds").EnumerateArray().Select(w => w.GetGuid())];
+
+    private static async Task CloseAsync(Account owner, Round round) =>
+        await ReadAsync(await owner.Client.PostAsync(Url(round, "close"), null));
+
+    [Fact]
+    public async Task There_is_no_winner_while_members_are_still_to_vote()
+    {
+        var (owner, ann, bob) = (await NewAccountAsync(), await NewAccountAsync(), await NewAccountAsync());
+        var round = await NewRoundAsync(owner, ann, bob);
+
+        var results = await ReadAsync(await VoteAsync(owner, round, round.PlanA));
+        await ReadAsync(await VoteAsync(ann, round, round.PlanA));
+
+        // Two of three voted for the same plan, but the third can still change the outcome
+        Assert.Empty(Winners(results));
+        Assert.Empty(Winners(await ResultsAsync(bob, round)));
+    }
+
+    [Fact]
+    public async Task The_plan_with_most_votes_wins_once_everyone_voted_even_before_the_owner_closes()
+    {
+        var (owner, ann, bob) = (await NewAccountAsync(), await NewAccountAsync(), await NewAccountAsync());
+        var round = await NewRoundAsync(owner, ann, bob);
+        await ReadAsync(await VoteAsync(owner, round, round.PlanB));
+        await ReadAsync(await VoteAsync(ann, round, round.PlanA));
+
+        var results = await ReadAsync(await VoteAsync(bob, round, round.PlanB));
+
+        Assert.Equal([round.PlanB], Winners(results));
+        Assert.Equal(JsonValueKind.Null, results.GetProperty("closedAt").ValueKind);
+        Assert.Equal([round.PlanB], Winners(await ResultsAsync(ann, round)));
+    }
+
+    [Fact]
+    public async Task The_winner_changes_when_a_member_changes_their_vote_before_the_vote_is_closed()
+    {
+        var (owner, ann, bob) = (await NewAccountAsync(), await NewAccountAsync(), await NewAccountAsync());
+        var round = await NewRoundAsync(owner, ann, bob);
+        await ReadAsync(await VoteAsync(owner, round, round.PlanA));
+        await ReadAsync(await VoteAsync(ann, round, round.PlanA));
+        Assert.Equal([round.PlanA], Winners(await ReadAsync(await VoteAsync(bob, round, round.PlanB))));
+
+        var changed = await ReadAsync(await VoteAsync(ann, round, round.PlanB));
+
+        Assert.Equal([round.PlanB], Winners(changed));
+    }
+
+    [Fact]
+    public async Task Plans_with_the_same_most_votes_tie_and_are_listed_in_the_order_they_were_generated()
+    {
+        var (owner, ann) = (await NewAccountAsync(), await NewAccountAsync());
+        var round = await NewRoundAsync(owner, ann);
+        await ReadAsync(await VoteAsync(owner, round, round.PlanB));
+
+        var results = await ReadAsync(await VoteAsync(ann, round, round.PlanA));
+
+        Assert.Equal([round.PlanA, round.PlanB], Winners(results));
+        Assert.Equal([1, 1], VotesPerPlan(results));
+    }
+
+    [Fact]
+    public async Task Closing_decides_with_the_votes_so_far()
+    {
+        var (owner, ann, bob) = (await NewAccountAsync(), await NewAccountAsync(), await NewAccountAsync());
+        var round = await NewRoundAsync(owner, ann, bob);
+        await ReadAsync(await VoteAsync(ann, round, round.PlanB));
+
+        await CloseAsync(owner, round);
+
+        // One of three voted: the owner closed it, so that plan wins
+        Assert.Equal([round.PlanB], Winners(await ResultsAsync(bob, round)));
+    }
+
+    [Fact]
+    public async Task Closing_a_tied_vote_keeps_the_tie()
+    {
+        var (owner, ann, bob) = (await NewAccountAsync(), await NewAccountAsync(), await NewAccountAsync());
+        var round = await NewRoundAsync(owner, ann, bob);
+        await ReadAsync(await VoteAsync(owner, round, round.PlanA));
+        await ReadAsync(await VoteAsync(ann, round, round.PlanB));
+
+        await CloseAsync(owner, round);
+
+        Assert.Equal([round.PlanA, round.PlanB], Winners(await ResultsAsync(bob, round)));
+    }
+
+    [Fact]
+    public async Task Nobody_wins_a_vote_that_was_closed_without_votes()
+    {
+        var (owner, ann) = (await NewAccountAsync(), await NewAccountAsync());
+        var round = await NewRoundAsync(owner, ann);
+
+        await CloseAsync(owner, round);
+
+        var results = await ResultsAsync(ann, round);
+        Assert.NotEqual(JsonValueKind.Null, results.GetProperty("closedAt").ValueKind);
+        Assert.Empty(Winners(results));
+    }
+
+    [Fact]
+    public async Task Everyone_voted_counts_the_members_who_are_still_in_the_group()
+    {
+        var (owner, ann, bob) = (await NewAccountAsync(), await NewAccountAsync(), await NewAccountAsync());
+        var round = await NewRoundAsync(owner, ann, bob);
+        await ReadAsync(await VoteAsync(owner, round, round.PlanA));
+        await ReadAsync(await VoteAsync(ann, round, round.PlanA));
+        Assert.Empty(Winners(await ResultsAsync(owner, round)));
+
+        // The member who hadn't voted leaves: everyone who is left has voted
+        await AssertStatusAsync(HttpStatusCode.NoContent, bob.Client.DeleteAsync($"/api/groups/{round.GroupId}/members/{bob.Id}"));
+
+        Assert.Equal([round.PlanA], Winners(await ResultsAsync(owner, round)));
     }
 
     [Fact]

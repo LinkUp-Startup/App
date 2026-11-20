@@ -1024,7 +1024,7 @@ export interface paths {
         };
         /**
          * Where the vote stands
-         * @description The votes per plan, how many members voted and which plan you voted for. Only the votes of members still in the group count. 404 when the round doesn't exist, belongs to another group, or you are not a member.
+         * @description The votes per plan, how many members voted and which plan you voted for. Once every member has voted or the owner has closed the vote, winnerPlanIds lists the plan with the most votes (several plans are a tie; none when nobody voted). Only the votes of members still in the group count. 404 when the round doesn't exist, belongs to another group, or you are not a member.
          */
         get: {
             parameters: {
@@ -2157,6 +2157,7 @@ export interface components {
             /** Format: uuid */
             myVotePlanId: null | string;
             plans: components["schemas"]["PlanVotesDto"][];
+            winnerPlanIds: string[];
         };
         HealthResponse: {
             status: string;
