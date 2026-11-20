@@ -104,7 +104,8 @@ To apply to another database (e.g. `project_dev`), set `ConnectionStrings__Defau
 | `PlanItems` | One stop: venue, `Position` (0-based, unique per plan), times, cost, distance from the previous stop (the first from the start location) | deleted with its plan; a venue used in a plan can't be deleted (set `IsActive = false` instead) |
 | `Groups` | Friends who plan together: a name | has many `GroupMembers` |
 | `GroupMembers` | One user in one group, with a `Role` (`Owner` or `Member`); exactly one owner, the creator | deleted with the group or the account; a user can be in several groups |
-| `GroupPlanRounds` | The 2-3 plans generated together for a group, with the group size (member count) and who generated them | deleted with the group (only the newest 20 are kept); `CreatedById` is cleared when that account is deleted |
+| `GroupPlanRounds` | The 2-3 plans generated together for a group, with the group size (member count), who generated them and `ClosedAt` (set when the owner closes the vote) | deleted with the group (only the newest 20 are kept); `CreatedById` is cleared when that account is deleted |
+| `GroupPlanVotes` | One member's vote for one plan of a round; the key is round + member, so a member has one vote per round and changes it by updating the row | deleted with its round, its plan or the member's account; votes of members who left the group are kept but not counted |
 
 Plan item times are stored in UTC; EF converts any offset on write. Read items sorted by `Position`.
 
