@@ -63,5 +63,8 @@ export function useGroup(accessToken: string | null, groupId: string | undefined
     return load();
   }, [load]);
 
-  return { ...state, reload };
+  // After a change (a member removed): load again and swap the new data in, without going back to "Loading…"
+  const refresh = useCallback(() => load(), [load]);
+
+  return { ...state, reload, refresh };
 }
