@@ -27,6 +27,8 @@ export const roundByBob: GroupPlanRound = {
   createdBy: { userId: 'u2', displayName: 'Bob' },
   groupSize: 2,
   plans: [tapasPlan, { ...tapasPlan, id: 'p2', title: 'Second plan' }],
+  closedAt: null,
+  winnerPlanIds: [],
 };
 
 export const bob: Friend = { userId: 'u2', displayName: 'Bob', since: '2026-11-01T18:00:00Z' };

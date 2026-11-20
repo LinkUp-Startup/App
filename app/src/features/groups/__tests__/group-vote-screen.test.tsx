@@ -5,6 +5,7 @@ import { ApiError } from '@/api/client';
 import { castVote, closeVote, getGroup, getVoteResults, listGroupPlans } from '@/api/groups';
 import GroupVoteScreen from '@/app/group-vote';
 import { tapasPlan } from '@/features/plans/__tests__/fixtures/plans';
+import { savePlanFor } from '@/features/plans/saved-plans-sync';
 import type { Group, GroupPlanRound, GroupVoteResults, Plan } from '@/types/api';
 
 const mockParams: { groupId?: string } = { groupId: 'g1' };
@@ -16,6 +17,7 @@ jest.mock('expo-router', () => ({
     jest.requireActual<typeof import('react')>('react').useEffect(effect, [effect]),
 }));
 jest.mock('@/api/groups');
+jest.mock('@/features/plans/saved-plans-sync');
 const mockAuth = { accessToken: 'token-1' as string | null };
 jest.mock('@/features/auth/auth-context', () => ({
   useAuth: () => ({ accessToken: mockAuth.accessToken }),
@@ -29,6 +31,8 @@ const round: GroupPlanRound = {
   createdBy: null,
   groupSize: 3,
   plans: [tapas, bowling],
+  closedAt: null,
+  winnerPlanIds: [],
 };
 const member = (userId: string, displayName: string, role: 'owner' | 'member') => ({
   userId,
@@ -520,5 +524,94 @@ describe('GroupVoteScreen', () => {
 
     expect(await screen.findByText('2 of 3 voted')).toBeOnTheScreen();
     expect(screen.getByText('2 votes')).toBeOnTheScreen();
+  });
+});
+
+describe('the plan the group chose', () => {
+  const closedAt = '2026-11-20T21:00:00Z';
+  const split = (p1: number, p2: number) => [
+    { planId: 'p1', votes: p1 },
+    { planId: 'p2', votes: p2 },
+  ];
+  const follow = { name: 'Follow this plan' };
+
+  it('shows only the winning plan of a closed vote, with the way to follow it', async () => {
+    show('member', results({ closedAt, votesCast: 3, plans: split(1, 2), winnerPlanIds: ['p2'] }));
+    await render(<GroupVoteScreen />);
+
+    expect(await screen.findByText('Bowling night')).toBeOnTheScreen();
+    expect(screen.queryByText('Tapas and drinks')).toBeNull();
+    expect(screen.getByRole('button', follow)).toBeOnTheScreen();
+    // The outcome still says who won and how many votes it got
+    expect(screen.getByText('Winner: Bowling night')).toBeOnTheScreen();
+    expect(screen.getByText('2 votes')).toBeOnTheScreen();
+  });
+
+  it('keeps the winner for the owner too, who can no longer close the vote', async () => {
+    show('owner', results({ closedAt, votesCast: 3, plans: split(1, 2), winnerPlanIds: ['p2'] }));
+    await render(<GroupVoteScreen />);
+
+    expect(await screen.findByText('Bowling night')).toBeOnTheScreen();
+    expect(screen.getByRole('button', follow)).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Close the vote' })).toBeNull();
+  });
+
+  it('keeps the winning plan for the member to follow: it is kept with their plans and opens Tonight mode', async () => {
+    show('member', results({ closedAt, votesCast: 3, plans: split(1, 2), winnerPlanIds: ['p2'] }));
+    jest.mocked(savePlanFor).mockResolvedValue('account');
+    const user = userEvent.setup();
+    await render(<GroupVoteScreen />);
+
+    await user.press(await screen.findByRole('button', follow));
+
+    expect(savePlanFor).toHaveBeenCalledWith(bowling, 'token-1');
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith({ pathname: '/tonight/[id]', params: { id: 'p2' } }),
+    );
+  });
+
+  it('shows every plan while the vote is open, even when everyone voted and a plan leads', async () => {
+    show('member', results({ votesCast: 3, plans: split(1, 2), winnerPlanIds: ['p2'] }));
+    await render(<GroupVoteScreen />);
+
+    expect(await screen.findByText('Tapas and drinks')).toBeOnTheScreen();
+    expect(screen.getByText('Bowling night')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', follow)).toBeNull();
+  });
+
+  it('shows every plan of a closed tie, because nobody won', async () => {
+    show(
+      'member',
+      results({ closedAt, votesCast: 2, plans: split(1, 1), winnerPlanIds: ['p1', 'p2'] }),
+    );
+    await render(<GroupVoteScreen />);
+
+    expect(await screen.findByText('Tapas and drinks')).toBeOnTheScreen();
+    expect(screen.getByText('Bowling night')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', follow)).toBeNull();
+  });
+
+  it('shows every plan of a vote closed without votes', async () => {
+    show('member', results({ closedAt }));
+    await render(<GroupVoteScreen />);
+
+    expect(await screen.findByText('Tapas and drinks')).toBeOnTheScreen();
+    expect(screen.getByText('Bowling night')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', follow)).toBeNull();
+  });
+
+  it('shows every plan when the server does not send the winners yet', async () => {
+    const older = results({
+      closedAt,
+      votesCast: 3,
+      plans: split(1, 2),
+    }) as Partial<GroupVoteResults>;
+    delete older.winnerPlanIds;
+    show('member', older as GroupVoteResults);
+    await render(<GroupVoteScreen />);
+
+    expect(await screen.findByText('Tapas and drinks')).toBeOnTheScreen();
+    expect(screen.getByText('Bowling night')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', follow)).toBeNull();
   });
 });

@@ -5,6 +5,8 @@ import { ApiError } from '@/api/client';
 import { getGroup, listGroupPlans, removeGroupMember } from '@/api/groups';
 import GroupScreen from '@/app/group/[id]';
 import { GroupRefreshIntervalMs } from '@/features/groups/use-group';
+import { tapasPlan } from '@/features/plans/__tests__/fixtures/plans';
+import { savePlanFor } from '@/features/plans/saved-plans-sync';
 import type { Group } from '@/types/api';
 
 import { crew, roundByBob } from './fixtures/groups';
@@ -17,6 +19,7 @@ jest.mock('expo-router', () => ({
     jest.requireActual<typeof import('react')>('react').useEffect(effect, [effect]),
 }));
 jest.mock('@/api/groups');
+jest.mock('@/features/plans/saved-plans-sync');
 const mockAuth = {
   accessToken: 'token-1' as string | null,
   user: { id: 'u1' } as { id: string } | null,
@@ -465,5 +468,83 @@ describe('leaving the group', () => {
 
     expect(screen.queryByText(/no longer exists/)).toBeNull();
     expect(screen.getByText('Leave Friday crew?')).toBeOnTheScreen();
+  });
+});
+
+describe('the plan the group chose', () => {
+  const closedAt = '2026-11-20T21:00:00Z';
+  const follow = { name: 'Follow this plan' };
+  // roundByBob has the plans p1 "Tapas and drinks" and p2 "Second plan"
+  const decided = { ...roundByBob, closedAt, winnerPlanIds: ['p2'] };
+
+  it('shows only the winning plan of a closed vote, marked as the group plan, with a way to follow it', async () => {
+    jest.mocked(listGroupPlans).mockResolvedValue({ rounds: [decided] });
+    await render(<GroupScreen />);
+
+    expect(await screen.findByText('Second plan')).toBeOnTheScreen();
+    expect(screen.queryByText('Tapas and drinks')).toBeNull();
+    expect(screen.getByText("The group's plan")).toBeOnTheScreen();
+    expect(screen.getByRole('button', follow)).toBeOnTheScreen();
+  });
+
+  it('lets every member follow it', async () => {
+    mockAuth.user = { id: 'u2' };
+    jest.mocked(getGroup).mockResolvedValue({ ...crew, myRole: 'member' });
+    jest.mocked(listGroupPlans).mockResolvedValue({ rounds: [decided] });
+    jest.mocked(savePlanFor).mockResolvedValue('account');
+    const user = userEvent.setup();
+    await render(<GroupScreen />);
+
+    await user.press(await screen.findByRole('button', follow));
+
+    expect(savePlanFor).toHaveBeenCalledWith(decided.plans[1], 'token-1');
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith({ pathname: '/tonight/[id]', params: { id: 'p2' } }),
+    );
+  });
+
+  it.each([
+    ['an open vote, even when a plan leads', { closedAt: null, winnerPlanIds: ['p2'] }],
+    ['a closed tie', { closedAt, winnerPlanIds: ['p1', 'p2'] }],
+    ['a vote closed without votes', { closedAt, winnerPlanIds: [] }],
+  ])('keeps showing every plan of %s', async (_what, state) => {
+    jest.mocked(listGroupPlans).mockResolvedValue({ rounds: [{ ...roundByBob, ...state }] });
+    await render(<GroupScreen />);
+
+    expect(await screen.findByText('Tapas and drinks')).toBeOnTheScreen();
+    expect(screen.getByText('Second plan')).toBeOnTheScreen();
+    expect(screen.queryByText("The group's plan")).toBeNull();
+    expect(screen.queryByRole('button', follow)).toBeNull();
+  });
+
+  it('keeps showing every plan when the server does not send the winners yet', async () => {
+    const older = { ...roundByBob, closedAt } as Partial<typeof roundByBob>;
+    delete older.winnerPlanIds;
+    jest.mocked(listGroupPlans).mockResolvedValue({ rounds: [older as typeof roundByBob] });
+    await render(<GroupScreen />);
+
+    expect(await screen.findByText('Tapas and drinks')).toBeOnTheScreen();
+    expect(screen.getByText('Second plan')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', follow)).toBeNull();
+  });
+
+  it('only trims the round that was decided', async () => {
+    const other = {
+      ...roundByBob,
+      id: 'r2',
+      plans: [
+        { ...tapasPlan, id: 'p3', title: 'Other one' },
+        { ...tapasPlan, id: 'p4', title: 'Other two' },
+      ],
+    };
+    jest.mocked(listGroupPlans).mockResolvedValue({ rounds: [other, decided] });
+    await render(<GroupScreen />);
+
+    // The open round shows both plans; the decided one only its winner
+    expect(await screen.findByText('Other one')).toBeOnTheScreen();
+    expect(screen.getByText('Other two')).toBeOnTheScreen();
+    expect(screen.getByText('Second plan')).toBeOnTheScreen();
+    expect(screen.queryByText('Tapas and drinks')).toBeNull();
+    expect(screen.getAllByRole('button', follow)).toHaveLength(1);
   });
 });
