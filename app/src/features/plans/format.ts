@@ -39,6 +39,15 @@ export function formatNightDate(iso: string) {
   });
 }
 
+/** "6.5 hours": from the start of the first stop to the end of the last. Nothing for a plan without stops. */
+export function planDuration(plan: Plan) {
+  if (plan.items.length === 0) return undefined;
+  const start = Math.min(...plan.items.map((item) => Date.parse(item.startTime)));
+  const end = Math.max(...plan.items.map((item) => Date.parse(item.endTime)));
+  const hours = Math.round(((end - start) / (60 * 60 * 1000)) * 10) / 10;
+  return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+}
+
 /** Stop count, estimated per-person cost and distance. */
 export function planSummaryLine(plan: Plan) {
   const stops = `${plan.items.length} ${plan.items.length === 1 ? 'stop' : 'stops'}`;

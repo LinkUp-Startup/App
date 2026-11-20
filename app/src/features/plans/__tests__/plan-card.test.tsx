@@ -25,9 +25,9 @@ describe('PlanCard', () => {
     expect(
       screen.getByText(`Estimated total for the group: €${total.toFixed(2)}`),
     ).toBeOnTheScreen();
-    expect(
-      screen.getByText(`2 stops · estimated €${perPerson.toFixed(2)} per person · 910 m`),
-    ).toBeOnTheScreen();
+    expect(screen.getByText(`Estimated per person: €${perPerson.toFixed(2)}`)).toBeOnTheScreen();
+    expect(screen.getByText('2 stops')).toBeOnTheScreen();
+    expect(screen.getByText('910 m total')).toBeOnTheScreen();
   });
 
   it('shows a single free stop and a free total', async () => {
@@ -42,7 +42,8 @@ describe('PlanCard', () => {
       />,
     );
     expect(screen.getByText('Estimated €0.00 per person')).toBeOnTheScreen();
-    expect(screen.getByText('1 stop · estimated €0.00 per person · 910 m')).toBeOnTheScreen();
+    expect(screen.getByText('1 stop')).toBeOnTheScreen();
+    expect(screen.getByText('Estimated per person: €0.00')).toBeOnTheScreen();
     expect(screen.getByText('Estimated total for the group: €0.00')).toBeOnTheScreen();
   });
 
@@ -72,10 +73,10 @@ describe('PlanCard', () => {
     delete legacy.items[0].estimatedCostPerPerson;
     await render(<PlanCard plan={legacy} />);
     expect(screen.getByText('Estimated total for the group: price unavailable')).toBeOnTheScreen();
+    expect(screen.getByText('Estimated per person: price unknown')).toBeOnTheScreen();
     expect(screen.getByText('Price unknown')).toBeOnTheScreen();
-    expect(
-      screen.getByText('Estimated €5.50 per person · 910 m from the previous stop'),
-    ).toBeOnTheScreen();
+    expect(screen.getByText('Estimated €5.50 per person')).toBeOnTheScreen();
+    expect(screen.getByText('910 m from the previous stop')).toBeOnTheScreen();
   });
 
   it('shows the plan with its stops in order', async () => {
@@ -83,18 +84,22 @@ describe('PlanCard', () => {
 
     expect(screen.getByRole('header', { name: 'Tapas and drinks' })).toBeOnTheScreen();
     expect(screen.getByText('Dinner in the old town, then a cocktail bar.')).toBeOnTheScreen();
-    expect(screen.getByText('2 stops · estimated €25.50 per person · 910 m')).toBeOnTheScreen();
+    expect(screen.getByText('3.3 hours')).toBeOnTheScreen();
+    expect(screen.getByText('2 stops')).toBeOnTheScreen();
+    expect(screen.getByText('910 m total')).toBeOnTheScreen();
+    expect(screen.getByText('Estimated per person: €25.50')).toBeOnTheScreen();
 
     const stops = screen.getAllByLabelText(/^Stop \d/);
     expect(stops.map((stop) => stop.props.accessibilityLabel)).toEqual([
       'Stop 1: Teresa Carles, Dinner, 20:30-22:00, Estimated €20.00 per person',
       'Stop 2: Pub Legend, Drinks, 22:15-23:45, Estimated €5.50 per person',
     ]);
-    expect(screen.getByText('Carrer Major 1, Lleida')).toBeOnTheScreen();
+    expect(screen.getByText('Dinner · Carrer Major 1, Lleida')).toBeOnTheScreen();
+    expect(screen.getByText('20:30 – 22:00')).toBeOnTheScreen();
+    expect(screen.getByText('22:15 – 23:45')).toBeOnTheScreen();
     expect(screen.getByText('Estimated €20.00 per person')).toBeOnTheScreen();
-    expect(
-      screen.getByText('Estimated €5.50 per person · 910 m from the previous stop'),
-    ).toBeOnTheScreen();
+    expect(screen.getByText('Estimated €5.50 per person')).toBeOnTheScreen();
+    expect(screen.getByText('910 m from the previous stop')).toBeOnTheScreen();
     expect(screen.getByText('Footer')).toBeOnTheScreen();
   });
 
@@ -111,10 +116,11 @@ describe('PlanCard', () => {
       />,
     );
 
-    expect(screen.getByText('2 stops · price unknown · 910 m')).toBeOnTheScreen();
+    expect(screen.getByText('Estimated per person: price unknown')).toBeOnTheScreen();
     expect(screen.getByText('Estimated total for the group: price unavailable')).toBeOnTheScreen();
     expect(screen.getByText('Estimated €20.00 per person')).toBeOnTheScreen();
-    expect(screen.getByText('Price unknown · 910 m from the previous stop')).toBeOnTheScreen();
+    expect(screen.getByText('Price unknown')).toBeOnTheScreen();
+    expect(screen.getByText('910 m from the previous stop')).toBeOnTheScreen();
   });
 
   it('shows how far the first stop is from the start', async () => {
@@ -123,15 +129,17 @@ describe('PlanCard', () => {
       <PlanCard plan={{ ...tapasPlan, items: [{ ...dinner, distanceKm: 1.2 }, drinks] }} />,
     );
 
-    expect(
-      screen.getByText('Estimated €20.00 per person · 1.2 km from your start'),
-    ).toBeOnTheScreen();
+    expect(screen.getByText('Estimated €20.00 per person')).toBeOnTheScreen();
+    expect(screen.getByText('1.2 km from your start')).toBeOnTheScreen();
   });
 
   it('leaves out an empty summary', async () => {
     await render(<PlanCard plan={{ ...tapasPlan, summary: '', items: [] }} />);
 
-    expect(screen.getByText('0 stops · estimated €25.50 per person · 910 m')).toBeOnTheScreen();
+    expect(screen.getByText('0 stops')).toBeOnTheScreen();
+    expect(screen.getByText('Estimated per person: €25.50')).toBeOnTheScreen();
+    // No stops, so there is no duration to show.
+    expect(screen.queryByText(/hours?$/)).toBeNull();
     expect(screen.queryByText('Dinner in the old town, then a cocktail bar.')).toBeNull();
   });
 });
