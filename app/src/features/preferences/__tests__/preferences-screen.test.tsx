@@ -39,6 +39,9 @@ describe('PreferencesScreen', () => {
     await user.press(screen.getByRole('button', { name: 'Increase group size' }));
     await user.clear(screen.getByLabelText('Budget per person in euros'));
     await user.type(screen.getByLabelText('Budget per person in euros'), '25');
+    // The optional notes start folded away.
+    expect(screen.queryByLabelText('Additional preferences')).toBeNull();
+    await user.press(screen.getByRole('button', { name: 'Special vibe and dietary preferences' }));
     await user.type(screen.getByLabelText('Additional preferences'), 'vegetarian');
     await user.press(screen.getByRole('button', { name: 'Generate plans' }));
 
