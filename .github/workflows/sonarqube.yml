@@ -95,6 +95,9 @@ jobs:
 
       # SonarScanner for .NET analyses the C# build and, through multi-language analysis
       # (sonar.scanner.scanAll), every other supported file in the repo, including app/ and web/ TypeScript.
+      # docs/design holds the design mockups (HTML exported from a design tool). They are pictures of screens, not
+      # code that ships, and they failed the quality gate with reliability findings (missing page titles and
+      # input labels), so they are left out of the analysis (sonar.exclusions below).
       - name: Begin SonarQube analysis
         working-directory: backend
         env:
@@ -106,7 +109,7 @@ jobs:
           /d:sonar.host.url="https://sonarcloud.io"
           /d:sonar.token="$SONAR_TOKEN"
           /d:sonar.projectBaseDir="$GITHUB_WORKSPACE"
-          /d:sonar.exclusions="**/node_modules/**,**/bin/**,**/obj/**,app/coverage/**,app/.expo/**,app/assets/**,web/.next/**,web/coverage/**,backend/src/LinkUp.Api/Data/Migrations/**,shared/**"
+          /d:sonar.exclusions="**/node_modules/**,**/bin/**,**/obj/**,app/coverage/**,app/.expo/**,app/assets/**,web/.next/**,web/coverage/**,backend/src/LinkUp.Api/Data/Migrations/**,shared/**,docs/design/**"
           /d:sonar.coverage.exclusions="app/src/app/**/_layout.tsx,app/src/constants/**,**/__tests__/**,app/*.config.js,app/jest.*.ts,backend/tests/**,web/src/app/layout.tsx,web/*.config.*,web/vitest.setup.ts"
           /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.opencover.xml"
           /d:sonar.javascript.lcov.reportPaths="app/coverage/lcov.info,web/coverage/lcov.info"
