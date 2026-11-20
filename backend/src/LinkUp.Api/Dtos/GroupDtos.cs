@@ -36,7 +36,17 @@ public sealed record GroupPlanAuthorDto(Guid UserId, string DisplayName);
 
 /// <summary>The plans generated together for the group in one go, saved to the group.</summary>
 public sealed record GroupPlanRoundDto(
-    Guid Id, DateTimeOffset CreatedAt, GroupPlanAuthorDto? CreatedBy, int GroupSize, IReadOnlyList<PlanDto> Plans);
+    Guid Id,
+    DateTimeOffset CreatedAt,
+    GroupPlanAuthorDto? CreatedBy,
+    int GroupSize,
+    IReadOnlyList<PlanDto> Plans,
+    // When the owner closed the vote on these plans. Null while members can still vote.
+    DateTimeOffset? ClosedAt,
+    // The plans with the most votes, as in the vote results: one plan is the winner, several are a tie. Empty until
+    // every member has voted or the owner has closed the vote, and when nobody voted. Once the vote is closed with a
+    // single winner, the app shows only that plan.
+    IReadOnlyList<Guid> WinnerPlanIds);
 
 /// <summary>The group's plans, newest round first.</summary>
 public sealed record GroupPlansResponse(IReadOnlyList<GroupPlanRoundDto> Rounds);

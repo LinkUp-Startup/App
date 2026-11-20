@@ -152,16 +152,39 @@ public sealed class GroupService(AppDbContext db, TimeProvider clock) : IGroupSe
             .Where(u => authorIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, u => u.DisplayName, cancellationToken);
 
-        return rounds.Select(round => new GroupPlanRoundDto(
-                round.Id,
-                round.CreatedAt,
-                round.CreatedById is { } author && names.TryGetValue(author, out var name)
-                    ? new GroupPlanAuthorDto(author, name)
-                    : null,
-                round.GroupSize,
+        // Who leads each round's vote. Votes of people who have left the group no longer count.
+        var roundIds = rounds.Select(r => r.Id).ToList();
+        var memberCount = await db.GroupMembers.CountAsync(m => m.GroupId == groupId, cancellationToken);
+        var votes = await (
+                from v in db.GroupPlanVotes.AsNoTracking()
+                where roundIds.Contains(v.GroupPlanRoundId)
+                    && db.GroupMembers.Any(m => m.GroupId == groupId && m.UserId == v.UserId)
+                select new { v.GroupPlanRoundId, v.PlanId })
+            .ToListAsync(cancellationToken);
+        var votesByRound = votes.GroupBy(v => v.GroupPlanRoundId).ToDictionary(g => g.Key, g => g.ToList());
+
+        return rounds.Select(round =>
+            {
+                var inRound = votesByRound.GetValueOrDefault(round.Id) ?? [];
+                var perPlan = inRound.GroupBy(v => v.PlanId).ToDictionary(g => g.Key, g => g.Count());
                 // In the order they were generated
-                round.Plans.OrderBy(p => p.CreatedAt).ThenBy(p => p.Id)
-                    .Select(p => PlanMapping.ToDto(p, item => item.Venue)).ToList()))
+                var plans = round.Plans.OrderBy(p => p.CreatedAt).ThenBy(p => p.Id).ToList();
+                var winners = VoteRules.Winners(
+                    VoteRules.HasOutcome(round.ClosedAt is not null, memberCount, inRound.Count),
+                    plans.Select(p => (p.Id, p.SourcePlanId ?? p.Id)),
+                    perPlan);
+
+                return new GroupPlanRoundDto(
+                    round.Id,
+                    round.CreatedAt,
+                    round.CreatedById is { } author && names.TryGetValue(author, out var name)
+                        ? new GroupPlanAuthorDto(author, name)
+                        : null,
+                    round.GroupSize,
+                    plans.Select(p => PlanMapping.ToDto(p, item => item.Venue)).ToList(),
+                    round.ClosedAt,
+                    winners);
+            })
             .ToList();
     }
 
@@ -209,7 +232,9 @@ public sealed class GroupService(AppDbContext db, TimeProvider clock) : IGroupSe
         await transaction.CommitAsync(cancellationToken);
 
         var name = await db.Users.Where(u => u.Id == userId).Select(u => u.DisplayName).SingleAsync(cancellationToken);
-        return new GroupPlanRoundDto(round.Id, round.CreatedAt, new GroupPlanAuthorDto(userId, name), groupSize, plans);
+        // A new round has no votes yet
+        return new GroupPlanRoundDto(
+            round.Id, round.CreatedAt, new GroupPlanAuthorDto(userId, name), groupSize, plans, null, []);
     }
 
     // The ids among userIds that are the user's (accepted) friends
