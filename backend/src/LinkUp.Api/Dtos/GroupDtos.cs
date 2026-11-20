@@ -9,6 +9,8 @@ public static class GroupLimits
     // The members will be a plan's group size, so a group can't be larger than a plan allows.
     public const int MaxMembers = PreferenceRules.MaxGroupSize;
     public const int MaxGroupsPerUser = 50;
+    // Older rounds of plans are deleted when a new one is generated.
+    public const int MaxPlanRoundsPerGroup = 20;
 }
 
 /// <summary>A new group. The creator becomes its owner; the members must be the creator's friends.</summary>
@@ -28,3 +30,10 @@ public sealed record GroupSummaryDto(Guid Id, string Name, int MemberCount, Grou
 
 /// <summary>The user's groups, newest first.</summary>
 public sealed record GroupsResponse(IReadOnlyList<GroupSummaryDto> Groups);
+
+/// <summary>Who generated a round of group plans. Null in a round when that account no longer exists.</summary>
+public sealed record GroupPlanAuthorDto(Guid UserId, string DisplayName);
+
+/// <summary>The plans generated together for the group in one go, saved to the group.</summary>
+public sealed record GroupPlanRoundDto(
+    Guid Id, DateTimeOffset CreatedAt, GroupPlanAuthorDto? CreatedBy, int GroupSize, IReadOnlyList<PlanDto> Plans);

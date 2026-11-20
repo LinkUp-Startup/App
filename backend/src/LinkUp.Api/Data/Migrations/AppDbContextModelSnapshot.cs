@@ -127,6 +127,38 @@ namespace LinkUp.Api.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("LinkUp.Api.Data.Entities.GroupPlanRound", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("GroupSize")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("GroupId", "CreatedAt");
+
+                    b.ToTable("GroupPlanRounds", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_GroupPlanRounds_GroupSize", "\"GroupSize\" BETWEEN 1 AND 20");
+                        });
+                });
+
             modelBuilder.Entity("LinkUp.Api.Data.Entities.Plan", b =>
                 {
                     b.Property<Guid>("Id")
@@ -145,6 +177,9 @@ namespace LinkUp.Api.Data.Migrations
                     b.Property<decimal?>("EstimatedTotalCost")
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)");
+
+                    b.Property<Guid?>("GroupPlanRoundId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("ShareToken")
                         .HasMaxLength(32)
@@ -171,6 +206,8 @@ namespace LinkUp.Api.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("GroupPlanRoundId");
+
                     b.HasIndex("ShareToken")
                         .IsUnique()
                         .HasFilter("\"ShareToken\" IS NOT NULL");
@@ -181,6 +218,8 @@ namespace LinkUp.Api.Data.Migrations
 
                     b.ToTable("Plans", null, t =>
                         {
+                            t.HasCheckConstraint("CK_Plans_AccountOrGroup", "\"UserId\" IS NULL OR \"GroupPlanRoundId\" IS NULL");
+
                             t.HasCheckConstraint("CK_Plans_EstimatedCostPerPerson", "\"EstimatedCostPerPerson\" >= 0");
 
                             t.HasCheckConstraint("CK_Plans_EstimatedTotalCost", "\"EstimatedTotalCost\" >= 0");
@@ -433,8 +472,27 @@ namespace LinkUp.Api.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("LinkUp.Api.Data.Entities.GroupPlanRound", b =>
+                {
+                    b.HasOne("LinkUp.Api.Data.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("LinkUp.Api.Data.Entities.Group", null)
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("LinkUp.Api.Data.Entities.Plan", b =>
                 {
+                    b.HasOne("LinkUp.Api.Data.Entities.GroupPlanRound", null)
+                        .WithMany("Plans")
+                        .HasForeignKey("GroupPlanRoundId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
                     b.HasOne("LinkUp.Api.Data.Entities.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -470,6 +528,11 @@ namespace LinkUp.Api.Data.Migrations
             modelBuilder.Entity("LinkUp.Api.Data.Entities.Group", b =>
                 {
                     b.Navigation("Members");
+                });
+
+            modelBuilder.Entity("LinkUp.Api.Data.Entities.GroupPlanRound", b =>
+                {
+                    b.Navigation("Plans");
                 });
 
             modelBuilder.Entity("LinkUp.Api.Data.Entities.Plan", b =>

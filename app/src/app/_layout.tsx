@@ -90,6 +90,7 @@ function RootNavigator() {
       <Stack.Screen name="groups" options={{ title: 'Groups' }} />
       <Stack.Screen name="new-group" options={{ title: 'New group' }} />
       <Stack.Screen name="group/[id]" options={{ title: 'Group' }} />
+      <Stack.Screen name="group-plan" options={{ title: 'Plan for the group' }} />
       <Stack.Screen name="default-preferences" options={{ title: 'Default preferences' }} />
     </Stack>
   );

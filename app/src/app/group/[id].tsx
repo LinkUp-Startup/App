@@ -75,6 +75,16 @@ export default function GroupScreen() {
         {group.myRole === 'owner' ? ' · You own this group' : ''}
       </ThemedText>
 
+      <Button
+        title="Plan a night together"
+        onPress={() =>
+          router.push({
+            pathname: '/group-plan',
+            params: { groupId: group.id, groupSize: String(group.members.length) },
+          })
+        }
+      />
+
       <Section title="Members">
         {group.members.map((member) => (
           <Row

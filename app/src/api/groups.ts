@@ -1,5 +1,12 @@
 import { apiRequest } from '@/api/client';
-import type { CreateGroupRequest, Group, GroupsResponse } from '@/types/api';
+import { GeneratePlansTimeoutMs } from '@/api/plans';
+import type {
+  CreateGroupRequest,
+  Group,
+  GroupPlanRound,
+  GroupsResponse,
+  NightPreferences,
+} from '@/types/api';
 
 /* Groups need an account: every call needs the account's access token. */
 function authorization(accessToken: string) {
@@ -30,5 +37,21 @@ export function getGroup(accessToken: string, groupId: string, signal?: AbortSig
   return apiRequest<Group>(`/api/groups/${encodeURIComponent(groupId)}`, {
     headers: authorization(accessToken),
     signal,
+  });
+}
+
+/* Generates plans for the group and saves them to it. The group size is the number of members. */
+export function generateGroupPlans(
+  accessToken: string,
+  groupId: string,
+  preferences: NightPreferences,
+  signal?: AbortSignal,
+) {
+  return apiRequest<GroupPlanRound>(`/api/groups/${encodeURIComponent(groupId)}/plans/generate`, {
+    method: 'POST',
+    body: { preferences },
+    headers: authorization(accessToken),
+    signal,
+    timeoutMs: GeneratePlansTimeoutMs,
   });
 }
