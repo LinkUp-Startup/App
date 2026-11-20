@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Linking, StyleSheet, Switch, View } from 'react-native';
+import { Alert, Linking, Platform, StyleSheet, Switch, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
@@ -27,7 +27,9 @@ export function ReminderSwitch({ plan, now }: { plan: Plan; now: Date }) {
       });
   }, [plan.id]);
 
-  if (nightMoment(plan, now).phase === 'over' || on === undefined) return null;
+  // Reminders are notifications on the phone, so the browser does not offer them.
+  if (Platform.OS === 'web' || nightMoment(plan, now).phase === 'over' || on === undefined)
+    return null;
 
   function change(value: boolean) {
     setMessage(null);
