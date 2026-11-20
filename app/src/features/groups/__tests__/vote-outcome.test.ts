@@ -62,6 +62,16 @@ describe('voteOutcome', () => {
     });
   });
 
+  it('treats results from a server that sends no winnerPlanIds as having no leader', () => {
+    const older = results() as Partial<GroupVoteResults>;
+    delete older.winnerPlanIds;
+
+    expect(voteOutcome(older as GroupVoteResults, [tapas, bowling])).toEqual({ kind: 'pending' });
+    expect(
+      voteOutcome({ ...older, closedAt: '2026-11-20T21:00:00Z' } as GroupVoteResults, [tapas]),
+    ).toEqual({ kind: 'nobody' });
+  });
+
   it('ignores a leading plan the round does not have', () => {
     expect(voteOutcome(results({ winnerPlanIds: ['gone'] }), [tapas, bowling])).toEqual({
       kind: 'pending',

@@ -348,6 +348,18 @@ describe('GroupVoteScreen', () => {
       expect(screen.queryByText('Leading')).toBeNull();
     });
 
+    it('still shows the plans when the server does not send winnerPlanIds yet', async () => {
+      const older = results({ votesCast: 1, plans: votes(1, 0) }) as Partial<GroupVoteResults>;
+      delete older.winnerPlanIds;
+      show('member', older as GroupVoteResults);
+      await render(<GroupVoteScreen />);
+
+      expect(await screen.findByText('Tapas and drinks')).toBeOnTheScreen();
+      expect(screen.getByText('Bowling night')).toBeOnTheScreen();
+      expect(screen.getByText('1 of 3 voted')).toBeOnTheScreen();
+      expect(screen.queryByText(/Winner/)).toBeNull();
+    });
+
     it('shows the leading plan once everyone has voted, while the owner can still close the vote', async () => {
       show(
         'owner',

@@ -13,7 +13,10 @@ export type VoteOutcome =
   | { kind: 'tie'; plans: Plan[]; votes: number };
 
 export function voteOutcome(results: GroupVoteResults, plans: Plan[]): VoteOutcome {
-  const leading = results.winnerPlanIds.flatMap((id) => plans.find((plan) => plan.id === id) ?? []);
+  // A server that has not been updated yet does not send winnerPlanIds. That is "no leader", not a crash.
+  const leading = (results.winnerPlanIds ?? []).flatMap(
+    (id) => plans.find((plan) => plan.id === id) ?? [],
+  );
   if (leading.length === 0)
     return results.closedAt == null ? { kind: 'pending' } : { kind: 'nobody' };
 
