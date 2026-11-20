@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 type ChipGroupProps<T extends string> = {
@@ -10,6 +10,8 @@ type ChipGroupProps<T extends string> = {
   selected: readonly T[];
   onToggle: (value: T) => void;
   invalid?: boolean;
+  /** Emoji shown before a label. Decorative only. */
+  emoji?: Partial<Record<T, string>>;
 };
 
 /** Multi-select chips. Each chip is a checkbox for screen readers. */
@@ -18,6 +20,7 @@ export function ChipGroup<T extends string>({
   selected,
   onToggle,
   invalid,
+  emoji,
 }: ChipGroupProps<T>) {
   const theme = useTheme();
 
@@ -29,19 +32,43 @@ export function ChipGroup<T extends string>({
           <Pressable
             key={value}
             accessibilityRole="checkbox"
+            accessibilityLabel={options[value]}
             accessibilityState={{ checked }}
             onPress={() => onToggle(value)}
+            // The chip is about 32px tall, as in the design; hitSlop brings the touch area up to 48px.
+            hitSlop={8}
             style={({ pressed }) => [
               styles.chip,
               {
                 backgroundColor: checked ? theme.tint : theme.backgroundElement,
-                borderColor: invalid && !checked ? theme.danger : 'transparent',
+                borderColor:
+                  invalid && !checked ? theme.danger : checked ? theme.tint : theme.border,
                 opacity: pressed ? 0.8 : 1,
               },
             ]}>
-            <ThemedText type="smallBold" style={checked ? styles.checkedLabel : undefined}>
+            {emoji?.[value] && (
+              <ThemedText
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                type="label">
+                {emoji[value]}
+              </ThemedText>
+            )}
+            <ThemedText
+              type="label"
+              style={{ color: checked ? theme.onTint : theme.textSecondary }}>
               {options[value]}
             </ThemedText>
+            {checked && (
+              // Decorative: the checked state is already announced through accessibilityState.
+              <ThemedText
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                type="label"
+                style={{ color: theme.onTint }}>
+                ✓
+              </ThemedText>
+            )}
           </Pressable>
         );
       })}
@@ -53,16 +80,16 @@ const styles = StyleSheet.create({
   group: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.two,
+    gap: Spacing.one,
   },
   chip: {
-    borderRadius: 999,
-    borderWidth: 1.5,
+    alignItems: 'center',
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: Spacing.one,
     justifyContent: 'center',
-    minHeight: 40,
     paddingHorizontal: Spacing.three,
-  },
-  checkedLabel: {
-    color: '#ffffff',
+    paddingVertical: Spacing.two,
   },
 });
