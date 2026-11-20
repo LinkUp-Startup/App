@@ -1125,6 +1125,93 @@
         ]
       }
     },
+    "/api/groups/{groupId}/plans": {
+      "get": {
+        "tags": [
+          "Groups"
+        ],
+        "summary": "The group's plans",
+        "description": "Every member sees every plan generated for the group, newest round first. 404 when the group doesn't exist or you are not a member.",
+        "parameters": [
+          {
+            "name": "groupId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupPlansResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupPlansResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupPlansResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/groups/{groupId}/plans/generate": {
       "post": {
         "tags": [
@@ -2631,6 +2718,20 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PlanDto"
+            }
+          }
+        }
+      },
+      "GroupPlansResponse": {
+        "required": [
+          "rounds"
+        ],
+        "type": "object",
+        "properties": {
+          "rounds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupPlanRoundDto"
             }
           }
         }
