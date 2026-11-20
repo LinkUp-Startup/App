@@ -89,6 +89,7 @@ builder.Services.AddScoped<IGroupService, GroupService>();
 builder.Services.AddScoped<IUserPreferencesService, UserPreferencesService>();
 builder.Services.AddScoped<IVenueService, VenueService>();
 builder.Services.AddScoped<IVenueFilteringService, VenueFilteringService>();
+builder.Services.AddScoped<PlanGenerator>();
 builder.Services.AddSingleton<IPlanCostService, PlanCostService>();
 builder.Services.AddScoped<IPlanSwapService, PlanSwapService>();
 

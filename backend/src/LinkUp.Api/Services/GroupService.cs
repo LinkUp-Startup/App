@@ -1,6 +1,7 @@
 using LinkUp.Api.Data;
 using LinkUp.Api.Data.Entities;
 using LinkUp.Api.Dtos;
+using LinkUp.Api.Planning;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
@@ -122,6 +123,62 @@ public sealed class GroupService(AppDbContext db, TimeProvider clock) : IGroupSe
 
         await transaction.CommitAsync(cancellationToken);
         return GroupActionResult.Done;
+    }
+
+    public async Task<int?> MemberCountAsync(Guid userId, Guid groupId, CancellationToken cancellationToken)
+    {
+        var members = await db.GroupMembers.AsNoTracking()
+            .Where(m => m.GroupId == groupId)
+            .Select(m => m.UserId)
+            .ToListAsync(cancellationToken);
+        return members.Contains(userId) ? members.Count : null;
+    }
+
+    public async Task<GroupPlanRoundDto?> AddPlanRoundAsync(
+        Guid userId, Guid groupId, int groupSize, IReadOnlyList<PlanDto> plans, CancellationToken cancellationToken)
+    {
+        await using var transaction = await LockAsync($"group:{groupId}", cancellationToken);
+        if (!await db.GroupMembers.AnyAsync(m => m.GroupId == groupId && m.UserId == userId, cancellationToken))
+            return null;
+
+        var now = clock.GetUtcNow();
+        var round = new GroupPlanRound
+        {
+            GroupId = groupId,
+            CreatedById = userId,
+            GroupSize = groupSize,
+            CreatedAt = now,
+            Plans = plans.Select((plan, index) => new Plan
+            {
+                // The generated id, so a member can later save the plan to their own account under the same id.
+                SourcePlanId = Guid.TryParse(plan.Id, out var id) ? id : null,
+                Title = plan.Title,
+                Summary = plan.Summary,
+                EstimatedCostPerPerson = plan.EstimatedCostPerPerson,
+                EstimatedTotalCost = plan.EstimatedTotalCost,
+                TotalDistanceKm = plan.TotalDistanceKm,
+                // A microsecond apart (what PostgreSQL keeps), so reading by CreatedAt keeps the generated order.
+                CreatedAt = now.AddTicks(index * 10),
+                Items = PlanMapping.ToItems(plan),
+            }).ToList(),
+        };
+        db.GroupPlanRounds.Add(round);
+        await db.SaveChangesAsync(cancellationToken);
+
+        // Keep only the newest rounds, so a group's plans can't grow without bound.
+        var old = await db.GroupPlanRounds
+            .Where(r => r.GroupId == groupId)
+            .OrderByDescending(r => r.CreatedAt).ThenBy(r => r.Id)
+            .Skip(GroupLimits.MaxPlanRoundsPerGroup)
+            .Select(r => r.Id)
+            .ToListAsync(cancellationToken);
+        if (old.Count > 0)
+            await db.GroupPlanRounds.Where(r => old.Contains(r.Id)).ExecuteDeleteAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        var name = await db.Users.Where(u => u.Id == userId).Select(u => u.DisplayName).SingleAsync(cancellationToken);
+        return new GroupPlanRoundDto(round.Id, round.CreatedAt, new GroupPlanAuthorDto(userId, name), groupSize, plans);
     }
 
     // The ids among userIds that are the user's (accepted) friends

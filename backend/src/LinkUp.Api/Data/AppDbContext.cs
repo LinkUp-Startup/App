@@ -11,6 +11,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<Friendship> Friendships => Set<Friendship>();
     public DbSet<Group> Groups => Set<Group>();
     public DbSet<GroupMember> GroupMembers => Set<GroupMember>();
+    public DbSet<GroupPlanRound> GroupPlanRounds => Set<GroupPlanRound>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

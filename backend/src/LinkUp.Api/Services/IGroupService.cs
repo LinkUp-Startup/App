@@ -23,6 +23,16 @@ public interface IGroupService
     /// the longest-standing member becomes the owner; when the last member leaves, the group is deleted.
     /// </summary>
     Task<GroupActionResult> RemoveMemberAsync(Guid userId, Guid groupId, Guid memberId, CancellationToken cancellationToken);
+
+    /// <summary>The number of members, which is the group size of its plans; null when the user is not a member.</summary>
+    Task<int?> MemberCountAsync(Guid userId, Guid groupId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Saves generated plans to the group as a new round, keeping only the newest rounds. Null when the user is no
+    /// longer a member (they left while the plans were being generated).
+    /// </summary>
+    Task<GroupPlanRoundDto?> AddPlanRoundAsync(
+        Guid userId, Guid groupId, int groupSize, IReadOnlyList<PlanDto> plans, CancellationToken cancellationToken);
 }
 
 public abstract record CreateGroupResult

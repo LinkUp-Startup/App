@@ -1,5 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using LinkUp.Api.Dtos;
+using LinkUp.Api.Planning;
+using LinkUp.Api.RateLimiting;
 using LinkUp.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,7 +12,7 @@ namespace LinkUp.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/groups")]
-public sealed class GroupsController(IGroupService groups) : ControllerBase
+public sealed class GroupsController(IGroupService groups, PlanGenerator generator) : ControllerBase
 {
     [HttpGet]
     [EndpointSummary("List your groups")]
@@ -94,6 +96,35 @@ public sealed class GroupsController(IGroupService groups) : ControllerBase
     {
         if (CurrentUserId() is not { } currentUserId) return Unauthorized();
         return ToResponse(await groups.RemoveMemberAsync(currentUserId, groupId, userId, cancellationToken));
+    }
+
+    [HttpPost("{groupId:guid}/plans/generate")]
+    [AiGeneration]
+    [EndpointSummary("Generate plans for the group")]
+    [EndpointDescription(
+        "Like /api/plans/generate, but the group size is the number of members (the request's groupSize is " +
+        "ignored) and the plans are saved to the group. 404 when you are not a member; 400, 422 and 502 as for " +
+        "/api/plans/generate, and nothing is saved then.")]
+    [ProducesResponseType<GroupPlanRoundDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<CandidateAvailabilityProblem>(StatusCodes.Status422UnprocessableEntity, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status502BadGateway, "application/problem+json")]
+    public async Task<ActionResult<GroupPlanRoundDto>> GeneratePlans(
+        Guid groupId, GeneratePlansRequest request, CancellationToken cancellationToken)
+    {
+        if (CurrentUserId() is not { } userId) return Unauthorized();
+        if (await groups.MemberCountAsync(userId, groupId, cancellationToken) is not { } groupSize)
+            return GroupNotFound();
+
+        var result = await generator.GenerateAsync(request.Preferences with { GroupSize = groupSize }, cancellationToken);
+        if (result is not PlanGenerationResult.Generated generated) return PlanGenerationResponses.Failure(this, result);
+
+        return await groups.AddPlanRoundAsync(userId, groupId, groupSize, generated.Plans, cancellationToken) is { } round
+            ? Ok(round)
+            : GroupNotFound(); // left the group while the plans were being generated
     }
 
     private IActionResult ToResponse(GroupActionResult result) => result switch

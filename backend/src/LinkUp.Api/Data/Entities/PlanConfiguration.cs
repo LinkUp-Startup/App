@@ -16,6 +16,7 @@ public sealed class PlanConfiguration : IEntityTypeConfiguration<Plan>
             table.HasCheckConstraint("CK_Plans_EstimatedCostPerPerson", "\"EstimatedCostPerPerson\" >= 0");
             table.HasCheckConstraint("CK_Plans_EstimatedTotalCost", "\"EstimatedTotalCost\" >= 0");
             table.HasCheckConstraint("CK_Plans_TotalDistanceKm", "\"TotalDistanceKm\" >= 0");
+            table.HasCheckConstraint("CK_Plans_AccountOrGroup", "\"UserId\" IS NULL OR \"GroupPlanRoundId\" IS NULL");
         });
         builder.HasKey(p => p.Id);
         builder.HasIndex(p => new { p.UserId, p.SourcePlanId }).IsUnique()

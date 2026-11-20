@@ -5,6 +5,7 @@ using LinkUp.Api.Data;
 using LinkUp.Api.Data.Entities;
 using LinkUp.Api.Dtos;
 using LinkUp.Api.Options;
+using LinkUp.Api.Planning;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Options;
@@ -47,13 +48,13 @@ public sealed class SavedPlanService(AppDbContext db, TimeProvider clock, IOptio
         if (errors.Count > 0) return new SavePlanResult.Invalid(errors);
 
         // The venue's name, address and position come from the database, never from the request.
-        var venueIds = plan.Items.Select(i => VenueId(i.Venue.Id)).Distinct().ToList();
+        var venueIds = plan.Items.Select(i => PlanMapping.VenueId(i.Venue.Id)).Distinct().ToList();
         var venues = await db.Venues.AsNoTracking()
             .Where(v => venueIds.Contains(v.Id))
             .ToDictionaryAsync(v => v.Id, cancellationToken);
         for (var i = 0; i < StopCount(plan); i++)
         {
-            if (!venues.ContainsKey(VenueId(plan.Items[i].Venue.Id)))
+            if (!venues.ContainsKey(PlanMapping.VenueId(plan.Items[i].Venue.Id)))
                 errors[$"Items[{i}].Venue"] = ["This venue does not exist."];
         }
         if (errors.Count > 0) return new SavePlanResult.Invalid(errors);
@@ -91,16 +92,7 @@ public sealed class SavedPlanService(AppDbContext db, TimeProvider clock, IOptio
             // A shared plan keeps its link when it is saved again.
             ShareToken = existing?.ShareToken,
             CreatedAt = clock.GetUtcNow(),
-            Items = plan.Items.Select((item, position) => new PlanItem
-            {
-                Position = position,
-                VenueId = VenueId(item.Venue.Id),
-                Activity = item.Venue.Category,
-                StartTime = item.StartTime,
-                EndTime = item.EndTime,
-                EstimatedCostPerPerson = item.EstimatedCostPerPerson,
-                DistanceKm = item.DistanceKm,
-            }).ToList(),
+            Items = PlanMapping.ToItems(plan),
         };
         db.Plans.Add(saved);
         await db.SaveChangesAsync(cancellationToken);
@@ -160,10 +152,6 @@ public sealed class SavedPlanService(AppDbContext db, TimeProvider clock, IOptio
     // The number of stops comes from the request. Validate rejects more than MaxItems; this keeps every loop
     // over the stops bounded by that limit on its own, whatever the caller sent.
     private static int StopCount(PlanDto plan) => Math.Min(plan.Items.Count, MaxItems);
-
-    // -1 never matches a venue, so a malformed id is reported as an unknown venue.
-    private static int VenueId(string id) =>
-        int.TryParse(id, NumberStyles.None, CultureInfo.InvariantCulture, out var venueId) ? venueId : -1;
 
     private static Dictionary<string, string[]> Validate(PlanDto plan, Guid planId)
     {
