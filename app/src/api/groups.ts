@@ -59,6 +59,22 @@ export function addGroupMember(
   );
 }
 
+/*
+ * Removes a member from the group; only the group's owner can (403 otherwise). With your own id you leave the
+ * group instead. 204 also when the user was not a member, 404 when the group doesn't exist or you are not a member.
+ */
+export function removeGroupMember(
+  accessToken: string,
+  groupId: string,
+  userId: string,
+  signal?: AbortSignal,
+) {
+  return apiRequest<void>(
+    `/api/groups/${encodeURIComponent(groupId)}/members/${encodeURIComponent(userId)}`,
+    { method: 'DELETE', headers: authorization(accessToken), signal },
+  );
+}
+
 /* The group's plans, newest round first. 404 when you are not a member */
 export function listGroupPlans(accessToken: string, groupId: string, signal?: AbortSignal) {
   return apiRequest<GroupPlansResponse>(`/api/groups/${encodeURIComponent(groupId)}/plans`, {

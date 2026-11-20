@@ -1,21 +1,46 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { removeGroupMember } from '@/api/groups';
 import { Button } from '@/components/button';
+import { ErrorNote } from '@/components/error-note';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-context';
+import { describeGroupError } from '@/features/groups/errors';
 import { memberCount, roundLine } from '@/features/groups/format';
-import { Row, Section } from '@/features/groups/group-row';
+import { Section } from '@/features/groups/group-row';
+import { MemberRow } from '@/features/groups/member-row';
 import { useGroup } from '@/features/groups/use-group';
 import { PlanCard } from '@/features/plans/plan-card';
 
-/* A group: its plans, newest first, and its members, the owner first */
+/* A group: its plans, newest first, and its members, the owner first. The owner can remove members. */
 export default function GroupScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { accessToken, user } = useAuth();
-  const { group, rounds, error, reload } = useGroup(accessToken, id);
+  const { group, rounds, error, reload, refresh } = useGroup(accessToken, id);
+  // The member the owner is asked to confirm removing, the one being removed, and why a removal failed
+  const [confirming, setConfirming] = useState<string>();
+  const [removing, setRemoving] = useState<string>();
+  const [removeError, setRemoveError] = useState<string>();
+
+  async function remove(memberId: string) {
+    if (!accessToken || !id) return;
+    setRemoving(memberId);
+    setRemoveError(undefined);
+    try {
+      await removeGroupMember(accessToken, id, memberId);
+      setConfirming(undefined);
+      await refresh();
+    } catch (caught) {
+      setConfirming(undefined);
+      setRemoveError(describeGroupError(caught));
+    } finally {
+      setRemoving(undefined);
+    }
+  }
 
   if (!accessToken) {
     return (
@@ -89,13 +114,32 @@ export default function GroupScreen() {
       </Section>
 
       <Section title="Members">
-        {group.members.map((member) => (
-          <Row
-            key={member.userId}
-            name={member.userId === user?.id ? `${member.displayName} (you)` : member.displayName}
-            detail={member.role === 'owner' ? 'Owner' : undefined}
-          />
-        ))}
+        {removeError && <ErrorNote>{removeError}</ErrorNote>}
+        {group.members.map((member) => {
+          const isMe = member.userId === user?.id;
+          return (
+            <MemberRow
+              key={member.userId}
+              name={isMe ? `${member.displayName} (you)` : member.displayName}
+              detail={member.role === 'owner' ? 'Owner' : undefined}
+              // Only the owner removes members, and never themselves: leaving is a different thing
+              removal={
+                group.myRole === 'owner' && !isMe
+                  ? {
+                      confirming: confirming === member.userId,
+                      removing: removing === member.userId,
+                      onAsk: () => {
+                        setRemoveError(undefined);
+                        setConfirming(member.userId);
+                      },
+                      onConfirm: () => remove(member.userId),
+                      onCancel: () => setConfirming(undefined),
+                    }
+                  : undefined
+              }
+            />
+          );
+        })}
         <Button
           title="Add friends to the group"
           variant="secondary"
