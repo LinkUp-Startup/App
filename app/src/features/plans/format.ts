@@ -48,16 +48,6 @@ export function planDuration(plan: Plan) {
   return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
 }
 
-/** Stop count, estimated per-person cost and distance. */
-export function planSummaryLine(plan: Plan) {
-  const stops = `${plan.items.length} ${plan.items.length === 1 ? 'stop' : 'stops'}`;
-  const cost =
-    plan.estimatedCostPerPerson == null
-      ? 'price unknown'
-      : `estimated ${formatEuros(plan.estimatedCostPerPerson)} per person`;
-  return `${stops} · ${cost} · ${formatDistance(plan.totalDistanceKm)}`;
-}
-
 /** Google Maps directions to a stop; opens the Maps app when installed. */
 export function directionsUrl(latitude: number, longitude: number) {
   return `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
