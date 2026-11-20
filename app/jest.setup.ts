@@ -28,6 +28,21 @@ jest.mock('expo-secure-store', () => {
   };
 });
 
+// Closing the keyboard when a screen loses focus needs a navigator to say when that happens. Tests render screens
+// without one, so it does nothing by default; hooks/__tests__/use-dismiss-keyboard-on-blur.test.tsx tests it.
+jest.mock('@/hooks/use-dismiss-keyboard-on-blur', () => ({ useDismissKeyboardOnBlur: () => {} }));
+
+// The icon font is a native asset the test environment cannot load. The stand-in renders the icon's name as a
+// plain text, so tests never depend on the font, and icons stay out of the way of the labels around them.
+jest.mock('@expo/vector-icons/Ionicons', () => {
+  const React = jest.requireActual<typeof import('react')>('react');
+  const { Text } = jest.requireActual<typeof import('react-native')>('react-native');
+  // The real icon passes its extra props (such as the accessibility ones) on to its text, so this does too.
+  const Ionicons = ({ name, size: _size, color: _color, ...rest }: Record<string, unknown>) =>
+    React.createElement(Text, rest, `[${String(name)}]`);
+  return { __esModule: true, default: Ionicons };
+});
+
 // The map is native code. Stand-ins render plain views with the props, so tests can press the map and read the
 // marker and circle; `animateToRegion` is a mock so tests can check the map follows the start point.
 jest.mock('react-native-maps', () => {
