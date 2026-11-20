@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 
 import { formatTime } from '@/components/form/format-time';
 import { formatDistance } from '@/features/plans/format';
@@ -44,6 +45,8 @@ export function planReminders(plan: Plan, now: Date): Reminder[] {
 }
 
 async function scheduledFor(planId: string) {
+  // The browser has no notification schedule to read, and asking for it throws.
+  if (Platform.OS === 'web') return [];
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   return scheduled.filter((request) => request.identifier.startsWith(prefix(planId)));
 }
@@ -60,6 +63,8 @@ export async function turnOffReminders(planId: string): Promise<void> {
 export type TurnOnResult = 'on' | 'denied' | 'nothing-left';
 
 export async function turnOnReminders(plan: Plan, now = new Date()): Promise<TurnOnResult> {
+  // Reminders need the phone; the browser cannot schedule them.
+  if (Platform.OS === 'web') return 'denied';
   let permission = await Notifications.getPermissionsAsync();
   if (!permission.granted && permission.canAskAgain)
     permission = await Notifications.requestPermissionsAsync();
