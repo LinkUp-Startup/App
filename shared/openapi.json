@@ -1125,6 +1125,93 @@
         ]
       }
     },
+    "/api/groups/{groupId}/rounds": {
+      "get": {
+        "tags": [
+          "Groups"
+        ],
+        "summary": "The group's rounds of plans",
+        "description": "Every round generated for the group (the newest 20 are kept), newest first, each with its plans in the order they were generated. 404 when the group doesn't exist or you are not a member.",
+        "parameters": [
+          {
+            "name": "groupId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupPlanRoundsResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupPlanRoundsResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupPlanRoundsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/groups/{groupId}/plans/generate": {
       "post": {
         "tags": [
@@ -3011,6 +3098,20 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PlanDto"
+            }
+          }
+        }
+      },
+      "GroupPlanRoundsResponse": {
+        "required": [
+          "rounds"
+        ],
+        "type": "object",
+        "properties": {
+          "rounds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupPlanRoundDto"
             }
           }
         }

@@ -841,6 +841,71 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/groups/{groupId}/rounds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The group's rounds of plans
+         * @description Every round generated for the group (the newest 20 are kept), newest first, each with its plans in the order they were generated. 404 when the group doesn't exist or you are not a member.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    groupId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["GroupPlanRoundsResponse"];
+                        "application/json": components["schemas"]["GroupPlanRoundsResponse"];
+                        "text/json": components["schemas"]["GroupPlanRoundsResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/groups/{groupId}/plans/generate": {
         parameters: {
             query?: never;
@@ -2061,6 +2126,9 @@ export interface components {
             /** Format: int32 */
             groupSize: number;
             plans: components["schemas"]["PlanDto"][];
+        };
+        GroupPlanRoundsResponse: {
+            rounds: components["schemas"]["GroupPlanRoundDto"][];
         };
         /** @enum {unknown} */
         GroupRole: "owner" | "member";

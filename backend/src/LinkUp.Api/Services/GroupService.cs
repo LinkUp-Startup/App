@@ -134,6 +134,38 @@ public sealed class GroupService(AppDbContext db, TimeProvider clock) : IGroupSe
         return members.Contains(userId) ? members.Count : null;
     }
 
+    public async Task<IReadOnlyList<GroupPlanRoundDto>?> ListPlanRoundsAsync(
+        Guid userId, Guid groupId, CancellationToken cancellationToken)
+    {
+        if (!await db.GroupMembers.AnyAsync(m => m.GroupId == groupId && m.UserId == userId, cancellationToken))
+            return null;
+
+        var rounds = await db.GroupPlanRounds.AsNoTracking()
+            .Where(r => r.GroupId == groupId)
+            .OrderByDescending(r => r.CreatedAt).ThenBy(r => r.Id)
+            .Include(r => r.Plans).ThenInclude(p => p.Items).ThenInclude(i => i.Venue)
+            .AsSplitQuery()
+            .ToListAsync(cancellationToken);
+
+        var authorIds = rounds.Select(r => r.CreatedById).OfType<Guid>().Distinct().ToList();
+        var names = await db.Users.AsNoTracking()
+            .Where(u => authorIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.DisplayName, cancellationToken);
+
+        return
+        [
+            .. rounds.Select(r => new GroupPlanRoundDto(
+                r.Id,
+                r.CreatedAt,
+                r.CreatedById is { } authorId && names.TryGetValue(authorId, out var name)
+                    ? new GroupPlanAuthorDto(authorId, name)
+                    : null,
+                r.GroupSize,
+                // In the order they were generated (see AddPlanRoundAsync)
+                [.. r.Plans.OrderBy(p => p.CreatedAt).ThenBy(p => p.Id).Select(PlanMapping.ToDto)])),
+        ];
+    }
+
     public async Task<GroupPlanRoundDto?> AddPlanRoundAsync(
         Guid userId, Guid groupId, int groupSize, IReadOnlyList<PlanDto> plans, CancellationToken cancellationToken)
     {

@@ -27,6 +27,9 @@ public interface IGroupService
     /// <summary>The number of members, which is the group size of its plans; null when the user is not a member.</summary>
     Task<int?> MemberCountAsync(Guid userId, Guid groupId, CancellationToken cancellationToken);
 
+    /// <summary>The group's rounds of plans, newest first (at most the newest 20 are kept); null when the user is not a member.</summary>
+    Task<IReadOnlyList<GroupPlanRoundDto>?> ListPlanRoundsAsync(Guid userId, Guid groupId, CancellationToken cancellationToken);
+
     /// <summary>
     /// Saves generated plans to the group as a new round, keeping only the newest rounds. Null when the user is no
     /// longer a member (they left while the plans were being generated).
