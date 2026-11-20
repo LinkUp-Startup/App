@@ -57,6 +57,7 @@ const results = (over: Partial<GroupVoteResults> = {}): GroupVoteResults => ({
     { planId: 'p1', votes: 0 },
     { planId: 'p2', votes: 0 },
   ],
+  winnerPlanIds: [],
   ...over,
 });
 
@@ -327,6 +328,127 @@ describe('GroupVoteScreen', () => {
     await user.press(screen.getByRole('button', { name: 'Yes, close the vote' }));
 
     expect(await screen.findByText("Only the group's owner can close the vote.")).toBeOnTheScreen();
+  });
+
+  describe('the outcome', () => {
+    const closedAt = '2026-11-20T21:00:00Z';
+    const votes = (p1: number, p2: number) => [
+      { planId: 'p1', votes: p1 },
+      { planId: 'p2', votes: p2 },
+    ];
+
+    it('shows no outcome while the vote is open and members are still to vote', async () => {
+      show('member', results({ votesCast: 1, plans: votes(1, 0) }));
+      await render(<GroupVoteScreen />);
+
+      await screen.findByText('Tapas and drinks');
+
+      expect(screen.queryByText(/Winner/)).toBeNull();
+      expect(screen.queryByText("It's a tie")).toBeNull();
+      expect(screen.queryByText('Leading')).toBeNull();
+    });
+
+    it('shows the leading plan once everyone has voted, while the owner can still close the vote', async () => {
+      show(
+        'owner',
+        results({ votesCast: 3, plans: votes(2, 1), winnerPlanIds: ['p1'], myVotePlanId: 'p1' }),
+      );
+      await render(<GroupVoteScreen />);
+
+      expect(await screen.findByText('Winner: Tapas and drinks')).toBeOnTheScreen();
+      expect(screen.getByText(/Everyone has voted and it leads with 2 votes/)).toBeOnTheScreen();
+      expect(screen.getByText(/Until then, votes can change/)).toBeOnTheScreen();
+      expect(screen.getByText('Leading')).toBeOnTheScreen();
+      // Still open: votes can be changed and the vote closed
+      expect(screen.getByRole('button', { name: 'Change my vote to Bowling night' })).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Close the vote' })).toBeOnTheScreen();
+      expect(screen.queryByRole('button', { name: 'Plan another night' })).toBeNull();
+    });
+
+    it('shows the winner of a closed vote as final', async () => {
+      show(
+        'member',
+        results({ closedAt, votesCast: 2, plans: votes(0, 2), winnerPlanIds: ['p2'] }),
+      );
+      await render(<GroupVoteScreen />);
+
+      expect(await screen.findByText('Winner: Bowling night')).toBeOnTheScreen();
+      expect(screen.getByText('The group chose it with 2 votes.')).toBeOnTheScreen();
+      expect(screen.getByText('Winner')).toBeOnTheScreen();
+      expect(screen.queryByText('Leading')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Plan another night' })).toBeNull();
+    });
+
+    it('explains a tie that is still open and how to break it', async () => {
+      show('member', results({ votesCast: 2, plans: votes(1, 1), winnerPlanIds: ['p1', 'p2'] }));
+      await render(<GroupVoteScreen />);
+
+      expect(await screen.findByText("It's a tie")).toBeOnTheScreen();
+      expect(
+        screen.getByText(
+          /Tapas and drinks and Bowling night each have 1 vote\. Change a vote to break the tie/,
+        ),
+      ).toBeOnTheScreen();
+      expect(screen.getAllByText('Tied for first')).toHaveLength(2);
+      expect(screen.queryByRole('button', { name: 'Plan another night' })).toBeNull();
+    });
+
+    it('explains a closed tie and offers another night', async () => {
+      show(
+        'member',
+        results({ closedAt, votesCast: 2, plans: votes(1, 1), winnerPlanIds: ['p1', 'p2'] }),
+      );
+      const user = userEvent.setup();
+      await render(<GroupVoteScreen />);
+
+      expect(await screen.findByText("It's a tie")).toBeOnTheScreen();
+      expect(
+        screen.getByText(/There is no deciding vote, so it's up to the group/),
+      ).toBeOnTheScreen();
+      expect(screen.getAllByText('Tied for first')).toHaveLength(2);
+      await user.press(screen.getByRole('button', { name: 'Plan another night' }));
+
+      expect(router.push).toHaveBeenCalledWith({
+        pathname: '/group-plan',
+        params: { groupId: 'g1', groupSize: '3' },
+      });
+    });
+
+    it('says when a vote was closed before anyone voted', async () => {
+      show('owner', results({ closedAt }));
+      await render(<GroupVoteScreen />);
+
+      expect(await screen.findByText('No winner')).toBeOnTheScreen();
+      expect(screen.getByText('The vote was closed before anyone voted.')).toBeOnTheScreen();
+      expect(screen.getByRole('button', { name: 'Plan another night' })).toBeOnTheScreen();
+    });
+
+    it('shows the outcome as soon as the last vote or the closing comes in', async () => {
+      show('owner', results({ votesCast: 2, plans: votes(1, 1) }));
+      jest
+        .mocked(castVote)
+        .mockResolvedValue(
+          results({ votesCast: 3, plans: votes(2, 1), winnerPlanIds: ['p1'], myVotePlanId: 'p1' }),
+        );
+      jest
+        .mocked(closeVote)
+        .mockResolvedValue(
+          results({ closedAt, votesCast: 3, plans: votes(2, 1), winnerPlanIds: ['p1'] }),
+        );
+      const user = userEvent.setup();
+      await render(<GroupVoteScreen />);
+      await screen.findByText('Tapas and drinks');
+      expect(screen.queryByText('Winner: Tapas and drinks')).toBeNull();
+
+      await user.press(screen.getByRole('button', vote('Tapas and drinks')));
+      expect(await screen.findByText('Winner: Tapas and drinks')).toBeOnTheScreen();
+      expect(screen.getByText('Leading')).toBeOnTheScreen();
+
+      await user.press(screen.getByRole('button', { name: 'Close the vote' }));
+      await user.press(screen.getByRole('button', { name: 'Yes, close the vote' }));
+      expect(await screen.findByText('The group chose it with 2 votes.')).toBeOnTheScreen();
+      expect(screen.getByText('Winner')).toBeOnTheScreen();
+    });
   });
 
   it('refreshes the results on request', async () => {
