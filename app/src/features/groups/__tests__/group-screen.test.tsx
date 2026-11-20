@@ -11,7 +11,7 @@ import { crew, roundByBob } from './fixtures/groups';
 
 const mockParams: { id?: string } = { id: 'g1' };
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn() },
+  router: { push: jest.fn(), replace: jest.fn() },
   useLocalSearchParams: () => mockParams,
   useFocusEffect: (effect: () => void | (() => void)) =>
     jest.requireActual<typeof import('react')>('react').useEffect(effect, [effect]),
@@ -328,5 +328,142 @@ describe('removing members', () => {
 
     expect(screen.queryByText(/no longer exists/)).toBeNull();
     expect(screen.getByText('Remove Bob from the group?')).toBeOnTheScreen();
+  });
+});
+
+describe('leaving the group', () => {
+  const leave = { name: 'Leave group' };
+  const asMember = () => {
+    mockAuth.user = { id: 'u2' };
+    jest.mocked(getGroup).mockResolvedValue({ ...crew, myRole: 'member' });
+  };
+
+  it.each([
+    ['the owner', 'u1', 'owner'],
+    ['a member', 'u2', 'member'],
+  ] as const)('lets %s leave', async (_who, userId, myRole) => {
+    mockAuth.user = { id: userId };
+    jest.mocked(getGroup).mockResolvedValue({ ...crew, myRole });
+    await render(<GroupScreen />);
+
+    expect(await screen.findByRole('button', leave)).toBeOnTheScreen();
+  });
+
+  it('asks to confirm first and leaves nothing until it is confirmed', async () => {
+    asMember();
+    const user = userEvent.setup();
+    await render(<GroupScreen />);
+
+    await user.press(await screen.findByRole('button', leave));
+
+    expect(screen.getByText('Leave Friday crew?')).toBeOnTheScreen();
+    expect(screen.getByText(/You will no longer see its plans or vote/)).toBeOnTheScreen();
+    expect(removeGroupMember).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', leave)).toBeNull();
+  });
+
+  it('says what happens when the owner leaves a group with other members', async () => {
+    const user = userEvent.setup();
+    await render(<GroupScreen />);
+
+    await user.press(await screen.findByRole('button', leave));
+
+    expect(
+      screen.getByText(
+        /You own this group\. When you leave, the member who has been in it the longest becomes the owner/,
+      ),
+    ).toBeOnTheScreen();
+  });
+
+  it('says the group is deleted when the last member leaves', async () => {
+    jest.mocked(getGroup).mockResolvedValue({ ...crew, members: [crew.members[0]] });
+    const user = userEvent.setup();
+    await render(<GroupScreen />);
+
+    await user.press(await screen.findByRole('button', leave));
+
+    expect(
+      screen.getByText('You are the only member, so the group and its plans will be deleted.'),
+    ).toBeOnTheScreen();
+  });
+
+  it('stays in the group when the person changes their mind', async () => {
+    asMember();
+    const user = userEvent.setup();
+    await render(<GroupScreen />);
+
+    await user.press(await screen.findByRole('button', leave));
+    await user.press(screen.getByRole('button', { name: 'Stay in the group' }));
+
+    expect(removeGroupMember).not.toHaveBeenCalled();
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(screen.queryByText('Leave Friday crew?')).toBeNull();
+    expect(screen.getByRole('button', leave)).toBeOnTheScreen();
+  });
+
+  it('leaves with their own id and goes to the list of groups', async () => {
+    asMember();
+    jest.mocked(removeGroupMember).mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    await render(<GroupScreen />);
+
+    await user.press(await screen.findByRole('button', leave));
+    await user.press(screen.getByRole('button', { name: 'Yes, leave Friday crew' }));
+
+    expect(removeGroupMember).toHaveBeenCalledWith('token-1', 'g1', 'u2');
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/groups'));
+  });
+
+  it('shows that leaving is on its way and does not leave twice', async () => {
+    asMember();
+    let finish!: () => void;
+    jest.mocked(removeGroupMember).mockReturnValue(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const user = userEvent.setup();
+    await render(<GroupScreen />);
+    await user.press(await screen.findByRole('button', leave));
+
+    await user.press(screen.getByRole('button', { name: 'Yes, leave Friday crew' }));
+
+    expect(screen.getByText('Leaving…')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Yes, leave Friday crew' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Stay in the group' })).toBeDisabled();
+    expect(router.replace).not.toHaveBeenCalled();
+    finish();
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/groups'));
+    expect(removeGroupMember).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows why leaving failed and keeps the person in the group', async () => {
+    asMember();
+    jest.mocked(removeGroupMember).mockRejectedValue(new ApiError(404, ''));
+    const user = userEvent.setup();
+    await render(<GroupScreen />);
+
+    await user.press(await screen.findByRole('button', leave));
+    await user.press(screen.getByRole('button', { name: 'Yes, leave Friday crew' }));
+
+    expect(await screen.findByText(/no longer exists/)).toBeOnTheScreen();
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(screen.queryByText('Leave Friday crew?')).toBeNull();
+    expect(screen.getByRole('button', leave)).toBeEnabled();
+  });
+
+  it('clears the error of a failed leave when the person tries again', async () => {
+    asMember();
+    jest.mocked(removeGroupMember).mockRejectedValue(new ApiError(404, ''));
+    const user = userEvent.setup();
+    await render(<GroupScreen />);
+    await user.press(await screen.findByRole('button', leave));
+    await user.press(screen.getByRole('button', { name: 'Yes, leave Friday crew' }));
+    expect(await screen.findByText(/no longer exists/)).toBeOnTheScreen();
+
+    await user.press(screen.getByRole('button', leave));
+
+    expect(screen.queryByText(/no longer exists/)).toBeNull();
+    expect(screen.getByText('Leave Friday crew?')).toBeOnTheScreen();
   });
 });
