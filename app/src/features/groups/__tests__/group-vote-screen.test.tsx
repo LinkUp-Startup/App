@@ -451,6 +451,40 @@ describe('GroupVoteScreen', () => {
     });
   });
 
+  it('counts a plan the results do not list as having no votes', async () => {
+    show(
+      'member',
+      results({ votesCast: 1, myVotePlanId: 'p1', plans: [{ planId: 'p1', votes: 1 }] }),
+    );
+    await render(<GroupVoteScreen />);
+
+    await screen.findByText('Tapas and drinks');
+
+    expect(screen.getByText('1 vote')).toBeOnTheScreen();
+    expect(screen.getByText('0 votes')).toBeOnTheScreen();
+  });
+
+  it('cancels loading when you leave the screen, and ignores a failure that comes late', async () => {
+    let fail!: (error: unknown) => void;
+    jest.mocked(getGroup).mockReturnValue(
+      new Promise((_, reject) => {
+        fail = reject;
+      }),
+    );
+    jest.mocked(listGroupRounds).mockResolvedValue({ rounds: [round] });
+    const view = await render(<GroupVoteScreen />);
+    const signal = jest.mocked(getGroup).mock.calls[0][2];
+    expect(signal?.aborted).toBe(false);
+
+    await view.unmount();
+
+    expect(signal?.aborted).toBe(true);
+    fail(new ApiError(500, ''));
+    // Nothing is left to show it on, and the late failure must not throw
+    await Promise.resolve();
+    expect(getVoteResults).not.toHaveBeenCalled();
+  });
+
   it('refreshes the results on request', async () => {
     jest.mocked(getGroup).mockResolvedValue(groupAs('member'));
     jest.mocked(listGroupRounds).mockResolvedValue({ rounds: [round] });

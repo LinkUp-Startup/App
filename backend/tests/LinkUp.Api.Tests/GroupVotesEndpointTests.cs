@@ -1,9 +1,13 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Claims;
+using System.Text;
 using System.Text.Json;
 using LinkUp.Api.Data.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.JsonWebTokens;
+using Microsoft.IdentityModel.Tokens;
 
 namespace LinkUp.Api.Tests;
 
@@ -99,6 +103,36 @@ public sealed class GroupVotesEndpointTests(AuthApiFactory factory) : IClassFixt
         await AssertStatusAsync(HttpStatusCode.Unauthorized, anonymous.GetAsync(Url(round, "votes")));
         await AssertStatusAsync(HttpStatusCode.Unauthorized, anonymous.PutAsJsonAsync(Url(round, "votes/me"), new { planId = round.PlanA }));
         await AssertStatusAsync(HttpStatusCode.Unauthorized, anonymous.PostAsync(Url(round, "close"), null));
+    }
+
+    // A token the API accepts (right key, issuer and audience, not expired) but that names no usable account
+    private static string SignedToken(string? subject) => new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
+    {
+        Issuer = TestJwt.Issuer,
+        Audience = TestJwt.Audience,
+        Subject = new ClaimsIdentity(subject is null ? [] : [new Claim("sub", subject)]),
+        Expires = DateTime.UtcNow.AddMinutes(10),
+        SigningCredentials = new SigningCredentials(
+            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(TestJwt.SigningKey)), SecurityAlgorithms.HmacSha256),
+    });
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("not-a-guid")]
+    public async Task A_valid_token_that_names_no_account_is_unauthorized_everywhere(string? subject)
+    {
+        var owner = await NewAccountAsync();
+        var round = await NewRoundAsync(owner);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", SignedToken(subject));
+
+        await AssertStatusAsync(HttpStatusCode.Unauthorized, client.GetAsync(Url(round, "votes")));
+        await AssertStatusAsync(HttpStatusCode.Unauthorized, client.PutAsJsonAsync(Url(round, "votes/me"), new { planId = round.PlanA }));
+        await AssertStatusAsync(HttpStatusCode.Unauthorized, client.PostAsync(Url(round, "close"), null));
+        await AssertStatusAsync(HttpStatusCode.Unauthorized, client.GetAsync($"/api/groups/{round.GroupId}/rounds"));
+        // Nothing was changed by the refused requests
+        Assert.Equal(0, (await ResultsAsync(owner, round)).GetProperty("votesCast").GetInt32());
+        Assert.Equal(JsonValueKind.Null, (await ResultsAsync(owner, round)).GetProperty("closedAt").ValueKind);
     }
 
     [Fact]
@@ -306,6 +340,40 @@ public sealed class GroupVotesEndpointTests(AuthApiFactory factory) : IClassFixt
         await AssertStatusAsync(HttpStatusCode.NotFound, VoteAsync(owner, round, Guid.Empty));
         await AssertStatusAsync(HttpStatusCode.NotFound, VoteAsync(owner, round, other.PlanA));
         Assert.Equal(0, (await ResultsAsync(owner, round)).GetProperty("votesCast").GetInt32());
+    }
+
+    [Fact]
+    public async Task The_plan_ids_of_the_rounds_list_are_the_ones_to_vote_with_and_the_ones_in_the_results()
+    {
+        var (owner, ann) = (await NewAccountAsync(), await NewAccountAsync());
+        var round = await NewRoundAsync(owner, ann);
+        using var listed = await ann.Client.GetAsync($"/api/groups/{round.GroupId}/rounds");
+        var listedRound = (await ReadAsync(listed)).GetProperty("rounds").EnumerateArray().Single();
+        var listedPlanIds = listedRound.GetProperty("plans").EnumerateArray()
+            .Select(p => Guid.Parse(p.GetProperty("id").GetString()!)).ToArray();
+
+        var results = await ReadAsync(await VoteAsync(ann, round, listedPlanIds[1]));
+
+        Assert.Equal(listedRound.GetProperty("id").GetGuid(), results.GetProperty("roundId").GetGuid());
+        Assert.Equal(
+            listedPlanIds,
+            results.GetProperty("plans").EnumerateArray().Select(p => p.GetProperty("planId").GetGuid()));
+        Assert.Equal(listedPlanIds[1], results.GetProperty("myVotePlanId").GetGuid());
+        Assert.Equal([0, 1], VotesPerPlan(results));
+    }
+
+    [Fact]
+    public async Task A_round_that_was_deleted_is_not_found()
+    {
+        var (owner, ann) = (await NewAccountAsync(), await NewAccountAsync());
+        var round = await NewRoundAsync(owner, ann);
+        await ReadAsync(await VoteAsync(ann, round, round.PlanA));
+
+        await factory.WithDbAsync(db => db.GroupPlanRounds.Where(r => r.Id == round.RoundId).ExecuteDeleteAsync());
+
+        await AssertStatusAsync(HttpStatusCode.NotFound, ann.Client.GetAsync(Url(round, "votes")));
+        await AssertStatusAsync(HttpStatusCode.NotFound, VoteAsync(ann, round, round.PlanA));
+        await AssertStatusAsync(HttpStatusCode.NotFound, owner.Client.PostAsync(Url(round, "close"), null));
     }
 
     [Fact]
