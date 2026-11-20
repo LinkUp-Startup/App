@@ -133,6 +133,9 @@ namespace LinkUp.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("ClosedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -156,6 +159,39 @@ namespace LinkUp.Api.Data.Migrations
                     b.ToTable("GroupPlanRounds", null, t =>
                         {
                             t.HasCheckConstraint("CK_GroupPlanRounds_GroupSize", "\"GroupSize\" BETWEEN 1 AND 20");
+                        });
+                });
+
+            modelBuilder.Entity("LinkUp.Api.Data.Entities.GroupPlanVote", b =>
+                {
+                    b.Property<Guid>("GroupPlanRoundId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("PlanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("GroupPlanRoundId", "UserId");
+
+                    b.HasIndex("PlanId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("GroupPlanVotes", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_GroupPlanVotes_UpdatedAt", "\"UpdatedAt\" >= \"CreatedAt\"");
                         });
                 });
 
@@ -482,6 +518,27 @@ namespace LinkUp.Api.Data.Migrations
                     b.HasOne("LinkUp.Api.Data.Entities.Group", null)
                         .WithMany()
                         .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LinkUp.Api.Data.Entities.GroupPlanVote", b =>
+                {
+                    b.HasOne("LinkUp.Api.Data.Entities.GroupPlanRound", null)
+                        .WithMany()
+                        .HasForeignKey("GroupPlanRoundId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("LinkUp.Api.Data.Entities.Plan", null)
+                        .WithMany()
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("LinkUp.Api.Data.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
