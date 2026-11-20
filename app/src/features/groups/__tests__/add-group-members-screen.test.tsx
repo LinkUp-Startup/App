@@ -180,6 +180,27 @@ describe('AddGroupMembersScreen', () => {
     expect(screen.getByRole('button', { name: 'Find friends' })).toBeOnTheScreen();
   });
 
+  it('cancels loading when you leave the screen, and ignores a failure that comes late', async () => {
+    let fail!: (error: unknown) => void;
+    jest.mocked(getGroup).mockReturnValue(
+      new Promise((_, reject) => {
+        fail = reject;
+      }),
+    );
+    jest.mocked(listFriends).mockResolvedValue({ friends: [carla], incoming: [], outgoing: [] });
+    const view = await render(<AddGroupMembersScreen />);
+    const signal = jest.mocked(getGroup).mock.calls[0][2];
+    expect(signal?.aborted).toBe(false);
+
+    await view.unmount();
+
+    expect(signal?.aborted).toBe(true);
+    fail(new ApiError(500, ''));
+    // Nothing is left to show it on, and the late failure must not throw
+    await Promise.resolve();
+    expect(addGroupMember).not.toHaveBeenCalled();
+  });
+
   it('goes back to the group when you are done', async () => {
     show();
     const user = userEvent.setup();

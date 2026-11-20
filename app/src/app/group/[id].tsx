@@ -12,11 +12,12 @@ import { useAuth } from '@/features/auth/auth-context';
 import { describeGroupError } from '@/features/groups/errors';
 import { memberCount, roundLine } from '@/features/groups/format';
 import { Section } from '@/features/groups/group-row';
+import { LeaveGroup } from '@/features/groups/leave-group';
 import { MemberRow } from '@/features/groups/member-row';
 import { useGroup } from '@/features/groups/use-group';
 import { PlanCard } from '@/features/plans/plan-card';
 
-/* A group: its plans, newest first, and its members, the owner first. The owner can remove members. */
+/* A group: its plans, newest first, and its members, the owner first. The owner can remove members; anyone can leave. */
 export default function GroupScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { accessToken, user } = useAuth();
@@ -149,6 +150,19 @@ export default function GroupScreen() {
           }
         />
       </Section>
+
+      {user && id && (
+        <LeaveGroup
+          groupName={group.name}
+          members={group.members.length}
+          isOwner={group.myRole === 'owner'}
+          onLeave={async () => {
+            await removeGroupMember(accessToken, id, user.id);
+            // Replace the group with the list, so Back does not return to a group you are no longer in
+            router.replace('/groups');
+          }}
+        />
+      )}
     </Screen>
   );
 }
