@@ -43,6 +43,22 @@ export function getGroup(accessToken: string, groupId: string, signal?: AbortSig
   });
 }
 
+/*
+ * Adds one of your friends to the group; any member can. Adding someone who is already a member does nothing.
+ * 403 when the user is not your friend, 404 when you are not a member, 409 when the group is full.
+ */
+export function addGroupMember(
+  accessToken: string,
+  groupId: string,
+  userId: string,
+  signal?: AbortSignal,
+) {
+  return apiRequest<void>(
+    `/api/groups/${encodeURIComponent(groupId)}/members/${encodeURIComponent(userId)}`,
+    { method: 'POST', headers: authorization(accessToken), signal },
+  );
+}
+
 /* The group's plans, newest round first. 404 when you are not a member */
 export function listGroupPlans(accessToken: string, groupId: string, signal?: AbortSignal) {
   return apiRequest<GroupPlansResponse>(`/api/groups/${encodeURIComponent(groupId)}/plans`, {
