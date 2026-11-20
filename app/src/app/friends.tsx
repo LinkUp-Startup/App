@@ -1,18 +1,21 @@
 import { router } from 'expo-router';
 import { useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { ApiError } from '@/api/client';
 import { searchUsers, sendFriendRequest } from '@/api/friends';
+import { Avatar } from '@/components/avatar';
 import { Button } from '@/components/button';
+import { Card } from '@/components/card';
+import { ErrorNote } from '@/components/error-note';
 import { FormField } from '@/components/form/form-field';
 import { TextField } from '@/components/form/text-field';
+import { Icon } from '@/components/icon';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-context';
 import { describeFriendError, FriendSearchMinLength } from '@/features/friends/errors';
-import { useTheme } from '@/hooks/use-theme';
 import type { FriendRelation, UserSearchResult } from '@/types/api';
 
 const RelationLabels: Record<Exclude<FriendRelation, 'none'>, string> = {
@@ -78,43 +81,50 @@ export default function AddFriendsScreen() {
 
   if (!accessToken) {
     return (
-      <Screen edges={['bottom']}>
-        <ThemedText themeColor="textSecondary">
-          Log in to find friends and plan nights together.
-        </ThemedText>
-        <Button title="Log in" onPress={() => router.push('/login')} />
+      <Screen edges={['bottom']} gap={Spacing.four}>
+        <Card style={styles.message}>
+          <Icon name="lock-closed-outline" size={22} color="highlight" />
+          <ThemedText themeColor="textSecondary" style={styles.name}>
+            Log in to find friends and plan nights together.
+          </ThemedText>
+        </Card>
+        <Button title="Log in" icon="log-in-outline" onPress={() => router.push('/login')} />
       </Screen>
     );
   }
 
   return (
-    <Screen edges={['bottom']}>
-      <FormField label="Search by name" hint={`At least ${FriendSearchMinLength} characters.`}>
-        <TextField
-          value={query}
-          onChangeText={setQuery}
-          placeholder="e.g. Ann"
-          autoCapitalize="none"
-          autoCorrect={false}
-          returnKeyType="search"
-          onSubmitEditing={() => canSearch && runSearch(text)}
-          accessibilityLabel="Search by name"
+    <Screen edges={['bottom']} gap={Spacing.three}>
+      <Card style={styles.search}>
+        <FormField label="Search by name" hint={`At least ${FriendSearchMinLength} characters.`}>
+          <TextField
+            value={query}
+            onChangeText={setQuery}
+            placeholder="e.g. Ann"
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+            onSubmitEditing={() => canSearch && runSearch(text)}
+            accessibilityLabel="Search by name"
+          />
+        </FormField>
+        <Button
+          title={searching ? 'Searching…' : 'Search'}
+          icon="search-outline"
+          disabled={!canSearch}
+          onPress={() => runSearch(text)}
         />
-      </FormField>
-      <Button
-        title={searching ? 'Searching…' : 'Search'}
-        disabled={!canSearch}
-        onPress={() => runSearch(text)}
-      />
+      </Card>
 
-      {error && (
-        <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">
-          {error}
-        </ThemedText>
-      )}
+      {error && <ErrorNote>{error}</ErrorNote>}
 
       {results?.length === 0 && (
-        <ThemedText themeColor="textSecondary">No one found for “{searchedFor}”.</ThemedText>
+        <Card style={styles.message}>
+          <Icon name="search-outline" size={22} color="textSecondary" />
+          <ThemedText type="small" themeColor="textSecondary" style={styles.name}>
+            No one found for “{searchedFor}”.
+          </ThemedText>
+        </Card>
       )}
       {results?.map((user) => (
         <UserRow
@@ -135,36 +145,42 @@ type UserRowProps = {
 };
 
 function UserRow({ user, sending, onAdd }: UserRowProps) {
-  const theme = useTheme();
-
   return (
-    <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+    <Card style={styles.row}>
+      <Avatar name={user.displayName} />
       <ThemedText type="smallBold" style={styles.name}>
         {user.displayName}
       </ThemedText>
       {user.relation === 'none' ? (
         <Button
           title={sending ? 'Sending…' : 'Add friend'}
+          icon="person-add-outline"
           accessibilityLabel={`Add ${user.displayName} as a friend`}
           disabled={sending}
           onPress={onAdd}
         />
       ) : (
-        <ThemedText type="small" themeColor="textSecondary">
+        <ThemedText type="caption" themeColor="textSecondary">
           {RelationLabels[user.relation]}
         </ThemedText>
       )}
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
+  search: {
+    gap: Spacing.three,
+  },
+  message: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: Spacing.two,
+  },
   row: {
     alignItems: 'center',
-    borderRadius: 12,
     flexDirection: 'row',
     gap: Spacing.three,
-    padding: Spacing.three,
   },
   name: {
     flex: 1,

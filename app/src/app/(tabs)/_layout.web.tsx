@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 
+import { FontFamily, Radius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 /**
@@ -13,16 +14,16 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.text,
+        tabBarActiveTintColor: colors.tint,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarActiveBackgroundColor: colors.backgroundElement,
         tabBarStyle: {
           backgroundColor: colors.background,
-          borderTopColor: colors.backgroundSelected,
+          borderTopColor: colors.border,
         },
-        tabBarLabelStyle: { fontSize: 14, fontWeight: '600' },
+        tabBarLabelStyle: { fontFamily: FontFamily.headlineSemi, fontSize: 14 },
         tabBarIconStyle: { display: 'none' },
-        tabBarItemStyle: { justifyContent: 'center', borderRadius: 12, margin: 6 },
+        tabBarItemStyle: { justifyContent: 'center', borderRadius: Radius.md, margin: 6 },
       }}>
       <Tabs.Screen name="index" options={{ title: 'Plan' }} />
       <Tabs.Screen name="saved" options={{ title: 'Saved' }} />

@@ -4,13 +4,17 @@ import { StyleSheet, View } from 'react-native';
 
 import { ApiError } from '@/api/client';
 import { acceptFriendRequest, declineFriendRequest, listFriends } from '@/api/friends';
+import { Avatar } from '@/components/avatar';
 import { Button } from '@/components/button';
+import { Card } from '@/components/card';
+import { ErrorNote } from '@/components/error-note';
+import { Icon, type IconName } from '@/components/icon';
 import { Screen } from '@/components/screen';
+import { SectionHeader } from '@/components/section-header';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Spacing, type ThemeColor } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-context';
 import { describeFriendError } from '@/features/friends/errors';
-import { useTheme } from '@/hooks/use-theme';
 import type { FriendRequest, FriendsResponse } from '@/types/api';
 
 /* Your friends and pending friend requests: accept or decline the ones you received */
@@ -65,28 +69,31 @@ export default function FriendsScreen() {
 
   if (!accessToken) {
     return (
-      <Screen edges={['bottom']}>
-        <ThemedText themeColor="textSecondary">Log in to see your friends.</ThemedText>
-        <Button title="Log in" onPress={() => router.push('/login')} />
+      <Screen edges={['bottom']} gap={Spacing.four}>
+        <Card style={styles.message}>
+          <Icon name="lock-closed-outline" size={22} color="highlight" />
+          <ThemedText themeColor="textSecondary" style={styles.flex}>
+            Log in to see your friends.
+          </ThemedText>
+        </Card>
+        <Button title="Log in" icon="log-in-outline" onPress={() => router.push('/login')} />
       </Screen>
     );
   }
 
   return (
-    <Screen edges={['bottom']}>
-      <Button title="Add friends" onPress={() => router.push('/friends')} />
+    <Screen edges={['bottom']} gap={Spacing.four}>
+      <Button
+        title="Add friends"
+        icon="person-add-outline"
+        onPress={() => router.push('/friends')}
+      />
 
-      {actionError && (
-        <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">
-          {actionError}
-        </ThemedText>
-      )}
+      {actionError && <ErrorNote>{actionError}</ErrorNote>}
 
       {loadError && (
         <>
-          <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">
-            {loadError}
-          </ThemedText>
+          <ErrorNote>{loadError}</ErrorNote>
           <Button title="Try again" variant="secondary" onPress={() => load()} />
         </>
       )}
@@ -96,12 +103,13 @@ export default function FriendsScreen() {
       {friends && (
         <>
           {friends.incoming.length > 0 && (
-            <Section title="Friend requests">
+            <Section title="Friend requests" icon="mail-unread-outline" tone="highlight">
               {friends.incoming.map((request) => (
                 <Row key={request.userId} name={request.displayName}>
                   <View style={styles.actions}>
                     <Button
                       title="Accept"
+                      icon="checkmark"
                       accessibilityLabel={`Accept friend request from ${request.displayName}`}
                       disabled={answering === request.userId}
                       onPress={() => answer(request, true)}
@@ -121,22 +129,25 @@ export default function FriendsScreen() {
             </Section>
           )}
 
-          <Section title="Friends">
+          <Section title="Friends" icon="people-outline" tone="tint">
             {friends.friends.length === 0 ? (
-              <ThemedText themeColor="textSecondary">
-                You haven&apos;t added any friends yet. Search for people you know to plan nights
-                together.
-              </ThemedText>
+              <Card style={styles.message}>
+                <Icon name="happy-outline" size={22} color="accent" />
+                <ThemedText type="small" themeColor="textSecondary" style={styles.flex}>
+                  You haven&apos;t added any friends yet. Search for people you know to plan nights
+                  together.
+                </ThemedText>
+              </Card>
             ) : (
               friends.friends.map((friend) => <Row key={friend.userId} name={friend.displayName} />)
             )}
           </Section>
 
           {friends.outgoing.length > 0 && (
-            <Section title="Sent requests">
+            <Section title="Sent requests" icon="paper-plane-outline" tone="accent">
               {friends.outgoing.map((request) => (
                 <Row key={request.userId} name={request.displayName}>
-                  <ThemedText type="small" themeColor="textSecondary">
+                  <ThemedText type="caption" themeColor="textSecondary">
                     Waiting for an answer
                   </ThemedText>
                 </Row>
@@ -149,24 +160,36 @@ export default function FriendsScreen() {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  icon,
+  tone,
+  children,
+}: {
+  title: string;
+  icon: IconName;
+  tone: ThemeColor;
+  children: React.ReactNode;
+}) {
   return (
     <View style={styles.section}>
-      <ThemedText type="smallBold" accessibilityRole="header">
-        {title}
-      </ThemedText>
+      <SectionHeader title={title} icon={icon} iconColor={tone} />
       {children}
     </View>
   );
 }
 
 function Row({ name, children }: { name: string; children?: React.ReactNode }) {
-  const theme = useTheme();
   return (
-    <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
-      <ThemedText type="smallBold">{name}</ThemedText>
+    <Card style={styles.row}>
+      <View style={styles.person}>
+        <Avatar name={name} />
+        <ThemedText type="smallBold" style={styles.flex}>
+          {name}
+        </ThemedText>
+      </View>
       {children}
-    </View>
+    </Card>
   );
 }
 
@@ -175,9 +198,20 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   row: {
-    borderRadius: 12,
+    gap: Spacing.three,
+  },
+  person: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: Spacing.three,
+  },
+  message: {
+    alignItems: 'center',
+    flexDirection: 'row',
     gap: Spacing.two,
-    padding: Spacing.three,
+  },
+  flex: {
+    flex: 1,
   },
   actions: {
     flexDirection: 'row',
