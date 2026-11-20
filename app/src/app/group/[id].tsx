@@ -1,43 +1,21 @@
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
 
-import { getGroup } from '@/api/groups';
 import { Button } from '@/components/button';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
+import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-context';
-import { describeGroupError } from '@/features/groups/errors';
-import { memberCount } from '@/features/groups/format';
+import { memberCount, roundLine } from '@/features/groups/format';
 import { Row, Section } from '@/features/groups/group-row';
-import type { Group } from '@/types/api';
+import { useGroup } from '@/features/groups/use-group';
+import { PlanCard } from '@/features/plans/plan-card';
 
-/* A group and its members, the owner first */
+/* A group: its plans, newest first, and its members, the owner first */
 export default function GroupScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { accessToken, user } = useAuth();
-  const [group, setGroup] = useState<Group>();
-  const [error, setError] = useState<string>();
-
-  const load = useCallback(
-    async (signal?: AbortSignal) => {
-      if (!accessToken || !id) return;
-      setError(undefined);
-      try {
-        setGroup(await getGroup(accessToken, id, signal));
-      } catch (caught) {
-        if (!signal?.aborted) setError(describeGroupError(caught));
-      }
-    },
-    [accessToken, id],
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      const controller = new AbortController();
-      load(controller.signal);
-      return () => controller.abort();
-    }, [load]),
-  );
+  const { group, rounds, error, reload } = useGroup(accessToken, id);
 
   if (!accessToken) {
     return (
@@ -54,12 +32,12 @@ export default function GroupScreen() {
         <ThemedText themeColor="danger" accessibilityLiveRegion="polite">
           {error}
         </ThemedText>
-        <Button title="Try again" variant="secondary" onPress={() => load()} />
+        <Button title="Try again" variant="secondary" onPress={reload} />
       </Screen>
     );
   }
 
-  if (!group) {
+  if (!group || !rounds) {
     return (
       <Screen edges={['bottom']}>
         <ThemedText themeColor="textSecondary">Loading…</ThemedText>
@@ -91,6 +69,25 @@ export default function GroupScreen() {
         onPress={() => router.push({ pathname: '/group-vote', params: { groupId: group.id } })}
       />
 
+      <Section title="Plans">
+        {rounds.length === 0 ? (
+          <ThemedText themeColor="textSecondary">
+            No plans yet. Plan a night and everyone in the group will see the plans here.
+          </ThemedText>
+        ) : (
+          rounds.map((round) => (
+            <View key={round.id} style={styles.round}>
+              <ThemedText type="small" themeColor="textSecondary">
+                {roundLine(round, user?.id)}
+              </ThemedText>
+              {round.plans.map((plan) => (
+                <PlanCard key={plan.id} plan={plan} />
+              ))}
+            </View>
+          ))
+        )}
+      </Section>
+
       <Section title="Members">
         {group.members.map((member) => (
           <Row
@@ -103,3 +100,9 @@ export default function GroupScreen() {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  round: {
+    gap: Spacing.two,
+  },
+});

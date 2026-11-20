@@ -1,7 +1,7 @@
 import { render, screen, userEvent } from '@testing-library/react-native';
 import { router } from 'expo-router';
 
-import { generateGroupPlans, getGroup } from '@/api/groups';
+import { generateGroupPlans, getGroup, listGroupPlans } from '@/api/groups';
 import GroupPlanScreen from '@/app/group-plan';
 import GroupScreen from '@/app/group/[id]';
 import { tapasPlan } from '@/features/plans/__tests__/fixtures/plans';
@@ -51,6 +51,7 @@ describe('the way to the vote', () => {
   it('opens the vote from the group', async () => {
     mockParams.id = 'g1';
     jest.mocked(getGroup).mockResolvedValue(group);
+    jest.mocked(listGroupPlans).mockResolvedValue({ rounds: [] });
     const user = userEvent.setup();
     await render(<GroupScreen />);
 

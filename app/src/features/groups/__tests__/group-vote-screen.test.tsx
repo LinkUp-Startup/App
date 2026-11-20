@@ -2,7 +2,7 @@ import { render, screen, userEvent, waitFor } from '@testing-library/react-nativ
 import { router } from 'expo-router';
 
 import { ApiError } from '@/api/client';
-import { castVote, closeVote, getGroup, getVoteResults, listGroupRounds } from '@/api/groups';
+import { castVote, closeVote, getGroup, getVoteResults, listGroupPlans } from '@/api/groups';
 import GroupVoteScreen from '@/app/group-vote';
 import { tapasPlan } from '@/features/plans/__tests__/fixtures/plans';
 import type { Group, GroupPlanRound, GroupVoteResults, Plan } from '@/types/api';
@@ -63,7 +63,7 @@ const results = (over: Partial<GroupVoteResults> = {}): GroupVoteResults => ({
 
 function show(myRole: 'owner' | 'member' = 'member', current: GroupVoteResults = results()) {
   jest.mocked(getGroup).mockResolvedValue(groupAs(myRole));
-  jest.mocked(listGroupRounds).mockResolvedValue({ rounds: [round] });
+  jest.mocked(listGroupPlans).mockResolvedValue({ rounds: [round] });
   jest.mocked(getVoteResults).mockResolvedValue(current);
 }
 
@@ -99,8 +99,8 @@ describe('GroupVoteScreen', () => {
 
   it('says so, and lets you try again, when the plans cannot be loaded', async () => {
     jest.mocked(getGroup).mockResolvedValue(groupAs('member'));
-    jest.mocked(listGroupRounds).mockRejectedValueOnce(new ApiError(404, ''));
-    jest.mocked(listGroupRounds).mockResolvedValue({ rounds: [round] });
+    jest.mocked(listGroupPlans).mockRejectedValueOnce(new ApiError(404, ''));
+    jest.mocked(listGroupPlans).mockResolvedValue({ rounds: [round] });
     jest.mocked(getVoteResults).mockResolvedValue(results());
     const user = userEvent.setup();
     await render(<GroupVoteScreen />);
@@ -114,7 +114,7 @@ describe('GroupVoteScreen', () => {
 
   it('offers to plan a night when the group has no plans yet', async () => {
     jest.mocked(getGroup).mockResolvedValue(groupAs('member'));
-    jest.mocked(listGroupRounds).mockResolvedValue({ rounds: [] });
+    jest.mocked(listGroupPlans).mockResolvedValue({ rounds: [] });
     const user = userEvent.setup();
     await render(<GroupVoteScreen />);
 
@@ -146,7 +146,7 @@ describe('GroupVoteScreen', () => {
     expect(screen.getByText('Bowling night')).toBeOnTheScreen();
     expect(screen.getByText('2 of 3 voted')).toBeOnTheScreen();
     expect(screen.getAllByText('1 vote')).toHaveLength(2);
-    expect(listGroupRounds).toHaveBeenCalledWith('token-1', 'g1', expect.any(AbortSignal));
+    expect(listGroupPlans).toHaveBeenCalledWith('token-1', 'g1', expect.any(AbortSignal));
     expect(getVoteResults).toHaveBeenCalledWith('token-1', 'g1', 'r1', expect.any(AbortSignal));
   });
 
@@ -222,7 +222,7 @@ describe('GroupVoteScreen', () => {
 
   it('shows why a vote did not work, and shows the closed vote when it was closed meanwhile', async () => {
     jest.mocked(getGroup).mockResolvedValue(groupAs('member'));
-    jest.mocked(listGroupRounds).mockResolvedValue({ rounds: [round] });
+    jest.mocked(listGroupPlans).mockResolvedValue({ rounds: [round] });
     jest
       .mocked(getVoteResults)
       .mockResolvedValueOnce(results())
@@ -453,7 +453,7 @@ describe('GroupVoteScreen', () => {
 
   it('refreshes the results on request', async () => {
     jest.mocked(getGroup).mockResolvedValue(groupAs('member'));
-    jest.mocked(listGroupRounds).mockResolvedValue({ rounds: [round] });
+    jest.mocked(listGroupPlans).mockResolvedValue({ rounds: [round] });
     jest
       .mocked(getVoteResults)
       .mockResolvedValueOnce(results())
