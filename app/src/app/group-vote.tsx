@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ApiError } from '@/api/client';
-import { castVote, closeVote, getGroup, getVoteResults, listGroupRounds } from '@/api/groups';
+import { castVote, closeVote, getGroup, getVoteResults, listGroupPlans } from '@/api/groups';
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { ErrorNote } from '@/components/error-note';
@@ -46,7 +46,7 @@ export default function GroupVoteScreen() {
       try {
         const [group, { rounds }] = await Promise.all([
           getGroup(accessToken, groupId, signal),
-          listGroupRounds(accessToken, groupId, signal),
+          listGroupPlans(accessToken, groupId, signal),
         ]);
         const round = rounds[0];
         const results = round

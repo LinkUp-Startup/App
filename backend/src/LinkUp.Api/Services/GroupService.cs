@@ -134,7 +134,7 @@ public sealed class GroupService(AppDbContext db, TimeProvider clock) : IGroupSe
         return members.Contains(userId) ? members.Count : null;
     }
 
-    public async Task<IReadOnlyList<GroupPlanRoundDto>?> ListPlanRoundsAsync(
+    public async Task<IReadOnlyList<GroupPlanRoundDto>?> ListPlansAsync(
         Guid userId, Guid groupId, CancellationToken cancellationToken)
     {
         if (!await db.GroupMembers.AnyAsync(m => m.GroupId == groupId && m.UserId == userId, cancellationToken))
@@ -147,23 +147,22 @@ public sealed class GroupService(AppDbContext db, TimeProvider clock) : IGroupSe
             .AsSplitQuery()
             .ToListAsync(cancellationToken);
 
-        var authorIds = rounds.Select(r => r.CreatedById).OfType<Guid>().Distinct().ToList();
+        var authorIds = rounds.Where(r => r.CreatedById is not null).Select(r => r.CreatedById!.Value).Distinct().ToList();
         var names = await db.Users.AsNoTracking()
             .Where(u => authorIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, u => u.DisplayName, cancellationToken);
 
-        return
-        [
-            .. rounds.Select(r => new GroupPlanRoundDto(
-                r.Id,
-                r.CreatedAt,
-                r.CreatedById is { } authorId && names.TryGetValue(authorId, out var name)
-                    ? new GroupPlanAuthorDto(authorId, name)
+        return rounds.Select(round => new GroupPlanRoundDto(
+                round.Id,
+                round.CreatedAt,
+                round.CreatedById is { } author && names.TryGetValue(author, out var name)
+                    ? new GroupPlanAuthorDto(author, name)
                     : null,
-                r.GroupSize,
-                // In the order they were generated (see AddPlanRoundAsync)
-                [.. r.Plans.OrderBy(p => p.CreatedAt).ThenBy(p => p.Id).Select(PlanMapping.ToDto)])),
-        ];
+                round.GroupSize,
+                // In the order they were generated
+                round.Plans.OrderBy(p => p.CreatedAt).ThenBy(p => p.Id)
+                    .Select(p => PlanMapping.ToDto(p, item => item.Venue)).ToList()))
+            .ToList();
     }
 
     public async Task<GroupPlanRoundDto?> AddPlanRoundAsync(

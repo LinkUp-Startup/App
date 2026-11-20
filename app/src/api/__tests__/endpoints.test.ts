@@ -1,5 +1,5 @@
 import { apiRequest } from '@/api/client';
-import { castVote, closeVote, getVoteResults, listGroupRounds } from '@/api/groups';
+import { castVote, closeVote, getVoteResults } from '@/api/groups';
 import { getHealth } from '@/api/health';
 import { generatePlans, swapOptions } from '@/api/plans';
 import {
@@ -119,14 +119,6 @@ describe('endpoints', () => {
 
   describe('group voting', () => {
     const headers = { Authorization: 'Bearer token-1' };
-
-    it('listGroupRounds gets the rounds of the group, id escaped for the URL', async () => {
-      await listGroupRounds('token-1', 'g/1');
-      expect(apiRequest).toHaveBeenCalledWith('/api/groups/g%2F1/rounds', {
-        headers,
-        signal: undefined,
-      });
-    });
 
     it('getVoteResults gets the votes of the round', async () => {
       await getVoteResults('token-1', 'g/1', 'r 1');
