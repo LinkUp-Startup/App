@@ -20,4 +20,8 @@ public sealed record GroupVoteResultsDto(
     // The plan the caller voted for; null if they haven't voted
     Guid? MyVotePlanId,
     // Every plan of the round, in the order they were generated, also those without votes
-    IReadOnlyList<PlanVotesDto> Plans);
+    IReadOnlyList<PlanVotesDto> Plans,
+    // The plans with the most votes, once the vote has an outcome: when the owner closed it or every member voted.
+    // One plan is the winner; several are a tie. Empty before that, and when nobody voted. Until the owner closes
+    // the vote, members can still change theirs, so this can still change.
+    IReadOnlyList<Guid> WinnerPlanIds);

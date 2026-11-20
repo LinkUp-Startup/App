@@ -1,4 +1,5 @@
 import { apiRequest } from '@/api/client';
+import { castVote, closeVote, getVoteResults } from '@/api/groups';
 import { getHealth } from '@/api/health';
 import { generatePlans, swapOptions } from '@/api/plans';
 import {
@@ -110,6 +111,37 @@ describe('endpoints', () => {
       await unsharePlan('token-1', 'a b/c');
       expect(apiRequest).toHaveBeenCalledWith('/api/saved-plans/a%20b%2Fc/share', {
         method: 'DELETE',
+        headers,
+        signal: undefined,
+      });
+    });
+  });
+
+  describe('group voting', () => {
+    const headers = { Authorization: 'Bearer token-1' };
+
+    it('getVoteResults gets the votes of the round', async () => {
+      await getVoteResults('token-1', 'g/1', 'r 1');
+      expect(apiRequest).toHaveBeenCalledWith('/api/groups/g%2F1/rounds/r%201/votes', {
+        headers,
+        signal: undefined,
+      });
+    });
+
+    it('castVote puts the plan voted for under "my vote"', async () => {
+      await castVote('token-1', 'g1', 'r1', 'p1');
+      expect(apiRequest).toHaveBeenCalledWith('/api/groups/g1/rounds/r1/votes/me', {
+        method: 'PUT',
+        body: { planId: 'p1' },
+        headers,
+        signal: undefined,
+      });
+    });
+
+    it('closeVote posts to the round', async () => {
+      await closeVote('token-1', 'g1', 'r1');
+      expect(apiRequest).toHaveBeenCalledWith('/api/groups/g1/rounds/r1/close', {
+        method: 'POST',
         headers,
         signal: undefined,
       });
