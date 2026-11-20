@@ -6,15 +6,19 @@ import { StyleSheet, View } from 'react-native';
 import { ApiError } from '@/api/client';
 import { getSharedPlan } from '@/api/shared-plans';
 import { Button } from '@/components/button';
+import { Card } from '@/components/card';
 import { FormField } from '@/components/form/form-field';
 import { TextField } from '@/components/form/text-field';
+import { Icon } from '@/components/icon';
+import { PageHeader } from '@/components/page-header';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-context';
 import { PlanCard } from '@/features/plans/plan-card';
 import { savePlanFor } from '@/features/plans/saved-plans-sync';
 import { parseShareToken } from '@/features/plans/share-link';
+import { useTheme } from '@/hooks/use-theme';
 import { getSavedPlan } from '@/storage/saved-plans';
 import type { Plan } from '@/types/api';
 
@@ -68,36 +72,44 @@ export default function SharedPlanScreen() {
   }
 
   return (
-    <Screen>
-      <FormField label="Share link" hint="Paste the link someone sent you." error={error}>
-        <TextField
-          value={link}
-          onChangeText={(text) => {
-            setLink(text);
-            setError(undefined);
-          }}
-          placeholder="https://linkup.th7bo.dev/plan/…"
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="url"
-          returnKeyType="go"
-          onSubmitEditing={open}
-          invalid={!!error}
-          accessibilityLabel="Share link"
-        />
-      </FormField>
-      <View style={styles.row}>
-        <View style={styles.grow}>
-          <Button title="Paste" variant="secondary" onPress={paste} />
-        </View>
-        <View style={styles.grow}>
-          <Button
-            title={loading ? 'Opening…' : 'Open plan'}
-            disabled={loading || link.trim() === ''}
-            onPress={open}
+    <Screen gap={Spacing.four}>
+      <PageHeader
+        icon="link-outline"
+        title="Open a shared plan"
+        description="A friend sent you a link? Open their plan here and keep your own copy."
+      />
+      <Card style={styles.form}>
+        <FormField label="Share link" hint="Paste the link someone sent you." error={error}>
+          <TextField
+            value={link}
+            onChangeText={(text) => {
+              setLink(text);
+              setError(undefined);
+            }}
+            placeholder="https://linkup.th7bo.dev/plan/…"
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+            returnKeyType="go"
+            onSubmitEditing={open}
+            invalid={!!error}
+            accessibilityLabel="Share link"
           />
+        </FormField>
+        <View style={styles.row}>
+          <View style={styles.grow}>
+            <Button title="Paste" icon="clipboard-outline" variant="secondary" onPress={paste} />
+          </View>
+          <View style={styles.grow}>
+            <Button
+              title={loading ? 'Opening…' : 'Open plan'}
+              icon="open-outline"
+              disabled={loading || link.trim() === ''}
+              onPress={open}
+            />
+          </View>
         </View>
-      </View>
+      </Card>
 
       {plan && (
         <PlanCard
@@ -118,12 +130,14 @@ function SaveFooter({
   onSave: () => void;
   planId: string;
 }) {
+  const theme = useTheme();
   const openSaved = () => router.replace({ pathname: '/saved-plan/[id]', params: { id: planId } });
 
   if (saved === 'no' || saved === 'saving') {
     return (
       <Button
         title={saved === 'saving' ? 'Saving…' : 'Save to my plans'}
+        icon="bookmark-outline"
         disabled={saved === 'saving'}
         onPress={onSave}
       />
@@ -138,15 +152,31 @@ function SaveFooter({
 
   return (
     <>
-      <ThemedText type="small" themeColor="textSecondary" accessibilityLiveRegion="polite">
-        {message}
-      </ThemedText>
-      <Button title="Open in saved plans" variant="secondary" onPress={openSaved} />
+      <View style={[styles.note, { backgroundColor: theme.inputFill, borderColor: theme.border }]}>
+        <Icon name="checkmark-circle-outline" size={20} color="success" />
+        <ThemedText
+          type="small"
+          themeColor="textSecondary"
+          accessibilityLiveRegion="polite"
+          style={styles.grow}>
+          {message}
+        </ThemedText>
+      </View>
+      <Button title="Open in saved plans" icon="bookmark" variant="secondary" onPress={openSaved} />
     </>
   );
 }
 
 const styles = StyleSheet.create({
+  form: { gap: Spacing.three },
   row: { flexDirection: 'row', gap: Spacing.two },
   grow: { flex: 1 },
+  note: {
+    alignItems: 'center',
+    borderRadius: Radius.default,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: Spacing.two,
+    padding: Spacing.three,
+  },
 });

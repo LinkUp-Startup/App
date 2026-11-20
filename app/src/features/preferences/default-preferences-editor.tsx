@@ -1,16 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ApiError } from '@/api/client';
 import { describeApiError } from '@/api/errors';
 import { getUserPreferences, putUserPreferences } from '@/api/user-preferences';
 import { Button } from '@/components/button';
+import { Card } from '@/components/card';
+import { ErrorNote } from '@/components/error-note';
 import { CheckboxList } from '@/components/form/checkbox-list';
 import { ChipGroup } from '@/components/form/chip-group';
 import { FormField } from '@/components/form/form-field';
 import { TextField } from '@/components/form/text-field';
+import { Icon } from '@/components/icon';
+import { PageHeader } from '@/components/page-header';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
+import { Spacing } from '@/constants/theme';
 import {
   defaultsToForm,
   emptyDefaults,
@@ -128,19 +133,24 @@ export function DefaultPreferencesEditor({ accessToken }: { accessToken: string 
     );
 
   return (
-    <Screen edges={[]}>
-      <ThemedText type="subtitle">Default preferences</ThemedText>
-      <ThemedText themeColor="textSecondary">
-        {accessToken
-          ? 'Saved to your account.'
-          : 'Saved only on this phone. Guest preferences are not uploaded when you sign in.'}
-      </ThemedText>
-      <ThemedText themeColor="textSecondary">
-        All fields are optional. Leave numbers blank or deselect all options to clear a default.
-      </ThemedText>
-      <View pointerEvents={saving ? 'none' : 'auto'} style={{ gap: 16 }}>
+    <Screen edges={[]} gap={Spacing.four}>
+      <View style={styles.intro}>
+        <PageHeader
+          icon="options-outline"
+          title="Default preferences"
+          description={
+            accessToken
+              ? 'Saved to your account.'
+              : 'Saved only on this phone. Guest preferences are not uploaded when you sign in.'
+          }
+        />
+        <ThemedText type="small" themeColor="textSecondary">
+          All fields are optional. Leave numbers blank or deselect all options to clear a default.
+        </ThemedText>
+      </View>
+      <Card pointerEvents={saving ? 'none' : 'auto'} style={styles.fields}>
         <FormField
-          label="Budget per person"
+          label="Budget / person"
           hint="EUR · Leave blank for unspecified"
           error={errors.budget}>
           <TextField
@@ -203,27 +213,47 @@ export function DefaultPreferencesEditor({ accessToken }: { accessToken: string 
             invalid={!!errors.transport}
           />
         </FormField>
-      </View>
+      </Card>
       {dirty && (
-        <ThemedText type="small" themeColor="textSecondary">
-          Unsaved changes. Save before leaving this screen.
-        </ThemedText>
+        <View style={styles.status}>
+          <Icon name="ellipse" size={10} color="highlight" />
+          <ThemedText type="small" themeColor="textSecondary">
+            Unsaved changes. Save before leaving this screen.
+          </ThemedText>
+        </View>
       )}
-      {saveError !== '' && (
-        <ThemedText themeColor="danger" accessibilityLiveRegion="polite">
-          {saveError}
-        </ThemedText>
-      )}
+      {saveError !== '' && <ErrorNote>{saveError}</ErrorNote>}
       {saved && (
-        <ThemedText accessibilityLiveRegion="polite">
-          {accessToken ? 'Preferences saved to your account.' : 'Preferences saved on this phone.'}
-        </ThemedText>
+        <View style={styles.status}>
+          <Icon name="checkmark-circle" size={18} color="success" />
+          <ThemedText type="small" accessibilityLiveRegion="polite">
+            {accessToken
+              ? 'Preferences saved to your account.'
+              : 'Preferences saved on this phone.'}
+          </ThemedText>
+        </View>
       )}
       <Button
         title={saving ? 'Saving preferences…' : 'Save preferences'}
+        size="large"
+        icon="save-outline"
         disabled={saving || !dirty}
         onPress={() => void save()}
       />
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  intro: {
+    gap: Spacing.two,
+  },
+  fields: {
+    gap: Spacing.three,
+  },
+  status: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: Spacing.two,
+  },
+});

@@ -78,6 +78,7 @@ describe('SavedPlansScreen', () => {
     await render(<SavedPlansScreen />);
 
     expect(await screen.findByText(/No saved plans yet/)).toBeOnTheScreen();
+    expect(screen.getByText('Nothing saved yet')).toBeOnTheScreen();
     await user.press(screen.getByRole('button', { name: 'Plan a night' }));
     expect(router.navigate).toHaveBeenCalledWith('/');
   });
@@ -89,9 +90,12 @@ describe('SavedPlansScreen', () => {
 
     await user.press(await screen.findByRole('button', { name: 'Open Tapas and drinks' }));
 
-    expect(
-      screen.getByText('Fri 30 Oct · 2 stops · estimated €25.50 per person · 910 m'),
-    ).toBeOnTheScreen();
+    // The card shows when the night is, the route, how big it is and what it costs.
+    expect(screen.getByText('Fri 30 Oct')).toBeOnTheScreen();
+    expect(screen.getByText('Teresa Carles  →  Pub Legend')).toBeOnTheScreen();
+    expect(screen.getByText('2 stops')).toBeOnTheScreen();
+    expect(screen.getByText('910 m total')).toBeOnTheScreen();
+    expect(screen.getByText('Estimated €25.50 per person')).toBeOnTheScreen();
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/saved-plan/[id]',
       params: { id: 'p1' },

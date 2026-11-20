@@ -1,5 +1,6 @@
 import { NativeTabs } from 'expo-router/native-tabs';
 
+import { FontFamily } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function TabLayout() {
@@ -9,10 +10,14 @@ export default function TabLayout() {
     <NativeTabs
       backgroundColor={colors.background}
       indicatorColor={colors.backgroundElement}
-      labelStyle={{ selected: { color: colors.text } }}>
+      iconColor={{ default: colors.textSecondary, selected: colors.tint }}
+      labelStyle={{
+        default: { color: colors.textSecondary, fontFamily: FontFamily.headlineSemi },
+        selected: { color: colors.tint, fontFamily: FontFamily.headlineSemi },
+      }}>
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>Plan</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="sparkles" md="auto_awesome" />
+        <NativeTabs.Trigger.Icon sf={{ default: 'safari', selected: 'safari.fill' }} md="explore" />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="saved">
