@@ -71,6 +71,8 @@ describe('the way to the vote', () => {
       createdBy: null,
       groupSize: 2,
       plans: [tapasPlan],
+      closedAt: null,
+      winnerPlanIds: [],
     });
     const user = userEvent.setup();
     await render(<GroupPlanScreen />);

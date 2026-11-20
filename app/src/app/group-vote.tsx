@@ -15,8 +15,10 @@ import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-context';
 import { describeGroupError } from '@/features/groups/errors';
 import { turnout, voteCount } from '@/features/groups/format';
+import { FollowPlanButton } from '@/features/groups/follow-plan-button';
 import { OutcomeCard } from '@/features/groups/outcome-card';
 import { standingOf, voteOutcome } from '@/features/groups/vote-outcome';
+import { decidedPlan } from '@/features/groups/winning-plan';
 import { PlanCard } from '@/features/plans/plan-card';
 import type { Group, GroupPlanRound, GroupVoteResults, Plan } from '@/types/api';
 
@@ -148,6 +150,7 @@ export default function GroupVoteScreen() {
   const isOwner = group.myRole === 'owner';
   const hasVoted = results.myVotePlanId != null;
   const outcome = voteOutcome(results, round.plans);
+  const winner = decidedPlan(results.closedAt, results.winnerPlanIds, round.plans);
 
   return (
     <Screen edges={['bottom']}>
@@ -174,21 +177,25 @@ export default function GroupVoteScreen() {
 
       {actionError && <ErrorNote>{actionError}</ErrorNote>}
 
-      {round.plans.map((plan) => (
+      {/* Once the vote is closed with one winner, only that plan is shown, and the group follows it */}
+      {(winner ? [winner] : round.plans).map((plan) => (
         <PlanCard
           key={plan.id}
           plan={plan}
           footer={
-            <VoteFooter
-              plan={plan}
-              votes={results.plans.find((p) => p.planId === plan.id)?.votes ?? 0}
-              mine={results.myVotePlanId === plan.id}
-              standing={standingOf(outcome, plan.id, closed)}
-              hasVoted={hasVoted}
-              closed={closed}
-              busy={busy}
-              onVote={() => run((t) => castVote(t.accessToken, t.groupId, t.roundId, plan.id))}
-            />
+            <>
+              <VoteFooter
+                plan={plan}
+                votes={results.plans.find((p) => p.planId === plan.id)?.votes ?? 0}
+                mine={results.myVotePlanId === plan.id}
+                standing={standingOf(outcome, plan.id, closed)}
+                hasVoted={hasVoted}
+                closed={closed}
+                busy={busy}
+                onVote={() => run((t) => castVote(t.accessToken, t.groupId, t.roundId, plan.id))}
+              />
+              {winner && <FollowPlanButton plan={plan} />}
+            </>
           }
         />
       ))}

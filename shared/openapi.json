@@ -3068,7 +3068,9 @@
           "createdAt",
           "createdBy",
           "groupSize",
-          "plans"
+          "plans",
+          "closedAt",
+          "winnerPlanIds"
         ],
         "type": "object",
         "properties": {
@@ -3098,6 +3100,20 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PlanDto"
+            }
+          },
+          "closedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "winnerPlanIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
             }
           }
         }

@@ -116,14 +116,10 @@ public sealed class GroupVoteService(AppDbContext db, TimeProvider clock) : IGro
         var perPlan = votes.GroupBy(v => v.PlanId).ToDictionary(g => g.Key, g => g.Count());
         var mine = votes.SingleOrDefault(v => v.UserId == userId)?.PlanId;
 
-        // The vote has an outcome when the owner closed it or every member voted. Until the owner closes it, members
-        // can still change their vote, so the outcome can still change.
-        var hasOutcome = round.ClosedAt is not null || (memberCount > 0 && votes.Count == memberCount);
-        var mostVotes = hasOutcome ? perPlan.Values.DefaultIfEmpty(0).Max() : 0;
-        // Several plans with the same most votes are a tie: all of them are listed, in the order they were generated.
-        var winners = mostVotes > 0
-            ? plans.Where(p => perPlan.GetValueOrDefault(p.Id) == mostVotes).Select(p => p.AppId).ToList()
-            : [];
+        var winners = VoteRules.Winners(
+            VoteRules.HasOutcome(round.ClosedAt is not null, memberCount, votes.Count),
+            plans.Select(p => (p.Id, p.AppId)),
+            perPlan);
 
         return new GroupVoteResultsDto(
             round.Id,

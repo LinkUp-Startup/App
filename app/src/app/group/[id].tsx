@@ -5,16 +5,19 @@ import { StyleSheet, View } from 'react-native';
 import { removeGroupMember } from '@/api/groups';
 import { Button } from '@/components/button';
 import { ErrorNote } from '@/components/error-note';
+import { Pill } from '@/components/pill';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-context';
 import { describeGroupError } from '@/features/groups/errors';
 import { memberCount, roundLine } from '@/features/groups/format';
+import { FollowPlanButton } from '@/features/groups/follow-plan-button';
 import { Section } from '@/features/groups/group-row';
 import { LeaveGroup } from '@/features/groups/leave-group';
 import { MemberRow } from '@/features/groups/member-row';
 import { useGroup } from '@/features/groups/use-group';
+import { decidedPlan } from '@/features/groups/winning-plan';
 import { PlanCard } from '@/features/plans/plan-card';
 
 /* A group: its plans, newest first, and its members, the owner first. The owner can remove members; anyone can leave. */
@@ -101,16 +104,25 @@ export default function GroupScreen() {
             No plans yet. Plan a night and everyone in the group will see the plans here.
           </ThemedText>
         ) : (
-          rounds.map((round) => (
-            <View key={round.id} style={styles.round}>
-              <ThemedText type="small" themeColor="textSecondary">
-                {roundLine(round, user?.id)}
-              </ThemedText>
-              {round.plans.map((plan) => (
-                <PlanCard key={plan.id} plan={plan} />
-              ))}
-            </View>
-          ))
+          rounds.map((round) => {
+            // Once the vote is closed with one winner, the other plans are no longer shown
+            const winner = decidedPlan(round.closedAt, round.winnerPlanIds, round.plans);
+            return (
+              <View key={round.id} style={styles.round}>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {roundLine(round, user?.id)}
+                </ThemedText>
+                {winner && <Pill icon="trophy" tone="highlight" label="The group's plan" />}
+                {(winner ? [winner] : round.plans).map((plan) => (
+                  <PlanCard
+                    key={plan.id}
+                    plan={plan}
+                    footer={winner ? <FollowPlanButton plan={plan} /> : undefined}
+                  />
+                ))}
+              </View>
+            );
+          })
         )}
       </Section>
 

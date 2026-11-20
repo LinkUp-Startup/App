@@ -2126,6 +2126,9 @@ export interface components {
             /** Format: int32 */
             groupSize: number;
             plans: components["schemas"]["PlanDto"][];
+            /** Format: date-time */
+            closedAt: null | string;
+            winnerPlanIds: string[];
         };
         GroupPlansResponse: {
             rounds: components["schemas"]["GroupPlanRoundDto"][];
