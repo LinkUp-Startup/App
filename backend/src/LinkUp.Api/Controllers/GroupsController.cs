@@ -98,19 +98,19 @@ public sealed class GroupsController(IGroupService groups, PlanGenerator generat
         return ToResponse(await groups.RemoveMemberAsync(currentUserId, groupId, userId, cancellationToken));
     }
 
-    [HttpGet("{groupId:guid}/rounds")]
-    [EndpointSummary("The group's rounds of plans")]
+    [HttpGet("{groupId:guid}/plans")]
+    [EndpointSummary("The group's plans")]
     [EndpointDescription(
-        "Every round generated for the group (the newest 20 are kept), newest first, each with its plans in the " +
-        "order they were generated. 404 when the group doesn't exist or you are not a member.")]
-    [ProducesResponseType<GroupPlanRoundsResponse>(StatusCodes.Status200OK)]
+        "Every member sees every plan generated for the group, newest round first. 404 when the group doesn't " +
+        "exist or you are not a member.")]
+    [ProducesResponseType<GroupPlansResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<GroupPlanRoundsResponse>> ListRounds(Guid groupId, CancellationToken cancellationToken)
+    public async Task<ActionResult<GroupPlansResponse>> ListPlans(Guid groupId, CancellationToken cancellationToken)
     {
         if (CurrentUserId() is not { } userId) return Unauthorized();
-        return await groups.ListPlanRoundsAsync(userId, groupId, cancellationToken) is { } rounds
-            ? Ok(new GroupPlanRoundsResponse(rounds))
+        return await groups.ListPlansAsync(userId, groupId, cancellationToken) is { } rounds
+            ? Ok(new GroupPlansResponse(rounds))
             : GroupNotFound();
     }
 

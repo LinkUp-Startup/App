@@ -5,7 +5,7 @@ import type {
   CreateGroupRequest,
   Group,
   GroupPlanRound,
-  GroupPlanRoundsResponse,
+  GroupPlansResponse,
   GroupsResponse,
   GroupVoteResults,
   NightPreferences,
@@ -43,9 +43,9 @@ export function getGroup(accessToken: string, groupId: string, signal?: AbortSig
   });
 }
 
-/* The group's rounds of plans, newest first. 404 when it doesn't exist or you are not a member. */
-export function listGroupRounds(accessToken: string, groupId: string, signal?: AbortSignal) {
-  return apiRequest<GroupPlanRoundsResponse>(`/api/groups/${encodeURIComponent(groupId)}/rounds`, {
+/* The group's plans, newest round first. 404 when you are not a member */
+export function listGroupPlans(accessToken: string, groupId: string, signal?: AbortSignal) {
+  return apiRequest<GroupPlansResponse>(`/api/groups/${encodeURIComponent(groupId)}/plans`, {
     headers: authorization(accessToken),
     signal,
   });

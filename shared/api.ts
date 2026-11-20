@@ -841,7 +841,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/groups/{groupId}/rounds": {
+    "/api/groups/{groupId}/plans": {
         parameters: {
             query?: never;
             header?: never;
@@ -849,8 +849,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * The group's rounds of plans
-         * @description Every round generated for the group (the newest 20 are kept), newest first, each with its plans in the order they were generated. 404 when the group doesn't exist or you are not a member.
+         * The group's plans
+         * @description Every member sees every plan generated for the group, newest round first. 404 when the group doesn't exist or you are not a member.
          */
         get: {
             parameters: {
@@ -869,9 +869,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "text/plain": components["schemas"]["GroupPlanRoundsResponse"];
-                        "application/json": components["schemas"]["GroupPlanRoundsResponse"];
-                        "text/json": components["schemas"]["GroupPlanRoundsResponse"];
+                        "text/plain": components["schemas"]["GroupPlansResponse"];
+                        "application/json": components["schemas"]["GroupPlansResponse"];
+                        "text/json": components["schemas"]["GroupPlansResponse"];
                     };
                 };
                 /** @description Unauthorized */
@@ -2127,7 +2127,7 @@ export interface components {
             groupSize: number;
             plans: components["schemas"]["PlanDto"][];
         };
-        GroupPlanRoundsResponse: {
+        GroupPlansResponse: {
             rounds: components["schemas"]["GroupPlanRoundDto"][];
         };
         /** @enum {unknown} */

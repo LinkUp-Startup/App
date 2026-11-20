@@ -38,5 +38,5 @@ public sealed record GroupPlanAuthorDto(Guid UserId, string DisplayName);
 public sealed record GroupPlanRoundDto(
     Guid Id, DateTimeOffset CreatedAt, GroupPlanAuthorDto? CreatedBy, int GroupSize, IReadOnlyList<PlanDto> Plans);
 
-/// <summary>The group's rounds of plans, newest first.</summary>
-public sealed record GroupPlanRoundsResponse(IReadOnlyList<GroupPlanRoundDto> Rounds);
+/// <summary>The group's plans, newest round first.</summary>
+public sealed record GroupPlansResponse(IReadOnlyList<GroupPlanRoundDto> Rounds);

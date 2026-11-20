@@ -86,7 +86,7 @@ public sealed class GroupRoundsEndpointTests(AuthApiFactory factory) : IClassFix
 
     private static async Task<JsonElement[]> RoundsAsync(Account who, Guid groupId)
     {
-        using var response = await who.Client.GetAsync($"/api/groups/{groupId}/rounds");
+        using var response = await who.Client.GetAsync($"/api/groups/{groupId}/plans");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement
             .GetProperty("rounds").EnumerateArray().Select(r => r.Clone()).ToArray();
@@ -99,7 +99,7 @@ public sealed class GroupRoundsEndpointTests(AuthApiFactory factory) : IClassFix
         var groupId = await NewGroupAsync(owner);
         using var anonymous = factory.CreateClient();
 
-        using var response = await anonymous.GetAsync($"/api/groups/{groupId}/rounds");
+        using var response = await anonymous.GetAsync($"/api/groups/{groupId}/plans");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -162,8 +162,8 @@ public sealed class GroupRoundsEndpointTests(AuthApiFactory factory) : IClassFix
         var (mine, other) = (await NewGroupAsync(ann), await NewGroupAsync(outsider));
         await NewRoundAsync(mine, ann, minutes: 0);
 
-        using var denied = await outsider.Client.GetAsync($"/api/groups/{mine}/rounds");
-        using var unknown = await ann.Client.GetAsync($"/api/groups/{Guid.NewGuid()}/rounds");
+        using var denied = await outsider.Client.GetAsync($"/api/groups/{mine}/plans");
+        using var unknown = await ann.Client.GetAsync($"/api/groups/{Guid.NewGuid()}/plans");
 
         Assert.Equal(HttpStatusCode.NotFound, denied.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
