@@ -1,11 +1,13 @@
 import { apiRequest } from '@/api/client';
 import { GeneratePlansTimeoutMs } from '@/api/plans';
 import type {
+  CastVoteRequest,
   CreateGroupRequest,
   Group,
   GroupPlanRound,
   GroupPlansResponse,
   GroupsResponse,
+  GroupVoteResults,
   NightPreferences,
 } from '@/types/api';
 
@@ -44,6 +46,54 @@ export function getGroup(accessToken: string, groupId: string, signal?: AbortSig
 /* The group's plans, newest round first. 404 when you are not a member */
 export function listGroupPlans(accessToken: string, groupId: string, signal?: AbortSignal) {
   return apiRequest<GroupPlansResponse>(`/api/groups/${encodeURIComponent(groupId)}/plans`, {
+    headers: authorization(accessToken),
+    signal,
+  });
+}
+
+function roundUrl(groupId: string, roundId: string) {
+  return `/api/groups/${encodeURIComponent(groupId)}/rounds/${encodeURIComponent(roundId)}`;
+}
+
+/* Where the vote of a round stands: the votes per plan, how many members voted and your own vote */
+export function getVoteResults(
+  accessToken: string,
+  groupId: string,
+  roundId: string,
+  signal?: AbortSignal,
+) {
+  return apiRequest<GroupVoteResults>(`${roundUrl(groupId, roundId)}/votes`, {
+    headers: authorization(accessToken),
+    signal,
+  });
+}
+
+/* Votes for a plan of the round, or moves your vote to it. 409 once the owner has closed the vote. */
+export function castVote(
+  accessToken: string,
+  groupId: string,
+  roundId: string,
+  planId: string,
+  signal?: AbortSignal,
+) {
+  const body: CastVoteRequest = { planId };
+  return apiRequest<GroupVoteResults>(`${roundUrl(groupId, roundId)}/votes/me`, {
+    method: 'PUT',
+    body,
+    headers: authorization(accessToken),
+    signal,
+  });
+}
+
+/* Closes the vote: nobody can vote or change their vote any more. Only the group's owner can (403). */
+export function closeVote(
+  accessToken: string,
+  groupId: string,
+  roundId: string,
+  signal?: AbortSignal,
+) {
+  return apiRequest<GroupVoteResults>(`${roundUrl(groupId, roundId)}/close`, {
+    method: 'POST',
     headers: authorization(accessToken),
     signal,
   });

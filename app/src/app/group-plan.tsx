@@ -108,7 +108,13 @@ export default function GroupPlanScreen() {
           {step.round.plans.map((plan) => (
             <PlanCard key={plan.id} plan={plan} />
           ))}
-          <Button title="Back to the group" onPress={() => router.back()} />
+          <Button
+            title="Vote on these plans"
+            onPress={() =>
+              router.push({ pathname: '/group-vote', params: { groupId: params.groupId } })
+            }
+          />
+          <Button title="Back to the group" variant="secondary" onPress={() => router.back()} />
           <Button
             title="Plan another night"
             variant="secondary"
