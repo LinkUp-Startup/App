@@ -85,6 +85,23 @@ describe('GroupScreen', () => {
     expect(screen.getByText('Bob (you)')).toBeOnTheScreen();
   });
 
+  it.each([
+    ['the owner', 'u1', 'owner'],
+    ['a member', 'u2', 'member'],
+  ] as const)('lets %s add friends to the group', async (_who, userId, myRole) => {
+    mockAuth.user = { id: userId };
+    jest.mocked(getGroup).mockResolvedValue({ ...crew, myRole });
+    const user = userEvent.setup();
+    await render(<GroupScreen />);
+
+    await user.press(await screen.findByRole('button', { name: 'Add friends to the group' }));
+
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/add-group-members',
+      params: { groupId: 'g1' },
+    });
+  });
+
   it('says when there are no plans yet', async () => {
     await render(<GroupScreen />);
 

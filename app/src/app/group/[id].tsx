@@ -96,6 +96,14 @@ export default function GroupScreen() {
             detail={member.role === 'owner' ? 'Owner' : undefined}
           />
         ))}
+        <Button
+          title="Add friends to the group"
+          variant="secondary"
+          icon="person-add-outline"
+          onPress={() =>
+            router.push({ pathname: '/add-group-members', params: { groupId: group.id } })
+          }
+        />
       </Section>
     </Screen>
   );

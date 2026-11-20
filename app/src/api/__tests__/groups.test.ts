@@ -1,5 +1,6 @@
 import { apiRequest } from '@/api/client';
 import {
+  addGroupMember,
   createGroup,
   generateGroupPlans,
   getGroup,
@@ -40,6 +41,16 @@ describe('groups endpoints', () => {
     await getGroup('token-1', 'g/1');
 
     expect(apiRequest).toHaveBeenCalledWith('/api/groups/g%2F1', { headers, signal: undefined });
+  });
+
+  it('addGroupMember posts the friend to the group, both ids escaped', async () => {
+    await addGroupMember('token-1', 'g/1', 'u 2');
+
+    expect(apiRequest).toHaveBeenCalledWith('/api/groups/g%2F1/members/u%202', {
+      method: 'POST',
+      headers,
+      signal: undefined,
+    });
   });
 
   it('listGroupPlans gets the group plans', async () => {
