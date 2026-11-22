@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { listReceivedPlans } from '@/api/received-plans';
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { Icon, type IconName } from '@/components/icon';
@@ -26,6 +27,8 @@ export default function SavedPlansScreen() {
   const { accessToken } = useAuth();
   const [plans, setPlans] = useState<SavedPlan[]>();
   const [syncFailed, setSyncFailed] = useState(false);
+  // How many plans friends sent you (#207); 0 until known
+  const [receivedCount, setReceivedCount] = useState(0);
   const now = useNow(60_000);
   const tonight = plans?.find((plan) => isTonight(plan, now));
 
@@ -45,6 +48,11 @@ export default function SavedPlansScreen() {
         });
 
       if (accessToken) {
+        listReceivedPlans(accessToken, controller.signal)
+          .then((received) => active && setReceivedCount(received.plans.length))
+          .catch((error: unknown) => {
+            if (active) console.warn('Could not load the plans friends sent', error);
+          });
         syncSavedPlans(accessToken, controller.signal)
           .then((merged) => {
             if (!active) return;
@@ -84,6 +92,14 @@ export default function SavedPlansScreen() {
           icon="moon-outline"
           accessibilityHint="Opens Tonight mode for this plan"
           onPress={() => router.push({ pathname: '/tonight/[id]', params: { id: tonight.id } })}
+        />
+      )}
+      {accessToken && receivedCount > 0 && (
+        <Button
+          title={`Sent to you (${receivedCount})`}
+          icon="paper-plane-outline"
+          accessibilityHint="Plans your friends sent you"
+          onPress={() => router.push('/received-plans')}
         />
       )}
       <Button

@@ -100,12 +100,13 @@ To apply to another database (e.g. `project_dev`), set `ConnectionStrings__Defau
 | `Venues` | Curated Lleida venues, seeded from `Data/Seed` | has many `VenueOpeningHours` |
 | `VenueOpeningHours` | One opening slot per row (day, opens, closes) | deleted with its venue |
 | `users` | Accounts | has many `Plans` |
-| `Plans` | A night plan: title, summary, cost per person, total distance | belongs to an account (`UserId`) or a group round (`GroupPlanRoundId`), never both; deleted with either; has many `PlanItems` |
+| `Plans` | A night plan: title, summary, cost per person, total distance | belongs to at most one of: an account (`UserId`), a group round (`GroupPlanRoundId`) or a sent plan (`SentPlanId`); deleted with it; has many `PlanItems` |
 | `PlanItems` | One stop: venue, `Position` (0-based, unique per plan), times, cost, distance from the previous stop (the first from the start location) | deleted with its plan; a venue used in a plan can't be deleted (set `IsActive = false` instead) |
 | `Groups` | Friends who plan together: a name | has many `GroupMembers` |
 | `GroupMembers` | One user in one group, with a `Role` (`Owner` or `Member`); exactly one owner, the creator | deleted with the group or the account; a user can be in several groups |
 | `GroupPlanRounds` | The 2-3 plans generated together for a group, with the group size (member count), who generated them and `ClosedAt` (set when the owner closes the vote) | deleted with the group (only the newest 20 are kept); `CreatedById` is cleared when that account is deleted |
 | `GroupPlanVotes` | One member's vote for one plan of a round; the key is round + member, so a member has one vote per round and changes it by updating the row | deleted with its round, its plan or the member's account; votes of members who left the group are kept but not counted |
+| `SentPlans` | A plan a user sent to a friend: who sent it, who received it, when; owns the friend's copy in `Plans` | deleted with the recipient's account (only the newest 100 per recipient are kept); `SenderId` is cleared when the sender's account is deleted |
 
 Plan item times are stored in UTC; EF converts any offset on write. Read items sorted by `Position`.
 

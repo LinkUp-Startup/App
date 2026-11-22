@@ -13,6 +13,7 @@ import { formatNightDate } from '@/features/plans/format';
 import { PlanCard } from '@/features/plans/plan-card';
 import { removePlanFor, savePlanFor } from '@/features/plans/saved-plans-sync';
 import { getShareLink, openShareSheet, stopSharing } from '@/features/plans/share-plan';
+import { ShareSheet } from '@/features/plans/share-sheet';
 import { SwapStopSheet } from '@/features/plans/swap-stop';
 import { isTonight } from '@/features/tonight/night';
 import { ReminderSwitch } from '@/features/tonight/reminder-switch';
@@ -24,7 +25,8 @@ import type { Plan } from '@/types/api';
 
 /**
  * One saved plan, opened from the Saved tab. Opens offline; deleting it also needs the account when signed in.
- * Sharing (#154) needs an account, because the link points at the plan on the server.
+ * Sharing (#154) needs an account, because the link points at the plan on the server; so does sending it to a
+ * friend (#207). Both start from the share popup.
  */
 export default function SavedPlanScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -35,6 +37,7 @@ export default function SavedPlanScreen() {
   const [deleteFailed, setDeleteFailed] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [shareFailed, setShareFailed] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [addingToCalendar, setAddingToCalendar] = useState(false);
   const [calendarMessage, setCalendarMessage] = useState<string | null>(null);
   const now = useNow(60_000);
@@ -55,11 +58,11 @@ export default function SavedPlanScreen() {
       });
   }, [id]);
 
-  function share(saved: SavedPlan) {
+  function share() {
     if (!accessToken) {
       Alert.alert(
         'Log in to share',
-        'A share link opens your plan on the LinkUp website, so the plan needs to be in your account. Your saved plans move to your account when you log in.',
+        'Sharing sends your plan to a friend or opens it on the LinkUp website, so the plan needs to be in your account. Your saved plans move to your account when you log in.',
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Log in', onPress: () => router.push('/login') },
@@ -68,8 +71,13 @@ export default function SavedPlanScreen() {
       return;
     }
     setShareFailed(null);
+    setSheetOpen(true);
+  }
+
+  function shareLink(saved: SavedPlan, token: string) {
+    setShareFailed(null);
     setSharing(true);
-    getShareLink(saved, accessToken)
+    getShareLink(saved, token)
       .then(async (url) => {
         await reload();
         await openShareSheet(saved, url);
@@ -210,7 +218,7 @@ export default function SavedPlanScreen() {
               title={sharing ? 'Getting link…' : 'Share plan'}
               icon="share-outline"
               disabled={sharing}
-              onPress={() => share(plan)}
+              onPress={share}
             />
             {plan.shareUrl && accessToken && (
               <>
@@ -273,6 +281,16 @@ export default function SavedPlanScreen() {
           </>
         }
       />
+      {accessToken && (
+        <ShareSheet
+          key={sheetOpen ? 'share-open' : 'share-closed'}
+          plan={plan}
+          accessToken={accessToken}
+          visible={sheetOpen}
+          onShareLink={() => shareLink(plan, accessToken)}
+          onClose={() => setSheetOpen(false)}
+        />
+      )}
       <SwapStopSheet
         key={swapIndex ?? 'closed'}
         plan={plan}

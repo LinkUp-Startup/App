@@ -78,6 +78,30 @@ public sealed class SavedPlansController(ISavedPlanService savedPlans) : Control
             : Problem(statusCode: StatusCodes.Status404NotFound, title: "Save the plan before sharing it.");
     }
 
+    [HttpPost("{id:guid}/send/{friendId:guid}")]
+    [EndpointSummary("Send a saved plan to a friend")]
+    [EndpointDescription(
+        "The friend gets their own copy, with your name, in their received plans (#207). Sending the same plan " +
+        "to the same friend again replaces their copy. 403 when the user is not your friend, 404 when you have " +
+        "not saved the plan to your account.")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Send(
+        Guid id, Guid friendId, [FromServices] IReceivedPlanService receivedPlans, CancellationToken cancellationToken)
+    {
+        if (CurrentUserId() is not { } userId) return Unauthorized();
+
+        return await receivedPlans.SendAsync(userId, id, friendId, cancellationToken) switch
+        {
+            SendPlanResult.Sent => NoContent(),
+            SendPlanResult.NotAFriend => Problem(
+                statusCode: StatusCodes.Status403Forbidden, title: "You can only send plans to your friends."),
+            _ => Problem(statusCode: StatusCodes.Status404NotFound, title: "Save the plan before sending it."),
+        };
+    }
+
     [HttpDelete("{id:guid}/share")]
     [EndpointSummary("Stop sharing a saved plan")]
     [EndpointDescription("The link stops working. Sharing the plan again gives a new link. 204 whether or not the plan was shared.")]

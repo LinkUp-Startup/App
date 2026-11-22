@@ -12,9 +12,12 @@ public sealed class Plan
     // accounts can save the same plan, e.g. a shared one.
     public Guid? SourcePlanId { get; set; }
 
-    // The group round the plan was generated in (#169). Null for plans saved to an account. A plan belongs to
-    // an account or to a group, never both.
+    // The group round the plan was generated in (#169). Null for plans saved to an account.
     public Guid? GroupPlanRoundId { get; set; }
+
+    // Set when this is the copy a friend received (#207). A plan belongs to an account, a group round or a
+    // friend's received plans: at most one of these three is set.
+    public Guid? SentPlanId { get; set; }
 
     public required string Title { get; set; }
     public required string Summary { get; set; }

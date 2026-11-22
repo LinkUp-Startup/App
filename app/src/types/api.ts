@@ -48,3 +48,5 @@ export type GroupPlansResponse = Schemas['GroupPlansResponse'];
 export type CastVoteRequest = Schemas['CastVoteRequest'];
 export type PlanVotes = Schemas['PlanVotesDto'];
 export type GroupVoteResults = Schemas['GroupVoteResultsDto'];
+export type ReceivedPlan = Schemas['ReceivedPlanDto'];
+export type ReceivedPlansResponse = Schemas['ReceivedPlansResponse'];

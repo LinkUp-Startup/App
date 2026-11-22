@@ -13,6 +13,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<GroupMember> GroupMembers => Set<GroupMember>();
     public DbSet<GroupPlanRound> GroupPlanRounds => Set<GroupPlanRound>();
     public DbSet<GroupPlanVote> GroupPlanVotes => Set<GroupPlanVote>();
+    public DbSet<SentPlan> SentPlans => Set<SentPlan>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

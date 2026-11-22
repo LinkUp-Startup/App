@@ -1,8 +1,14 @@
 import { Platform, Share } from 'react-native';
 
 import { ApiError, NetworkError } from '@/api/client';
-import { putSavedPlan, sharePlan, unsharePlan } from '@/api/saved-plans';
-import { getShareLink, openShareSheet, shareText, stopSharing } from '@/features/plans/share-plan';
+import { putSavedPlan, sendPlanToFriend, sharePlan, unsharePlan } from '@/api/saved-plans';
+import {
+  getShareLink,
+  openShareSheet,
+  sendToFriend,
+  shareText,
+  stopSharing,
+} from '@/features/plans/share-plan';
 import { getSavedPlan, getSavedPlans, savePlan, type SavedPlan } from '@/storage/saved-plans';
 
 import { tapasPlan } from './fixtures/plans';
@@ -115,4 +121,45 @@ describe('share sheet', () => {
 
     expect(share).toHaveBeenCalledWith({ message: shareText(saved), url });
   });
+});
+
+describe('sendToFriend', () => {
+  it('sends a plan that is in the account', async () => {
+    jest.mocked(sendPlanToFriend).mockResolvedValue(undefined);
+
+    await sendToFriend(saved, 'u2', 'token-1');
+
+    expect(sendPlanToFriend).toHaveBeenCalledWith('token-1', tapasPlan.id, 'u2');
+    expect(putSavedPlan).not.toHaveBeenCalled();
+  });
+
+  it('uploads a plan that never reached the account, then sends it', async () => {
+    const deviceOnly: SavedPlan = { ...tapasPlan, savedAt: '2026-11-01T09:00:00.000Z' };
+    await savePlan(deviceOnly, { savedAt: deviceOnly.savedAt });
+    jest
+      .mocked(sendPlanToFriend)
+      .mockRejectedValueOnce(new ApiError(404, 'not saved'))
+      .mockResolvedValueOnce(undefined);
+    jest.mocked(putSavedPlan).mockResolvedValue({
+      plan: tapasPlan,
+      savedAt: '2026-11-01T10:00:00.000Z',
+      shareUrl: null,
+    });
+
+    await sendToFriend(deviceOnly, 'u2', 'token-1');
+
+    expect(putSavedPlan).toHaveBeenCalledWith('token-1', deviceOnly);
+    expect(sendPlanToFriend).toHaveBeenCalledTimes(2);
+    expect((await getSavedPlan(tapasPlan.id))?.synced).toBe(true);
+  });
+
+  it.each([new ApiError(403, 'not friends'), new NetworkError('offline')])(
+    'passes other failures on (%s)',
+    async (error) => {
+      jest.mocked(sendPlanToFriend).mockRejectedValue(error);
+
+      await expect(sendToFriend(saved, 'u2', 'token-1')).rejects.toBe(error);
+      expect(putSavedPlan).not.toHaveBeenCalled();
+    },
+  );
 });
