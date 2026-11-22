@@ -239,7 +239,7 @@ public sealed class GroupService(AppDbContext db, TimeProvider clock) : IGroupSe
 
     // The ids among userIds that are the user's (accepted) friends
     private async Task<HashSet<Guid>> FriendsAmongAsync(
-        Guid userId, IReadOnlyCollection<Guid> userIds, CancellationToken cancellationToken)
+        Guid userId, List<Guid> userIds, CancellationToken cancellationToken)
     {
         if (userIds.Count == 0) return [];
         var rows = await db.Friendships.AsNoTracking()

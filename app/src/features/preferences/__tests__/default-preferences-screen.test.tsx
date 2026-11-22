@@ -321,5 +321,5 @@ it('works when React remounts effects in strict mode', async () => {
   await ready();
   await fireEvent.changeText(screen.getByLabelText(budgetLabel), '0');
   await save();
-  await screen.findByText('Preferences saved on this phone.');
+  expect(await screen.findByText('Preferences saved on this phone.')).toBeOnTheScreen();
 });

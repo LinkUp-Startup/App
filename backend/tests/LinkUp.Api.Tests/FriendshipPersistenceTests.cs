@@ -68,7 +68,7 @@ public sealed class FriendshipPersistenceTests(AuthApiFactory factory) : IClassF
     {
         // If OrderPair disagreed with PostgreSQL, some of these would break the "UserAId < UserBId" check
         for (var i = 0; i < 20; i++)
-            await SaveAsync(Friendship.Request(await NewUserAsync(), await NewUserAsync()));
+            Assert.Equal(1, await SaveAsync(Friendship.Request(await NewUserAsync(), await NewUserAsync())));
     }
 
     [Fact]

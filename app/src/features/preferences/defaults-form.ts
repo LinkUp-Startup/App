@@ -32,7 +32,7 @@ export function defaultsToForm(values: UserPreferences): DefaultsForm {
 
 function parseDistance(value: string): number {
   const normalized = value.trim().replace(',', '.');
-  return /^\d+(\.\d+)?$/.test(normalized) ? Number(normalized) : NaN;
+  return /^\d+(\.\d+)?$/.test(normalized) ? Number(normalized) : Number.NaN;
 }
 
 function validSelection<T extends string>(values: readonly T[], labels: Record<T, string>) {

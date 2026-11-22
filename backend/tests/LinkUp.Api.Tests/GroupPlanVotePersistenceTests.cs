@@ -131,6 +131,9 @@ public sealed class GroupPlanVotePersistenceTests(AuthApiFactory factory) : ICla
             });
             return db.SaveChangesAsync();
         });
+
+        Assert.Single(await VotesAsync(first));
+        Assert.Equal(second.PlanIds[0], Assert.Single(await VotesAsync(second)).PlanId);
     }
 
     [Fact]
