@@ -51,7 +51,7 @@ export default function ReceivedPlansScreen() {
   useFocusEffect(
     useCallback(() => {
       const controller = new AbortController();
-      load(controller.signal);
+      void load(controller.signal);
       return () => controller.abort();
     }, [load]),
   );
