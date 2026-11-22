@@ -52,3 +52,19 @@ export function unsharePlan(accessToken: string, id: string, signal?: AbortSigna
     signal,
   });
 }
+
+/**
+ * Sends a copy of the saved plan to a friend, who sees it with your name (#207). 403 when the user is not your
+ * friend, 404 when the account has not saved the plan.
+ */
+export function sendPlanToFriend(
+  accessToken: string,
+  id: string,
+  friendId: string,
+  signal?: AbortSignal,
+) {
+  return apiRequest<void>(
+    `/api/saved-plans/${encodeURIComponent(id)}/send/${encodeURIComponent(friendId)}`,
+    { method: 'POST', headers: authorization(accessToken), signal },
+  );
+}

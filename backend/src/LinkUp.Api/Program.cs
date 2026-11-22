@@ -87,6 +87,7 @@ builder.Services.AddScoped<ISavedPlanService, SavedPlanService>();
 builder.Services.AddScoped<IFriendService, FriendService>();
 builder.Services.AddScoped<IGroupService, GroupService>();
 builder.Services.AddScoped<IGroupVoteService, GroupVoteService>();
+builder.Services.AddScoped<IReceivedPlanService, ReceivedPlanService>();
 builder.Services.AddScoped<IUserPreferencesService, UserPreferencesService>();
 builder.Services.AddScoped<IVenueService, VenueService>();
 builder.Services.AddScoped<IVenueFilteringService, VenueFilteringService>();

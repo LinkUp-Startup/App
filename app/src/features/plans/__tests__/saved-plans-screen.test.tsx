@@ -1,6 +1,7 @@
 import { act, render, screen, userEvent } from '@testing-library/react-native';
 import { router } from 'expo-router';
 
+import { listReceivedPlans } from '@/api/received-plans';
 import { listSavedPlans } from '@/api/saved-plans';
 import SavedPlansScreen from '@/app/(tabs)/saved';
 import { getSavedPlans, removePlan, savePlan } from '@/storage/saved-plans';
@@ -29,6 +30,7 @@ jest.mock('expo-router', () => {
 const refocus = () => jest.requireMock<{ __refocus: () => void }>('expo-router').__refocus();
 
 jest.mock('@/api/saved-plans');
+jest.mock('@/api/received-plans');
 // Guest by default; the signed-in tests set a token.
 const mockAuth = { accessToken: null as string | null };
 jest.mock('@/features/auth/auth-context', () => ({
@@ -123,6 +125,44 @@ describe('SavedPlansScreen', () => {
   describe('when signed in', () => {
     beforeEach(() => {
       mockAuth.accessToken = 'token-1';
+      jest.mocked(listSavedPlans).mockResolvedValue({ plans: [] });
+      jest.mocked(listReceivedPlans).mockResolvedValue({ plans: [] });
+    });
+
+    it('links to the plans friends sent, with how many there are', async () => {
+      jest.mocked(listReceivedPlans).mockResolvedValue({
+        plans: [
+          { id: 'r1', plan: tapasPlan, from: null, sentAt: '2026-11-06T18:00:00Z' },
+          { id: 'r2', plan: tapasPlan, from: null, sentAt: '2026-11-05T18:00:00Z' },
+        ],
+      });
+      const user = userEvent.setup();
+      await render(<SavedPlansScreen />);
+
+      await user.press(await screen.findByRole('button', { name: 'Sent to you (2)' }));
+
+      expect(listReceivedPlans).toHaveBeenCalledWith('token-1', expect.any(AbortSignal));
+      expect(router.push).toHaveBeenCalledWith('/received-plans');
+    });
+
+    it('shows no link when no friend has sent a plan', async () => {
+      await render(<SavedPlansScreen />);
+
+      expect(await screen.findByText(/Nothing saved yet/)).toBeOnTheScreen();
+      expect(screen.queryByRole('button', { name: /^Sent to you/ })).not.toBeOnTheScreen();
+    });
+
+    it('still shows the saved plans when the plans from friends cannot be loaded', async () => {
+      await savePlan(tapasPlan);
+      jest.mocked(listReceivedPlans).mockRejectedValue(new Error('offline'));
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      await render(<SavedPlansScreen />);
+
+      expect(
+        await screen.findByRole('button', { name: 'Open Tapas and drinks' }),
+      ).toBeOnTheScreen();
+      expect(warn).toHaveBeenCalledWith('Could not load the plans friends sent', expect.any(Error));
+      expect(screen.queryByRole('button', { name: /^Sent to you/ })).not.toBeOnTheScreen();
     });
 
     it('adds the plans saved on other devices and stores them for offline use', async () => {

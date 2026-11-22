@@ -217,6 +217,9 @@ namespace LinkUp.Api.Data.Migrations
                     b.Property<Guid?>("GroupPlanRoundId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("SentPlanId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("ShareToken")
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
@@ -244,6 +247,9 @@ namespace LinkUp.Api.Data.Migrations
 
                     b.HasIndex("GroupPlanRoundId");
 
+                    b.HasIndex("SentPlanId")
+                        .IsUnique();
+
                     b.HasIndex("ShareToken")
                         .IsUnique()
                         .HasFilter("\"ShareToken\" IS NOT NULL");
@@ -254,11 +260,11 @@ namespace LinkUp.Api.Data.Migrations
 
                     b.ToTable("Plans", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Plans_AccountOrGroup", "\"UserId\" IS NULL OR \"GroupPlanRoundId\" IS NULL");
-
                             t.HasCheckConstraint("CK_Plans_EstimatedCostPerPerson", "\"EstimatedCostPerPerson\" >= 0");
 
                             t.HasCheckConstraint("CK_Plans_EstimatedTotalCost", "\"EstimatedTotalCost\" >= 0");
+
+                            t.HasCheckConstraint("CK_Plans_OneOwner", "(\"UserId\" IS NULL AND \"GroupPlanRoundId\" IS NULL) OR (\"UserId\" IS NULL AND \"SentPlanId\" IS NULL) OR (\"GroupPlanRoundId\" IS NULL AND \"SentPlanId\" IS NULL)");
 
                             t.HasCheckConstraint("CK_Plans_TotalDistanceKm", "\"TotalDistanceKm\" >= 0");
                         });
@@ -315,6 +321,33 @@ namespace LinkUp.Api.Data.Migrations
                             t.HasCheckConstraint("CK_PlanItems_Position", "\"Position\" >= 0");
 
                             t.HasCheckConstraint("CK_PlanItems_Times", "\"EndTime\" > \"StartTime\"");
+                        });
+                });
+
+            modelBuilder.Entity("LinkUp.Api.Data.Entities.SentPlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RecipientId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("SenderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("SentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SenderId");
+
+                    b.HasIndex("RecipientId", "SentAt");
+
+                    b.ToTable("SentPlans", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_SentPlans_NotToSelf", "\"SenderId\" IS NULL OR \"SenderId\" <> \"RecipientId\"");
                         });
                 });
 
@@ -550,6 +583,11 @@ namespace LinkUp.Api.Data.Migrations
                         .HasForeignKey("GroupPlanRoundId")
                         .OnDelete(DeleteBehavior.Cascade);
 
+                    b.HasOne("LinkUp.Api.Data.Entities.SentPlan", null)
+                        .WithOne("Plan")
+                        .HasForeignKey("LinkUp.Api.Data.Entities.Plan", "SentPlanId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
                     b.HasOne("LinkUp.Api.Data.Entities.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -571,6 +609,20 @@ namespace LinkUp.Api.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Venue");
+                });
+
+            modelBuilder.Entity("LinkUp.Api.Data.Entities.SentPlan", b =>
+                {
+                    b.HasOne("LinkUp.Api.Data.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("RecipientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("LinkUp.Api.Data.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("SenderId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("LinkUp.Api.Data.Entities.VenueOpeningHours", b =>
@@ -595,6 +647,12 @@ namespace LinkUp.Api.Data.Migrations
             modelBuilder.Entity("LinkUp.Api.Data.Entities.Plan", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("LinkUp.Api.Data.Entities.SentPlan", b =>
+                {
+                    b.Navigation("Plan")
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("LinkUp.Api.Data.Entities.Venue", b =>

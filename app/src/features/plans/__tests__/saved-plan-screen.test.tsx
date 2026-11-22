@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { Alert, Linking, Share } from 'react-native';
 
+import { listFriends } from '@/api/friends';
 import { deleteSavedPlan, sharePlan, unsharePlan } from '@/api/saved-plans';
 import SavedPlanScreen from '@/app/saved-plan/[id]';
 import { swapOptions } from '@/api/plans';
@@ -20,6 +21,7 @@ jest.mock('expo-router', () => ({
 }));
 
 jest.mock('@/api/saved-plans');
+jest.mock('@/api/friends');
 jest.mock('@/features/plans/add-to-calendar');
 jest.mock('@/api/plans', () => ({ swapOptions: jest.fn() }));
 // Guest by default; the signed-in tests set a token.
@@ -308,6 +310,34 @@ describe('SavedPlanScreen', () => {
     describe('sharing', () => {
       const url = 'https://linkup.th7bo.dev/plan/tok';
 
+      beforeEach(() =>
+        jest.mocked(listFriends).mockResolvedValue({ friends: [], incoming: [], outgoing: [] }),
+      );
+
+      it('renders the share popup next to the swap sheet without clashing keys', async () => {
+        await savePlan(tapasPlan, { synced: true });
+        const error = jest.spyOn(console, 'error');
+        await render(<SavedPlanScreen />);
+
+        expect(await screen.findByRole('button', { name: 'Share plan' })).toBeOnTheScreen();
+        // React only logs a duplicate key, so check the log
+        expect(error.mock.calls.flat().join(' ')).not.toMatch(/same key/);
+        error.mockRestore();
+      });
+
+      it('opens the share popup with both ways to share', async () => {
+        await savePlan(tapasPlan, { synced: true });
+        const user = userEvent.setup();
+        await render(<SavedPlanScreen />);
+
+        await user.press(await screen.findByRole('button', { name: 'Share plan' }));
+
+        expect(await screen.findByText('Send to a friend')).toBeOnTheScreen();
+        expect(screen.getByRole('button', { name: 'Share a link' })).toBeOnTheScreen();
+        expect(listFriends).toHaveBeenCalledWith('token-1', expect.any(AbortSignal));
+        expect(sharePlan).not.toHaveBeenCalled();
+      });
+
       it('gets a link, opens the share sheet and shows that the plan is shared', async () => {
         await savePlan(tapasPlan, { synced: true });
         jest.mocked(sharePlan).mockResolvedValue({ url });
@@ -318,6 +348,7 @@ describe('SavedPlanScreen', () => {
         await render(<SavedPlanScreen />);
 
         await user.press(await screen.findByRole('button', { name: 'Share plan' }));
+        await user.press(await screen.findByRole('button', { name: 'Share a link' }));
 
         await waitFor(() => expect(share).toHaveBeenCalled());
         expect(JSON.stringify(share.mock.calls[0][0])).toContain(url);
@@ -336,6 +367,7 @@ describe('SavedPlanScreen', () => {
         await render(<SavedPlanScreen />);
 
         await user.press(await screen.findByRole('button', { name: 'Share plan' }));
+        await user.press(await screen.findByRole('button', { name: 'Share a link' }));
 
         expect(await screen.findByText(/Couldn't create a share link/)).toBeOnTheScreen();
         expect(share).not.toHaveBeenCalled();
