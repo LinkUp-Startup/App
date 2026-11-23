@@ -51,7 +51,7 @@ export function TimeField({
         <span
           style={{
             color: theme.textSecondary,
-            fontFamily: `${FontFamily.headline}, system-ui, sans-serif`,
+            fontFamily: `${FontFamily.headlineSemi}, system-ui, sans-serif`,
             fontSize: 10,
             lineHeight: '14px',
           }}>

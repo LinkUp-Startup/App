@@ -23,17 +23,7 @@ import { StartLocationField } from '@/features/preferences/start-location-field'
 import { toggle, usePreferencesForm } from '@/features/preferences/use-preferences-form';
 import { usePlanPrefill } from '@/features/preferences/use-plan-prefill';
 import { useTheme } from '@/hooks/use-theme';
-import type { Activity, NightPreferences, Transport } from '@/types/api';
-
-const ActivityEmoji: Record<Activity, string> = {
-  dinner: '🍽️',
-  drinks: '🍸',
-  club: '🪩',
-  concert: '🎸',
-  cinema: '🎬',
-  games: '🎯',
-  outdoor: '🌙',
-};
+import type { NightPreferences, Transport } from '@/types/api';
 
 // Walking and bike first, as in the design; the object's key order is the order on screen.
 const TransportOptions: Record<Transport, string> = {
@@ -155,7 +145,6 @@ export function PlanForm({
         />
         <ChipGroup
           options={ActivityLabels}
-          emoji={ActivityEmoji}
           selected={form.activities}
           onToggle={(activity) => setField('activities', toggle(form.activities, activity))}
           invalid={!!errors.activities}

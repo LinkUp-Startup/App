@@ -1,5 +1,4 @@
 import { router, useFocusEffect } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -169,13 +168,9 @@ function EmptyIcon() {
   const theme = useTheme();
 
   return (
-    <LinearGradient
-      colors={[theme.tint, theme.accent]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.emptyGradient}>
-      <Icon name="bookmark" size={28} color="onTint" />
-    </LinearGradient>
+    <View style={[styles.emptyIcon, { backgroundColor: theme.backgroundSelected }]}>
+      <Icon name="bookmark" size={28} color="highlight" />
+    </View>
   );
 }
 
@@ -215,13 +210,8 @@ function SavedPlanRow({ plan }: { plan: SavedPlan }) {
       onPress={() => router.push({ pathname: '/saved-plan/[id]', params: { id: plan.id } })}
       style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
       <Card style={styles.row}>
-        {/* The same thin purple-to-cyan line as on the results, so a saved plan looks like the plan it was. */}
-        <LinearGradient
-          colors={[theme.tintBright, theme.accent, theme.tint]}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
-          style={styles.accent}
-        />
+        {/* The same coral edge as on the results, so a saved plan looks like the plan it was. */}
+        <View style={[styles.accent, { backgroundColor: theme.tint }]} />
         <View style={styles.rowTop}>
           {night ? (
             <View style={[styles.datePill, { backgroundColor: theme.inputFill }]}>
@@ -283,7 +273,7 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     paddingVertical: Spacing.five,
   },
-  emptyGradient: {
+  emptyIcon: {
     alignItems: 'center',
     borderRadius: Radius.full,
     height: 64,

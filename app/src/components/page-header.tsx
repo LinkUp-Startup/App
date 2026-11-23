@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, View } from 'react-native';
 
 import { Icon, type IconName } from '@/components/icon';
@@ -8,24 +7,20 @@ import { useTheme } from '@/hooks/use-theme';
 
 type PageHeaderProps = {
   title: string;
-  /** Icon in the gradient badge above the title. */
+  /** Icon in the badge above the title. */
   icon: IconName;
   description?: string;
 };
 
-/** The top of a screen: a purple-to-cyan icon badge, a 26px title and a short muted description. */
+/** The top of a screen: an icon badge, a poster-capitals title and a short muted description. */
 export function PageHeader({ title, icon, description }: PageHeaderProps) {
   const theme = useTheme();
 
   return (
     <View style={styles.header}>
-      <LinearGradient
-        colors={[theme.tint, theme.accent]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.badge}>
-        <Icon name={icon} size={22} color="onTint" />
-      </LinearGradient>
+      <View style={[styles.badge, { backgroundColor: theme.backgroundSelected }]}>
+        <Icon name={icon} size={22} color="highlight" />
+      </View>
       <ThemedText type="subtitle" accessibilityRole="header">
         {title}
       </ThemedText>

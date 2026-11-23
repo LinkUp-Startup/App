@@ -1,9 +1,10 @@
-import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
+import { BigShoulders_800ExtraBold, BigShoulders_900Black } from '@expo-google-fonts/big-shoulders';
 import {
-  PlusJakartaSans_600SemiBold,
-  PlusJakartaSans_700Bold,
-  PlusJakartaSans_800ExtraBold,
-} from '@expo-google-fonts/plus-jakarta-sans';
+  Figtree_400Regular,
+  Figtree_500Medium,
+  Figtree_600SemiBold,
+  Figtree_700Bold,
+} from '@expo-google-fonts/figtree';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
@@ -53,12 +54,12 @@ function RootNavigator() {
 
   // A font that fails to load falls back to the system font, so errors never block the app.
   const [fontsLoaded, fontError] = useFonts({
-    [FontFamily.display]: PlusJakartaSans_800ExtraBold,
-    [FontFamily.headline]: PlusJakartaSans_700Bold,
-    [FontFamily.headlineSemi]: PlusJakartaSans_600SemiBold,
-    [FontFamily.body]: Inter_400Regular,
-    [FontFamily.bodyMedium]: Inter_500Medium,
-    [FontFamily.bodySemi]: Inter_600SemiBold,
+    [FontFamily.display]: BigShoulders_900Black,
+    [FontFamily.headline]: BigShoulders_800ExtraBold,
+    [FontFamily.headlineSemi]: Figtree_700Bold,
+    [FontFamily.body]: Figtree_400Regular,
+    [FontFamily.bodyMedium]: Figtree_500Medium,
+    [FontFamily.bodySemi]: Figtree_600SemiBold,
   });
   const fontsReady = fontsLoaded || fontError !== null;
 
@@ -76,7 +77,7 @@ function RootNavigator() {
       screenOptions={{
         headerBackTitle: 'Back',
         headerTintColor: colors.text,
-        headerTitleStyle: { fontFamily: FontFamily.headline },
+        headerTitleStyle: { fontFamily: FontFamily.display, fontSize: 22 },
       }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="plans" options={{ title: 'Your plans' }} />
