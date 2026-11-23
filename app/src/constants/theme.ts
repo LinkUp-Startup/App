@@ -7,8 +7,10 @@ import { Platform } from 'react-native';
  */
 export const Palette = {
   wine: '#2B0D1E',
-  plum: '#3A1229',
-  plumLight: '#4C1A37',
+  /** The app's night background: the website's wine, a step darker so a phone screen at night isn't bright. */
+  night: '#1C0712',
+  plum: '#2C0D1F',
+  plumLight: '#3D162D',
   butter: '#FFE7A3',
   coral: '#FF6B5B',
   blush: '#F6E3EA',
@@ -43,7 +45,7 @@ export const Colors = {
   },
   dark: {
     text: Palette.blush,
-    background: Palette.wine,
+    background: Palette.night,
     backgroundElement: Palette.plum,
     backgroundSelected: Palette.plumLight,
     textSecondary: Palette.mauve,
@@ -54,7 +56,7 @@ export const Colors = {
     highlight: Palette.butter,
     border: 'rgba(246, 227, 234, 0.14)',
     inputFill: 'rgba(246, 227, 234, 0.06)',
-    glass: 'rgba(58, 18, 41, 0.94)',
+    glass: 'rgba(44, 13, 31, 0.94)',
     outline: 'rgba(255, 231, 163, 0.6)',
     danger: '#FF8FA3',
     success: '#A8E6B8',
