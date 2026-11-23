@@ -12,6 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
 import { Colors, FontFamily } from '@/constants/theme';
+import { ColorSchemeProvider } from '@/features/appearance/color-scheme-context';
 import { AuthProvider, useAuth } from '@/features/auth/auth-context';
 import { useSyncSavedPlans } from '@/features/plans/use-sync-saved-plans';
 import { useOpenReminders } from '@/features/tonight/use-open-reminders';
@@ -21,6 +22,14 @@ import { useTheme } from '@/hooks/use-theme';
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
+  return (
+    <ColorSchemeProvider>
+      <ThemedRoot />
+    </ColorSchemeProvider>
+  );
+}
+
+function ThemedRoot() {
   const colors = useTheme();
   const dark = colors === Colors.dark;
   const base = dark ? DarkTheme : DefaultTheme;

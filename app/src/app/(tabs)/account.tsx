@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/page-header';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { DarkModeSwitch } from '@/features/appearance/dark-mode-switch';
 import { useAuth } from '@/features/auth/auth-context';
 
 export default function AccountScreen() {
@@ -74,6 +75,8 @@ export default function AccountScreen() {
           />
         )}
       </View>
+
+      <DarkModeSwitch />
 
       {user && (
         <Button
