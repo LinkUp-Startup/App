@@ -2,7 +2,15 @@ import { render, screen, userEvent, waitFor } from '@testing-library/react-nativ
 import { router } from 'expo-router';
 
 import { ApiError } from '@/api/client';
-import { castVote, closeVote, getGroup, getVoteResults, listGroupPlans } from '@/api/groups';
+import {
+  castVote,
+  closeVote,
+  getGroup,
+  getVoteResults,
+  listGroupPlans,
+  swapGroupStop,
+} from '@/api/groups';
+import { swapOptions } from '@/api/plans';
 import GroupVoteScreen from '@/app/group-vote';
 import { tapasPlan } from '@/features/plans/__tests__/fixtures/plans';
 import { savePlanFor } from '@/features/plans/saved-plans-sync';
@@ -17,6 +25,7 @@ jest.mock('expo-router', () => ({
     jest.requireActual<typeof import('react')>('react').useEffect(effect, [effect]),
 }));
 jest.mock('@/api/groups');
+jest.mock('@/api/plans', () => ({ swapOptions: jest.fn() }));
 jest.mock('@/features/plans/saved-plans-sync');
 const mockAuth = { accessToken: 'token-1' as string | null };
 jest.mock('@/features/auth/auth-context', () => ({
@@ -613,5 +622,60 @@ describe('the plan the group chose', () => {
     expect(await screen.findByText('Tapas and drinks')).toBeOnTheScreen();
     expect(screen.getByText('Bowling night')).toBeOnTheScreen();
     expect(screen.queryByRole('button', follow)).toBeNull();
+  });
+});
+
+describe('swapping a stop before the vote', () => {
+  const swapped: Plan = {
+    ...tapas,
+    title: 'Casa Pepe and drinks',
+    items: [
+      { ...tapas.items[0], venue: { ...tapas.items[0].venue, id: '30', name: 'Casa Pepe' } },
+      tapas.items[1],
+    ],
+  };
+
+  async function swapTapasToCasaPepe() {
+    jest.mocked(swapOptions).mockResolvedValue({ options: [swapped] });
+    const user = userEvent.setup();
+    await render(<GroupVoteScreen />);
+    const [tapasSwap] = await screen.findAllByRole('button', { name: 'Swap Teresa Carles' });
+    await user.press(tapasSwap);
+    await user.press(await screen.findByRole('button', { name: 'Swap to Casa Pepe' }));
+  }
+
+  it('changes the plan for the whole group and shows it', async () => {
+    show();
+    jest.mocked(swapGroupStop).mockResolvedValue(swapped);
+    await swapTapasToCasaPepe();
+
+    // Options are priced for the round's group
+    expect(swapOptions).toHaveBeenCalledWith(
+      expect.objectContaining({ stopIndex: 0, groupSize: 3 }),
+      expect.anything(),
+    );
+    expect(swapGroupStop).toHaveBeenCalledWith('token-1', 'g1', 'r1', 'p1', 0, 30);
+    expect(await screen.findByText('Casa Pepe and drinks')).toBeOnTheScreen();
+    expect(screen.getByText('Bowling night')).toBeOnTheScreen();
+  });
+
+  it('shows why the swap failed and reloads when the vote was closed meanwhile', async () => {
+    show();
+    jest.mocked(swapGroupStop).mockRejectedValue(new ApiError(409, 'The vote is closed.'));
+    await swapTapasToCasaPepe();
+
+    await waitFor(() => expect(listGroupPlans).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText('Casa Pepe and drinks')).toBeNull();
+  });
+
+  it('offers no swap once the vote is closed', async () => {
+    show(
+      'member',
+      results({ closedAt: '2026-11-20T21:00:00Z', votesCast: 3, winnerPlanIds: ['p2'] }),
+    );
+    await render(<GroupVoteScreen />);
+
+    expect(await screen.findByText('Bowling night')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Swap Teresa Carles' })).toBeNull();
   });
 });

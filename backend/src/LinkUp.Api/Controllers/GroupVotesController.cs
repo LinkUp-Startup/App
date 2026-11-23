@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using LinkUp.Api.Dtos;
+using LinkUp.Api.Planning;
 using LinkUp.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,7 +11,7 @@ namespace LinkUp.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/groups/{groupId:guid}/rounds/{roundId:guid}")]
-public sealed class GroupVotesController(IGroupVoteService votes) : ControllerBase
+public sealed class GroupVotesController(IGroupVoteService votes, IGroupPlanSwapService swaps) : ControllerBase
 {
     [HttpGet("votes")]
     [EndpointSummary("Where the vote stands")]
@@ -61,6 +62,52 @@ public sealed class GroupVotesController(IGroupVoteService votes) : ControllerBa
     {
         if (CurrentUserId() is not { } userId) return Unauthorized();
         return ToResponse(await votes.CloseAsync(userId, groupId, roundId, cancellationToken));
+    }
+
+    [HttpPut("plans/{planId:guid}/stops/{stopIndex:int:min(0)}")]
+    [EndpointSummary("Swap a stop in one of the round's plans")]
+    [EndpointDescription(
+        "While the vote is open, any member can replace one stop of a plan with a venue from the swap options " +
+        "for that stop (POST /api/plans/swap-options with the round's group size). The venue is checked against " +
+        "those options again here, so the plan follows the same rules as a generated one. Everyone sees the " +
+        "changed plan; votes for it stay. Returns the changed plan. 400 for a stop the plan doesn't have or a " +
+        "venue that is not an option, 404 when the round isn't found (as for the results) or the plan is not " +
+        "one of its plans, 409 once the vote is closed.")]
+    [ProducesResponseType<PlanDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<PlanDto>> SwapStop(
+        Guid groupId, Guid roundId, Guid planId, int stopIndex, SwapGroupStopRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (CurrentUserId() is not { } userId) return Unauthorized();
+        try
+        {
+            return await swaps.SwapStopAsync(
+                    userId, groupId, roundId, planId, stopIndex, request.VenueId, cancellationToken) switch
+            {
+                SwapStopResult.Swapped swapped => Ok(swapped.Plan),
+                SwapStopResult.PlanNotFound => Problem(
+                    statusCode: StatusCodes.Status404NotFound, title: "That plan is not one of this round's plans."),
+                SwapStopResult.AlreadyClosed => Problem(
+                    statusCode: StatusCodes.Status409Conflict, title: "The vote is closed."),
+                SwapStopResult.NotAnOption => InvalidSwap(
+                    nameof(request.VenueId), "That place is not an option for this stop any more."),
+                _ => RoundNotFound(),
+            };
+        }
+        catch (InvalidSwapException ex)
+        {
+            return InvalidSwap(ex.Field == nameof(SwapOptionsRequest.StopIndex) ? "stopIndex" : ex.Field, ex.Message);
+        }
+    }
+
+    private ActionResult InvalidSwap(string field, string message)
+    {
+        ModelState.AddModelError(field, message);
+        return ValidationProblem(ModelState);
     }
 
     private ActionResult<GroupVoteResultsDto> ToResponse(VoteResult result) => result switch

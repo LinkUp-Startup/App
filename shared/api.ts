@@ -1252,6 +1252,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/groups/{groupId}/rounds/{roundId}/plans/{planId}/stops/{stopIndex}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Swap a stop in one of the round's plans
+         * @description While the vote is open, any member can replace one stop of a plan with a venue from the swap options for that stop (POST /api/plans/swap-options with the round's group size). The venue is checked against those options again here, so the plan follows the same rules as a generated one. Everyone sees the changed plan; votes for it stay. Returns the changed plan. 400 for a stop the plan doesn't have or a venue that is not an option, 404 when the round isn't found (as for the results) or the plan is not one of its plans, 409 once the vote is closed.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    groupId: string;
+                    roundId: string;
+                    planId: string;
+                    stopIndex: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SwapGroupStopRequest"];
+                    "text/json": components["schemas"]["SwapGroupStopRequest"];
+                    "application/*+json": components["schemas"]["SwapGroupStopRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PlanDto"];
+                        "application/json": components["schemas"]["PlanDto"];
+                        "text/json": components["schemas"]["PlanDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -2444,6 +2540,10 @@ export interface components {
         };
         ShareLinkDto: {
             url: string;
+        };
+        SwapGroupStopRequest: {
+            /** Format: int32 */
+            venueId: number;
         };
         SwapOptionsRequest: {
             plan: components["schemas"]["PlanDto"];

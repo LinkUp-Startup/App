@@ -9,6 +9,8 @@ import type {
   GroupsResponse,
   GroupVoteResults,
   NightPreferences,
+  Plan,
+  SwapGroupStopRequest,
 } from '@/types/api';
 
 /* Groups need an account: every call needs the account's access token. */
@@ -145,4 +147,29 @@ export function generateGroupPlans(
     signal,
     timeoutMs: GeneratePlansTimeoutMs,
   });
+}
+
+/**
+ * Puts one of the swap options in place of a stop of a round's plan, while the vote is open. Everyone in the group
+ * sees the changed plan; the server checks the venue against the swap options again.
+ */
+export function swapGroupStop(
+  accessToken: string,
+  groupId: string,
+  roundId: string,
+  planId: string,
+  stopIndex: number,
+  venueId: number,
+  signal?: AbortSignal,
+) {
+  const body: SwapGroupStopRequest = { venueId };
+  return apiRequest<Plan>(
+    `${roundUrl(groupId, roundId)}/plans/${encodeURIComponent(planId)}/stops/${stopIndex}`,
+    {
+      method: 'PUT',
+      body,
+      headers: authorization(accessToken),
+      signal,
+    },
+  );
 }
