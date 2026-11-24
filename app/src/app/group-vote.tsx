@@ -1,9 +1,16 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ApiError } from '@/api/client';
-import { castVote, closeVote, getGroup, getVoteResults, listGroupPlans } from '@/api/groups';
+import {
+  castVote,
+  closeVote,
+  getGroup,
+  getVoteResults,
+  listGroupPlans,
+  swapGroupStop,
+} from '@/api/groups';
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { ErrorNote } from '@/components/error-note';
@@ -20,6 +27,7 @@ import { OutcomeCard } from '@/features/groups/outcome-card';
 import { standingOf, voteOutcome } from '@/features/groups/vote-outcome';
 import { decidedPlan } from '@/features/groups/winning-plan';
 import { PlanCard } from '@/features/plans/plan-card';
+import { SwapStopSheet, type SwapContext } from '@/features/plans/swap-stop';
 import type { Group, GroupPlanRound, GroupVoteResults, Plan } from '@/types/api';
 
 type Loaded = { group: Group; round?: GroupPlanRound; results?: GroupVoteResults };
@@ -29,7 +37,8 @@ type VoteTarget = { accessToken: string; groupId: string; roundId: string };
 
 /**
  * Members vote for one of the plans of the group's newest round (#175). Everyone sees how the vote stands and which
- * plan they voted for; the owner can close the vote.
+ * plan they voted for; the owner can close the vote. While the vote is open, any member can swap a stop in a plan;
+ * everyone then sees the changed plan.
  */
 export default function GroupVoteScreen() {
   const { groupId } = useLocalSearchParams<{ groupId?: string }>();
@@ -40,6 +49,11 @@ export default function GroupVoteScreen() {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string>();
   const [confirmingClose, setConfirmingClose] = useState(false);
+  // The plan and stop whose swap options are open
+  const [swapping, setSwapping] = useState<{ plan: Plan; index: number } | null>(null);
+  // Options are priced for the round's group; the round keeps no budget, so an option costs at most the stop
+  const roundGroupSize = loaded?.round?.groupSize;
+  const swapContext = useMemo<SwapContext>(() => ({ groupSize: roundGroupSize }), [roundGroupSize]);
 
   const load = useCallback(
     async (signal?: AbortSignal) => {
@@ -88,6 +102,34 @@ export default function GroupVoteScreen() {
         setConfirmingClose(false);
         await load();
       }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Puts the chosen option in place of the stop for the whole group, then shows the changed plan.
+  async function chooseSwap(plan: Plan, index: number, option: Plan) {
+    const round = loaded?.round;
+    setSwapping(null);
+    if (!accessToken || !groupId || !round) return;
+    setBusy(true);
+    setActionError(undefined);
+    try {
+      const venueId = Number(option.items[index].venue.id);
+      const changed = await swapGroupStop(accessToken, groupId, round.id, plan.id, index, venueId);
+      setLoaded(
+        (current) =>
+          current?.round && {
+            ...current,
+            round: {
+              ...current.round,
+              plans: current.round.plans.map((p) => (p.id === changed.id ? changed : p)),
+            },
+          },
+      );
+    } catch (caught) {
+      setActionError(describeGroupError(caught));
+      if (caught instanceof ApiError && caught.status === 409) await load();
     } finally {
       setBusy(false);
     }
@@ -182,6 +224,7 @@ export default function GroupVoteScreen() {
         <PlanCard
           key={plan.id}
           plan={plan}
+          onSwapStop={closed || busy ? undefined : (index) => setSwapping({ plan, index })}
           footer={
             <>
               <VoteFooter
@@ -238,6 +281,17 @@ export default function GroupVoteScreen() {
         icon="refresh"
         onPress={() => load()}
       />
+
+      {!closed && (
+        <SwapStopSheet
+          key={swapping ? `${swapping.plan.id}-${swapping.index}` : 'closed'}
+          plan={swapping?.plan ?? round.plans[0]}
+          stopIndex={swapping?.index ?? null}
+          context={swapContext}
+          onChoose={(option) => swapping && chooseSwap(swapping.plan, swapping.index, option)}
+          onClose={() => setSwapping(null)}
+        />
+      )}
     </Screen>
   );
 }

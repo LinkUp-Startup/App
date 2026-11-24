@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, View, type PressableProps } from 'react-native';
 
 import { Icon, type IconName } from '@/components/icon';
@@ -32,7 +31,7 @@ export function Button({
 }: ButtonProps) {
   const theme = useTheme();
   const primary = variant === 'primary';
-  const labelColor = primary ? 'onTint' : destructive ? 'danger' : 'text';
+  const labelColor = primary ? 'onTint' : destructive ? 'danger' : 'highlight';
 
   return (
     <Pressable
@@ -43,23 +42,19 @@ export function Button({
       style={(state) => [
         styles.button,
         size === 'large' && styles.large,
+        // Like the website's buttons: a coral pill, and an outlined one for the second choice.
         primary
-          ? { shadowColor: theme.tint, ...styles.glow }
-          : { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1 },
+          ? { backgroundColor: theme.tint }
+          : {
+              borderColor: destructive ? theme.danger : theme.outline,
+              borderWidth: 2,
+            },
         {
           opacity: disabled ? 0.5 : state.pressed ? 0.8 : 1,
         },
         typeof style === 'function' ? style(state) : style,
       ]}
       {...rest}>
-      {primary && (
-        <LinearGradient
-          colors={[theme.tint, theme.tintBright]}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
-          style={StyleSheet.absoluteFill}
-        />
-      )}
       <View style={styles.content}>
         {icon && <Icon name={icon} size={size === 'large' ? 22 : 20} color={labelColor} />}
         <ThemedText
@@ -77,7 +72,7 @@ export function Button({
 const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
-    borderRadius: Radius.md,
+    borderRadius: Radius.full,
     justifyContent: 'center',
     minHeight: MinTapTarget,
     overflow: 'hidden',
@@ -94,12 +89,5 @@ const styles = StyleSheet.create({
   label: {
     flexShrink: 1,
     textAlign: 'center',
-  },
-  // Luminous glow instead of an opaque drop shadow.
-  glow: {
-    elevation: 4,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
   },
 });

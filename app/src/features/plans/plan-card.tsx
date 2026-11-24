@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Card } from '@/components/card';
@@ -30,13 +29,8 @@ export function PlanCard({ plan, footer, onSwapStop }: PlanCardProps) {
 
   return (
     <Card style={styles.card}>
-      {/* A thin gradient across the top of the card, purple to cyan and back. */}
-      <LinearGradient
-        colors={[theme.tintBright, theme.accent, theme.tint]}
-        start={{ x: 0, y: 0.5 }}
-        end={{ x: 1, y: 0.5 }}
-        style={styles.accent}
-      />
+      {/* A coral edge across the top, like the tickets on the website. */}
+      <View style={[styles.accent, { backgroundColor: theme.tint }]} />
       <View style={styles.header}>
         <ThemedText type="subtitle" accessibilityRole="header">
           {plan.title}

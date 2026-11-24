@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     width: 22,
   },
   tick: {
-    fontFamily: FontFamily.headline,
+    fontFamily: FontFamily.headlineSemi,
     fontSize: 14,
     lineHeight: 18,
   },

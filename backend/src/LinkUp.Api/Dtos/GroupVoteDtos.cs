@@ -25,3 +25,8 @@ public sealed record GroupVoteResultsDto(
     // One plan is the winner; several are a tie. Empty before that, and when nobody voted. Until the owner closes
     // the vote, members can still change theirs, so this can still change.
     IReadOnlyList<Guid> WinnerPlanIds);
+
+/// <summary>The venue to put in place of a stop: one of the swap options for that stop.</summary>
+public sealed record SwapGroupStopRequest(
+    // The venue's id as in the swap options. Required so a request that leaves it out gets a 400.
+    [property: JsonRequired] int VenueId);

@@ -1,51 +1,65 @@
 import { Platform } from 'react-native';
 
 /**
- * "Nocturne Kinetic" design tokens, see docs/design/nocturne_kinetic/DESIGN.md.
- * Dark is the default theme; light is the daytime alternative.
+ * The website's palette (web/src/app/globals.css): a gig poster for a night out. Wine for the night, coral for the
+ * main action, butter for tickets and highlights, blush for text. Dark is the default; light is the daytime
+ * version of the same palette, on cream.
  */
+export const Palette = {
+  wine: '#2B0D1E',
+  /** The app's night background: the website's wine, a step darker so a phone screen at night isn't bright. */
+  night: '#1C0712',
+  plum: '#2C0D1F',
+  plumLight: '#3D162D',
+  butter: '#FFE7A3',
+  coral: '#FF6B5B',
+  blush: '#F6E3EA',
+  mauve: '#C79AAE',
+  cream: '#FFF8EC',
+} as const;
+
 export const Colors = {
   light: {
-    text: '#121316',
-    background: '#FFFFFF',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
-    /** Primary vivid purple: primary actions, selected chips, active routes. */
-    tint: '#6C3CE1',
-    /** Lighter end of the primary gradient. */
-    tintBright: '#8B63F0',
+    text: Palette.wine,
+    background: Palette.cream,
+    backgroundElement: '#FFFFFF',
+    backgroundSelected: Palette.butter,
+    textSecondary: '#76485D',
+    /** Main actions, selected chips, active tabs: coral, darkened for contrast on cream. */
+    tint: '#C93A2E',
+    /** Kept for the few places that pair two tints; the same coral. */
+    tintBright: '#C93A2E',
     /** Text and icons drawn on top of `tint`. */
-    onTint: '#FFFFFF',
-    /** Electric cyan, darkened for contrast on white: live status, waypoints. */
-    accent: '#00868F',
-    /** Electric amber, darkened for contrast on white: perks, rewards, peak hours. */
-    highlight: '#B07800',
-    /** Crisp 1px stroke around cards and fields. */
-    border: 'rgba(0, 0, 0, 0.06)',
-    /** Subtle inset fill for inputs and steppers. */
-    inputFill: 'rgba(0, 0, 0, 0.04)',
-    /** Frosted surface for floating sheets and pills. */
-    glass: 'rgba(255, 255, 255, 0.85)',
-    danger: '#D93036',
-    success: '#2B9A66',
+    onTint: Palette.cream,
+    /** Live status and waypoints: plum. */
+    accent: '#8E2C4E',
+    /** Tickets, dates, rewards: a dark butter that reads on cream. */
+    highlight: '#8A5A00',
+    border: 'rgba(43, 13, 30, 0.12)',
+    inputFill: 'rgba(43, 13, 30, 0.05)',
+    glass: 'rgba(255, 248, 236, 0.94)',
+    /** Outline of a second-choice button. */
+    outline: 'rgba(138, 90, 0, 0.5)',
+    danger: '#C8283B',
+    success: '#1F7A4A',
   },
   dark: {
-    text: '#FFFFFF',
-    background: '#0F0F12',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
-    tint: '#9B7BFF',
-    tintBright: '#B9A5FF',
-    onTint: '#0B061A',
-    accent: '#00F0FF',
-    highlight: '#FFB300',
-    border: 'rgba(255, 255, 255, 0.08)',
-    inputFill: 'rgba(255, 255, 255, 0.05)',
-    glass: 'rgba(33, 34, 37, 0.85)',
-    danger: '#FF6369',
-    success: '#3DD68C',
+    text: Palette.blush,
+    background: Palette.night,
+    backgroundElement: Palette.plum,
+    backgroundSelected: Palette.plumLight,
+    textSecondary: Palette.mauve,
+    tint: Palette.coral,
+    tintBright: Palette.coral,
+    onTint: Palette.wine,
+    accent: Palette.butter,
+    highlight: Palette.butter,
+    border: 'rgba(246, 227, 234, 0.14)',
+    inputFill: 'rgba(246, 227, 234, 0.06)',
+    glass: 'rgba(44, 13, 31, 0.94)',
+    outline: 'rgba(255, 231, 163, 0.6)',
+    danger: '#FF8FA3',
+    success: '#A8E6B8',
   },
 } as const;
 
@@ -71,30 +85,46 @@ export const Fonts = Platform.select({
 });
 
 /**
- * Font family names as registered by `useFonts` in the root layout. React Native picks a weight by
- * family, so each weight is its own name and `fontWeight` must not be set alongside it.
+ * Font family names as registered by `useFonts` in the root layout, the website's fonts: Big Shoulders (tall poster
+ * capitals) for titles and figures, Figtree for text. React Native picks a weight by family, so each weight is its
+ * own name and `fontWeight` must not be set alongside it.
  */
 export const FontFamily = {
-  headline: 'PlusJakartaSans_700Bold',
-  headlineSemi: 'PlusJakartaSans_600SemiBold',
-  display: 'PlusJakartaSans_800ExtraBold',
-  body: 'Inter_400Regular',
-  bodyMedium: 'Inter_500Medium',
-  bodySemi: 'Inter_600SemiBold',
+  display: 'BigShoulders_900Black',
+  headline: 'BigShoulders_800ExtraBold',
+  headlineSemi: 'Figtree_700Bold',
+  body: 'Figtree_400Regular',
+  bodyMedium: 'Figtree_500Medium',
+  bodySemi: 'Figtree_600SemiBold',
 } as const;
 
-/** Type scale from the design system (mobile sizes). */
+/** Type scale (mobile sizes). Titles are poster capitals, like the website's headings. */
 export const Type = {
-  display: { fontFamily: FontFamily.display, fontSize: 34, lineHeight: 42 },
-  headlineLg: { fontFamily: FontFamily.headline, fontSize: 26, lineHeight: 34 },
-  headlineMd: { fontFamily: FontFamily.headline, fontSize: 22, lineHeight: 28 },
+  display: {
+    fontFamily: FontFamily.display,
+    fontSize: 48,
+    lineHeight: 46,
+    textTransform: 'uppercase',
+  },
+  headlineLg: {
+    fontFamily: FontFamily.display,
+    fontSize: 30,
+    lineHeight: 30,
+    textTransform: 'uppercase',
+  },
+  headlineMd: {
+    fontFamily: FontFamily.display,
+    fontSize: 24,
+    lineHeight: 26,
+    textTransform: 'uppercase',
+  },
   headlineSm: { fontFamily: FontFamily.headlineSemi, fontSize: 18, lineHeight: 24 },
-  bodyLg: { fontFamily: FontFamily.bodyMedium, fontSize: 16, lineHeight: 24 },
-  bodyMd: { fontFamily: FontFamily.bodyMedium, fontSize: 14, lineHeight: 20 },
+  bodyLg: { fontFamily: FontFamily.body, fontSize: 16, lineHeight: 24 },
+  bodyMd: { fontFamily: FontFamily.body, fontSize: 14, lineHeight: 20 },
   bodySm: { fontFamily: FontFamily.body, fontSize: 12, lineHeight: 16 },
-  labelLg: { fontFamily: FontFamily.headlineSemi, fontSize: 14, lineHeight: 20 },
-  labelMd: { fontFamily: FontFamily.headlineSemi, fontSize: 12, lineHeight: 16 },
-  labelSm: { fontFamily: FontFamily.headline, fontSize: 10, lineHeight: 14 },
+  labelLg: { fontFamily: FontFamily.headlineSemi, fontSize: 15, lineHeight: 20 },
+  labelMd: { fontFamily: FontFamily.bodySemi, fontSize: 12, lineHeight: 16 },
+  labelSm: { fontFamily: FontFamily.headlineSemi, fontSize: 10, lineHeight: 14 },
 } as const;
 
 /** Corner radii from the design system. */
